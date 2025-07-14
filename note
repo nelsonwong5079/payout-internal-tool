@@ -1,0 +1,679 @@
+import base64
+from email.mime.multipart import MIMEMultipart
+import hmac
+import os
+import csv
+from tkinter import Tk, filedialog
+import smtplib, ssl
+from email.message import EmailMessage
+from email.mime.base import MIMEBase
+from email import encoders
+import time
+import requests
+import pyzipper
+import json
+import hmac
+import hashlib
+import requests
+
+API_CALL_DELAY = 15
+
+#beta_V1
+original_zip_file_path = None
+def search_transaction_id(csv_file_path, transaction_id):
+    # Check if the file exists
+    if os.path.exists(csv_file_path):
+        # Open and read the CSV file
+        with open(csv_file_path, 'r', newline="", encoding="utf-8") as csvfile:
+            csv_reader = csv.DictReader(csvfile, delimiter=',')
+
+            # Check if 'Transaction ID' or 'Publisher Transaction ID' are among the headers
+            if 'Transaction ID' not in csv_reader.fieldnames and 'Publisher Transaction ID' not in csv_reader.fieldnames:
+                print("Transaction ID or Publisher Transaction ID not found in headers")
+                return None
+
+            # Search for the Transaction ID in the CSV file
+            rows = list(csv_reader)
+            for i, row in enumerate(rows):
+                if ('Transaction ID' in row and row['Transaction ID'] == transaction_id) or \
+                   ('Publisher Transaction ID' in row and row['Publisher Transaction ID'] == transaction_id):
+                    return rows, i
+    return None, None
+
+def is_valid_amount(amount):
+    try:
+        # Convert the input to a float and check if it has at most two decimal places
+        amount_float = float(amount)
+        return amount_float == round(amount_float, 2)
+    except ValueError:
+        return False
+
+def is_valid_currency(currency):
+    # Check if the input consists of alphabetic characters only
+    return currency.isalpha()
+
+def update_row(row, target_amount, target_currency, payout_status):
+    row['Target Amount'] = target_amount
+    row['Processed Amount'] = target_amount  # Automatically fill Processed Amount with Target Amount
+    row['Target Currency'] = target_currency.upper()
+    row['Processed Currency'] = target_currency.upper()  # Automatically fill Processed Currency with Target Currency
+    row['Payout Status'] = payout_status
+
+def save_csv_file(csv_file_path, rows):
+    # Save the updated rows to the CSV file
+    with open(csv_file_path, 'w', newline="", encoding="utf-8") as csvfile:
+        csv_writer = csv.DictWriter(csvfile, fieldnames=rows[0].keys(), delimiter=',')
+        csv_writer.writeheader()
+        csv_writer.writerows(rows)
+
+def zip_csv_file(csv_file_path, zip_folder_path, zip_file_name, password, decision=None):
+    if decision == '1':
+        zip_file_path = os.path.join(zip_folder_path, f"BALANCE_{zip_file_name}.zip")
+    else:
+        zip_file_path = os.path.join(zip_folder_path, f"{zip_file_name}.zip")
+
+    with pyzipper.AESZipFile(zip_file_path, 'w', compression=pyzipper.ZIP_DEFLATED, encryption=pyzipper.WZ_AES) as zf:
+        zf.setpassword(password.encode('utf-8'))
+        zf.write(csv_file_path, os.path.basename(csv_file_path))
+
+    return zip_file_path
+
+def generate_approved_version(rows, approved_file_path, transaction_id_to_find):
+    # Create a copy of the rows with Payout Status set to 'APPROVED' for the specific transaction ID
+    approved_rows = []
+    for row in rows:
+        approved_row = row.copy()
+        if (approved_row['Transaction ID'] == transaction_id_to_find) or \
+           ('Publisher Transaction ID' in approved_row and approved_row['Publisher Transaction ID'] == transaction_id_to_find):
+            approved_row['Payout Status'] = 'APPROVED'
+        approved_rows.append(approved_row)
+
+    # Save the approved rows to a new CSV file
+    save_csv_file(approved_file_path, approved_rows)
+    
+def generate_rejected_version(rows, approved_file_path, transaction_id_to_find):
+    # Create a copy of the rows with Payout Status set to 'REJECTED' for the specific transaction ID
+    approved_rows = []
+    for row in rows:
+        approved_row = row.copy()
+        if (approved_row['Transaction ID'] == transaction_id_to_find) or \
+           ('Publisher Transaction ID' in approved_row and approved_row['Publisher Transaction ID'] == transaction_id_to_find):
+            approved_row['Payout Status'] = 'REJECTED'
+        approved_rows.append(approved_row)
+
+    # Save the approved rows to a new CSV file
+    save_csv_file(approved_file_path, approved_rows)
+
+def send_email_with_attachment(recipient_email, approved_zip_path):
+    # Email settings
+    sender_email = "nelson.wong@codapayments.com"
+    sender_password = "svdz vnpd pwzs jqre"  # Update this with your app password
+
+    # Create the email message
+    msg = EmailMessage()
+    msg['From'] = sender_email
+    msg['To'] = f"{recipient_email}, codapay_integration@codapayments.com"
+    # msg['To'] = f"{recipient_email}, nelson.wong@codapayments.com"
+    # msg['To'] = recipient_email
+    msg['Subject'] = "Sandbox Txn Status Update"
+    
+    # Add message to the email body
+    msg.set_content("This email is sent by PS Team Internal Tools. If you have any concerns, please contact Nelson via Slack, or Email to nelson.wong@codapayments.com.")
+
+    # Attach the file
+    try:
+        with open(approved_zip_path, 'rb') as attachment:
+            msg.add_attachment(
+                attachment.read(),
+                maintype='application',
+                subtype='octet-stream',
+                filename=os.path.basename(approved_zip_path)
+            )
+    except IOError as e:
+        print(f"Error attaching file: {e}")
+        return False
+
+    # Inform the user about the email sending process
+    print("\n*** THE BACKEND PROCESS HAS STARTED. ***")
+    print("FOR SAFETY, THIS MAY TAKE 40 SECONDS TO COMPLETE.")
+    print("\nPLEASE WAIT AND DO NOT CLOSE THE PROGRAM.")
+    print("EMAIL IS BEING SENT...\n")
+
+
+    # Connect to the server and send the email
+    try:
+        port = 587  # For starttls
+        smtp_server = "smtp.gmail.com"
+        context = ssl.create_default_context()
+
+        with smtplib.SMTP(smtp_server, port) as server:
+            server.ehlo()  # Can be omitted
+            server.starttls(context=context)
+            server.ehlo()  # Can be omitted
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        print(f"Email sent to {recipient_email} with attachment {approved_zip_path}")
+        
+        # Wait for 5 seconds before calling the API
+        time.sleep(API_CALL_DELAY)
+        call_api_after_email()
+        
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"SMTP Authentication Error: {e}")
+    except smtplib.SMTPException as e:
+        print(f"SMTP Exception: {e}")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        
+    return False
+
+
+
+def sandbox_update():
+    global original_zip_file_path
+    
+    # Hide the root Tkinter window
+    Tk().withdraw()
+
+    # Message to prompt the user to select the CSV file
+    print("\033[1;35;1m" + "Please Select The File You Wish to Update")
+
+
+    # Open a file dialog to choose the file
+    file_path = filedialog.askopenfilename(
+        title="Select File",
+        filetypes=(("CSV files", "*.csv"), ("ZIP files", "*.zip"), ("All files", "*.*"))
+    )
+    if not file_path:
+        print("No file selected. Exiting.")
+        return
+    
+
+   # Check if the selected file is a ZIP file
+    if file_path.lower().endswith('.zip'):
+        # Unzip the file
+        unzip_path = os.path.dirname(file_path)
+        try:
+            with pyzipper.AESZipFile(file_path, 'r', encryption=pyzipper.WZ_AES) as zip_ref:
+                zip_ref.extractall(unzip_path, pwd=b'P@ssw0rd')
+            # Assume there's only one CSV file in the ZIP
+            csv_file_path = [name for name in zip_ref.namelist() if name.endswith('.csv')][0]
+            csv_file_path = os.path.join(unzip_path, csv_file_path)
+        except RuntimeError as e:
+            print(f"Error extracting ZIP file: {e}")
+            return
+    else:
+        # Use the selected CSV file path directly
+        csv_file_path = file_path
+        
+
+    modified_rows = []  # To store the rows that have been modified
+    transaction_id_to_find = None  # To store the selected transaction ID
+
+    # Ask user to choose wallet or bank transfer
+    while True:
+        transaction_type = input("Choose transaction type:\n1. Wallet\n2. Bank Transfer\nEnter your choice (1 or 2): ").strip()
+
+        if transaction_type == '1':
+            transaction_suffix = '_WALLET'
+            break
+        elif transaction_type == '2':
+            transaction_suffix = '_BANK_TRANSFER'
+            break
+        else:
+            print("Invalid choice. Please enter '1' or '2'.")
+
+    while True:
+        # Prompt user for Transaction ID
+        transaction_id_to_find = input("Enter Transaction ID (or type 'exit' to quit): ").strip()
+
+        if transaction_id_to_find.lower() == 'exit':
+            print("Exiting program.")
+            return  # Exit the program if the user enters 'exit'
+
+        # Search for the Transaction ID in the CSV file
+        rows, index = search_transaction_id(csv_file_path, transaction_id_to_find)
+
+        # Display the result
+        if rows is not None and index is not None:
+            # Display the existing values of "Input Amount" and "Input Currency"
+            print(f"Existing values:\n- Input Amount: {rows[index]['Input Amount']}\n- Input Currency: {rows[index]['Input Currency']}")
+
+            # Prompt user for 'Target Amount' with validation
+            while True:
+                target_amount = input(f"Enter value for 'Target Amount' for Transaction ID {transaction_id_to_find} (or type 'exit' to quit): ").strip()
+                if target_amount.lower() == 'exit':
+                    print("Exiting program.")
+                    return  # Exit the program if the user enters 'exit'
+                if is_valid_amount(target_amount):
+                    break
+                else:
+                    print("Invalid input. Please enter a number with at most two decimal places.")
+
+            # Prompt user for 'Target Currency' with validation
+            while True:
+                target_currency = input(f"Enter value for 'Target Currency' for Transaction ID {transaction_id_to_find} (or type 'exit' to quit): ").strip()
+                if target_currency.lower() == 'exit':
+                    print("Exiting program.")
+                    return  # Exit the program if the user enters 'exit'
+                if is_valid_currency(target_currency):
+                    break
+                else:
+                    print("Invalid input. Please enter alphabetic characters only.")
+
+            # Prompt user for 'Payout Status'
+            while True:
+                payout_status_input = input(f"Enter 'Payout Status' for Transaction ID {transaction_id_to_find} (1 for SUCCESS, 2 for FAILED, 3 for PROCESSING, 4 for REJECTED) (or type 'exit' to quit): ").strip()
+                if payout_status_input.lower() == 'exit':
+                    print("Exiting program.")
+                    return  # Exit the program if the user enters 'exit'
+                elif payout_status_input == '1':
+                    payout_status = 'SUCCESS'
+                    break
+                elif payout_status_input == '2':
+                    payout_status = 'FAILED'
+                    break
+                elif payout_status_input == '3':
+                    payout_status = 'PROCESSING'
+                    break
+                elif payout_status_input == '4':
+                    payout_status = 'REJECTED'
+                    break
+                else:
+                    print("Invalid input. Please enter '1', '2','3' or 4.")
+
+            # Update the row with the new values
+            update_row(rows[index], target_amount, target_currency, payout_status)
+
+            # Add the modified row to the list
+            modified_rows.append(rows[index])
+
+            # Ask the user if they want to continue
+            while True:
+                continue_search = input("Do you want to continue searching for other Transaction IDs? (yes/no) (or type 'exit' to quit): ").strip().lower()
+                if continue_search == 'exit':
+                    print("Exiting program.")
+                    return  # Exit the program if the user enters 'exit'
+                elif continue_search == 'yes' or continue_search == 'no':
+                    break
+                else:
+                    print("Invalid input. Please enter 'yes', 'no', or 'exit'.")
+
+            if continue_search == 'no':
+                break  # Exit the loop if the user does not want to continue
+        else:
+            print("Transaction ID entered not found. Please search again.")
+
+    if modified_rows:
+        # Save the updated CSV file
+        save_csv_file(csv_file_path, modified_rows)
+
+        print("Updated rows have been saved to the CSV file.")
+
+        # # Ask the user if they want to remove unmodified rows
+        # while True:
+        #     remove_unmodified = input("Do you want to remove unmodified rows? (yes/no) (or type 'exit' to quit): ").strip().lower()
+        #     if remove_unmodified == 'exit':
+        #         print("Exiting program.")
+        #         return  # Exit the program if the user enters 'exit'
+        #     elif remove_unmodified == 'yes' or remove_unmodified == 'no':
+        #         break
+        #     else:
+        #         print("Invalid input. Please enter 'yes', 'no', or 'exit'.")
+
+        # if remove_unmodified == 'no':
+        #     unmodified_rows = [row for row in rows if row not in modified_rows]
+        #     save_csv_file(csv_file_path, unmodified_rows)
+        #     print("Unmodified rows have been removed from the CSV file.")
+
+        zip_file_name = input("Enter desired zip file name (e.g., MyData) (or type 'exit' to quit): ").strip()
+        if zip_file_name.lower() == 'exit':
+            print("Exiting program.")
+            return  # Exit the program if the user enters 'exit'
+
+        # Append the chosen suffix based on transaction type
+        zip_file_name += transaction_suffix
+
+        print("\033[1;35;1m" + "Please select the folder to save the result CSV file.")
+
+        # Open a file dialog to choose the destination folder
+        zip_folder_path = filedialog.askdirectory(
+            title="Select destination folder"
+        )
+
+        if not zip_folder_path:
+            print("No destination folder selected. Exiting.")
+            return
+
+        # Zip the CSV file with a password
+        zip_password = "P@ssw0rd"
+        original_zip_file_path = zip_csv_file(csv_file_path, zip_folder_path, zip_file_name, zip_password)
+
+        print(f"CSV file has been zipped to {original_zip_file_path}")
+
+        # Generate a second CSV with 'APPROVED' payout status for the selected transaction ID
+        approved_file_path = os.path.join(os.path.dirname(csv_file_path), "approved.csv")
+        if payout_status == 'REJECTED':
+            generate_rejected_version(modified_rows, approved_file_path, transaction_id_to_find)
+        else: 
+            generate_approved_version(modified_rows, approved_file_path, transaction_id_to_find)
+
+        # Append the chosen suffix based on transaction type
+        approved_zip_file_name = f"approved_{zip_file_name}"
+
+        # Zip the approved CSV file with a password
+        approved_zip_path = zip_csv_file(approved_file_path, zip_folder_path, approved_zip_file_name, zip_password)
+
+        print(f"CSV file with 'APPROVED' status has been zipped to {approved_zip_path}")
+
+        # Send the approved zip file via email
+        # send_email_with_attachment("nelson.wong@codapayments.com", approved_zip_path) 
+        send_email_with_attachment("payout-qa-internal@codapayments.com", approved_zip_path)
+        # // + team email
+    else:
+        print("No rows were modified. Exiting.")
+
+
+def report_bug():
+    # Email settings
+    sender_email = "nelson.wong@codapayments.com"
+    sender_password = "svdz vnpd pwzs jqre"  # Update this with your app password
+
+    # Prompt user for bug details
+    bug_details = input("Enter the details of the problem/bug you want to report:\n").strip()
+
+    # Prompt user for email subject
+    email_subject = input("Enter the email subject:\n").strip()
+
+    # Create the email message
+    msg = EmailMessage()
+    msg['From'] = sender_email
+    msg['To'] = sender_email
+    msg['Subject'] = email_subject
+    
+    # Add message to the email body
+    msg.set_content(bug_details)
+
+    # Inform the user about the email sending process
+    print("\033[1;31mPlease wait... Sending email to report the bug.\033[0m")
+
+
+    # Connect to the server and send the email
+    try:
+        port = 587  # For starttls
+        smtp_server = "smtp.gmail.com"
+        context = ssl.create_default_context()
+
+        with smtplib.SMTP(smtp_server, port) as server:
+            server.ehlo()  # Can be omitted
+            server.starttls(context=context)
+            server.ehlo()  # Can be omitted
+            server.login(sender_email, sender_password)
+            server.send_message(msg)
+        print(f"Bug report email sent successfully to {sender_email}")
+        return True
+    except smtplib.SMTPAuthenticationError as e:
+        print(f"SMTP Authentication Error: {e}")
+    except smtplib.SMTPException as e:
+        print(f"SMTP Exception: {e}")
+    except Exception as e:
+        print(f"Error sending email: {e}")
+
+    return False
+
+
+def call_api_after_email():
+    global original_zip_file_path
+    api_url = 'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email'
+    try:
+        response = requests.post(api_url)
+        if response.status_code == 204:
+            print("API call after email sent successfully.")
+            # Return True to indicate successful API call
+            return True
+        else:
+            print(f"API call failed with status code: {response.status_code}")
+            # Return False or raise an exception if needed
+            return False
+    except requests.RequestException as e:
+        print(f"Error calling API: {e}")
+        # Return False or handle the exception as needed
+        return False
+    
+def check_vpn_connection():
+    api_url = 'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email'
+    
+    try:
+        response = requests.post(api_url)
+        if response.status_code == 204:
+            print("\033[1;32mVPN connection is active.\033[0m")
+            return True
+        else:
+            print("\033[1;31mPlease connect to VPN before using this application.\033[0m")
+            return False
+    except requests.RequestException:
+        print("\033[1;31mPlease connect to VPN before using this application.\033[0m")
+        return False
+
+def wait_for_vpn():
+    if check_vpn_connection():
+        return
+    while True:
+        print("Please connect to VPN and enter 1 to recheck connection:")
+        choice = input("Enter your choice (1 to recheck VPN connection): ").strip()
+        if choice == '1':
+            if check_vpn_connection():
+                break
+        else:
+            print("Invalid choice. Please enter '1' to recheck VPN connection.")
+
+def check_balance_production():
+     # Prompt the user for necessary details
+    secret = input("Enter your SECRET: ").strip()
+    partner_id = input("Enter your PARTNER_ID: ").strip()
+    api_key = input("Enter your API Key: ").strip()
+    
+    # Generate JWT
+    token = generate_jwt(secret, partner_id)
+    
+    # API endpoint
+    api_url = 'https://payout.codapayments.com/balance'
+    
+    # Prepare headers with Bearer token
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+        'X-API-Key': api_key
+    }
+    
+    try:
+        # Make GET request to the API
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        
+        # Print the response in a formatted way
+        print("API Response:")
+        response_data = response.json()
+        print(json.dumps(response_data, indent=4, sort_keys=True))
+        
+    except requests.RequestException as e:
+        print(f"Error calling API: {e}")
+
+def check_balance_sandbox():
+     # Prompt the user for necessary details
+    secret = input("Enter your SECRET: ").strip()
+    partner_id = input("Enter your PARTNER_ID: ").strip()
+    api_key = input("Enter your API Key: ").strip()
+    
+    # Generate JWT
+    token = generate_jwt(secret, partner_id)
+    
+    # API endpoint
+    api_url = 'https://payout.codapayments-staging.com/balance'
+    
+    # Prepare headers with Bearer token
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+        'X-API-Key': api_key
+    }
+    
+    try:
+        # Make GET request to the API
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        
+        # Print the response in a formatted way
+        print("API Response:")
+        response_data = response.json()
+        print(json.dumps(response_data, indent=4, sort_keys=True))
+        
+    except requests.RequestException as e:
+        print(f"Error calling API: {e}")
+
+
+def base64_url_encode(data):
+    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
+
+def generate_jwt(secret, partner_id):
+    header = {
+        "alg": "HS256",
+        "typ": "JWT"
+    }
+    payload = {
+        "partner_id": partner_id,
+        "iat": int(time.time())
+    }
+    
+    header_encoded = base64_url_encode(json.dumps(header).encode('utf-8'))
+    payload_encoded = base64_url_encode(json.dumps(payload).encode('utf-8'))
+    
+    signature_data = f"{header_encoded}.{payload_encoded}"
+    signature = hmac.new(secret.encode('utf-8'), signature_data.encode('utf-8'), hashlib.sha256).digest()
+    signature_encoded = base64_url_encode(signature)
+    
+    return f"{header_encoded}.{payload_encoded}.{signature_encoded}"
+
+        
+def balance_update():
+    # Prompt the user for necessary details
+    secret = input("Enter your SECRET: ").strip()
+    partner_id = input("Enter your PARTNER_ID: ").strip()
+    api_key = input("Enter your API Key: ").strip()
+    # Prompt for currencies
+   
+    
+    
+    # Generate JWT
+    token = generate_jwt(secret, partner_id)
+    
+    # API endpoint
+    api_url = 'https://payout.codapayments-staging.com/balance'
+    
+    # Prepare headers with Bearer token
+    headers = {
+        'Authorization': f'Bearer {token}',
+        'Content-Type': 'application/json',
+        'X-API-Key': api_key
+    }
+    
+    try:
+        # Make GET request to the API
+        response = requests.get(api_url, headers=headers)
+        response.raise_for_status()
+        
+        response_data = response.json()
+        current_balance = float(response_data["balance"])
+        
+        # Print the response in a formatted way
+        print("API Response:")
+        response_data = response.json()
+        print(json.dumps(response_data, indent=4, sort_keys=True))
+        
+        # Ask the user for the desired payout balance
+        user_input_value = float(input("Enter the Balance Value: ").strip())
+        balance_currency = input("Enter the Currency (e.g., USD): ").strip() #Use for Credit Currency as well
+        credit_limit = input("Enter the Credit Limit: ").strip() 
+        
+       # Determine the sign for the payout balance and format it as a string without decimal places
+        if user_input_value < current_balance:
+            payout_balance_str = f"-{int(current_balance - user_input_value)}"
+        else:
+            payout_balance_str = f"+{int(user_input_value - current_balance)}"
+        
+        # Initialize Tkinter and hide the main window
+        root = Tk()
+        root.withdraw()
+        
+        # Define the file name and prompt the user to select the directory
+        file_name = f"BALANCE_{partner_id}.csv"
+        file_path = filedialog.asksaveasfilename(
+            initialfile=file_name,
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
+            title="Save CSV File As"
+        )
+        
+        if not file_path:
+            print("No file selected. Exiting.")
+            return
+        
+        # Define the header and row values
+        headers = ['Publisher ID', 'Publisher', 'Payout Balance', 'Balance Currency', 'Credit Limit', 'Credit Currency']
+        row = [partner_id, 'Publisher A', payout_balance_str, balance_currency, credit_limit, balance_currency]
+        
+        # Write to the CSV file
+        with open(file_path, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(headers)
+            writer.writerow(row)
+        
+        print(f'{file_path} has been created successfully.')
+        
+        # Zip the CSV file with password protection
+        zip_file_path = zip_csv_file(file_path, os.path.dirname(file_path), partner_id, "P@ssw0rd", '1')
+    
+        send_email_with_attachment("payout-qa-internal@codapayments.com", zip_file_path)
+        
+    except requests.RequestException as e:
+        print(f"Error calling API: {e}")
+        
+    
+    
+        
+        
+def main():
+    wait_for_vpn()
+    
+    print("\033[1;35;1m" + "Menu:")
+    print("1. Sandbox Update")
+    print("2. Sandbox - Balance Update")
+    print("3. Sandbox - Check Balance")
+    print("4. Production - Check Balance")
+    print("5. Report Bug")
+    
+    choice = input("Enter your choice: ").strip()
+    
+    if choice == "1":
+        sandbox_update()
+        # After sandbox update, call the API
+        success = call_api_after_email()
+        if success:
+            # Wait for 5 seconds before sending the next email
+            time.sleep(API_CALL_DELAY)
+            # send_email_with_attachment("nelson.wong@codapayments.com", original_zip_file_path)
+            send_email_with_attachment("payout-qa-internal@codapayments.com", original_zip_file_path)
+    elif choice == "2":
+        balance_update()
+    elif choice == "3":
+        check_balance_sandbox()
+    elif choice == "4":
+        check_balance_production()
+    elif choice == "5":
+        report_bug()
+    else:
+        print("Invalid choice. Exiting.")
+
+if __name__ == "__main__":
+    main()
