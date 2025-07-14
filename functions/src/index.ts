@@ -26,26 +26,60 @@ import * as logger from "firebase-functions/logger";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
+// Debug helper function
+function debugLog(message: string, data?: any) {
+  logger.info(`[DEBUG] ${message}`, {
+    structuredData: true,
+    debugData: data,
+  });
+}
+
 // Simple send-email API that returns "hello"
 export const sendEmail = onRequest((request, response) => {
-  logger.info("Send email API called", {structuredData: true});
+  // BREAKPOINT 1: Function entry point
+  debugLog("=== SEND EMAIL API CALLED ===");
+  
+  // BREAKPOINT 2: Request details
+  const requestInfo = {
+    method: request.method,
+    url: request.url,
+    headers: request.headers,
+    body: request.body,
+    query: request.query,
+  };
+  debugLog("Request details", requestInfo);
 
-  // Set CORS headers to allow cross-origin requests
+  // BREAKPOINT 3: CORS setup
+  debugLog("Setting CORS headers");
   response.set("Access-Control-Allow-Origin", "*");
   response.set("Access-Control-Allow-Methods", "GET, POST");
   response.set("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight requests
+  // BREAKPOINT 4: Preflight handling
   if (request.method === "OPTIONS") {
+    debugLog("Handling OPTIONS preflight request");
     response.status(204).send("");
     return;
   }
 
-  // Return "hello" as requested
-  response.status(200).json({
+  // BREAKPOINT 5: Response preparation
+  debugLog("Preparing response");
+  const responseData = {
     message: "hello",
     timestamp: new Date().toISOString(),
-  });
+    debug: {
+      requestMethod: request.method,
+      requestUrl: request.url,
+      userAgent: request.headers["user-agent"],
+    },
+  };
+
+  // BREAKPOINT 6: Sending response
+  debugLog("Sending response", responseData);
+  response.status(200).json(responseData);
+  
+  // BREAKPOINT 7: Function completion
+  debugLog("=== SEND EMAIL API COMPLETED ===");
 });
 
 // export const helloWorld = onRequest((request, response) => {
