@@ -10,6 +10,7 @@
 import {setGlobalOptions} from "firebase-functions";
 import {onRequest} from "firebase-functions/https";
 import * as logger from "firebase-functions/logger";
+import nodemailer from "nodemailer";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -26,63 +27,54 @@ import * as logger from "firebase-functions/logger";
 // this will be the maximum concurrent request count.
 setGlobalOptions({maxInstances: 10});
 
-// Debug helper function
-function debugLog(message: string, data?: any) {
-  logger.info(`[DEBUG] ${message}`, {
-    structuredData: true,
-    debugData: data,
-  });
-}
-
-// Simple send-email API that returns "hello"
-export const sendEmail = onRequest((request, response) => {
-  // BREAKPOINT 1: Function entry point
-  debugLog("=== SEND EMAIL API CALLED ===");
-  
-  // BREAKPOINT 2: Request details
-  const requestInfo = {
-    method: request.method,
-    url: request.url,
-    headers: request.headers,
-    body: request.body,
-    query: request.query,
-  };
-  debugLog("Request details", requestInfo);
-
-  // BREAKPOINT 3: CORS setup
-  debugLog("Setting CORS headers");
+// Pure email sending API (GET version)
+export const sendEmail = onRequest(async (request, response) => {
+  // CORS headers
   response.set("Access-Control-Allow-Origin", "*");
-  response.set("Access-Control-Allow-Methods", "GET, POST");
+  response.set("Access-Control-Allow-Methods", "GET, OPTIONS");
   response.set("Access-Control-Allow-Headers", "Content-Type");
 
-  // BREAKPOINT 4: Preflight handling
   if (request.method === "OPTIONS") {
-    debugLog("Handling OPTIONS preflight request");
     response.status(204).send("");
     return;
   }
 
-  // BREAKPOINT 5: Response preparation
-  debugLog("Preparing response");
-  const responseData = {
-    message: "hello",
-    timestamp: new Date().toISOString(),
-    debug: {
-      requestMethod: request.method,
-      requestUrl: request.url,
-      userAgent: request.headers["user-agent"],
+  if (request.method !== "GET") {
+    response.status(405).json({ error: "Method not allowed. Use GET." });
+    return;
+  }
+
+  // Hardcoded email details
+  const recipient = "wkarweng98@gmail.com";
+  const subject = "test";
+  const body = "test";
+
+  // Configure nodemailer with Gmail SMTP
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "nelson.wong@codapayments.com",
+      pass: "cwkb zqbq dwau aohd", // Use app password
     },
+  });
+
+  const mailOptions = {
+    from: "nelson.wong@codapayments.com",
+    to: recipient,
+    subject: subject,
+    text: body,
   };
 
-  // BREAKPOINT 6: Sending response
-  debugLog("Sending response", responseData);
-  response.status(200).json(responseData);
-  
-  // BREAKPOINT 7: Function completion
-  debugLog("=== SEND EMAIL API COMPLETED ===");
+  try {
+    await transporter.sendMail(mailOptions);
+    response.status(200).json({ success: true, message: "Email sent." });
+  } catch (error) {
+    logger.error("Error sending email", error);
+    response.status(500).json({ success: false, error: (error as Error).message });
+  }
 });
-
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");
 // });
+

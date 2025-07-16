@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "codapay-webhook"
-  }
+  },
+  "targets": {
+    "codapay-webhook": {
+      "hosting": {
+        "payout-tool": [
+          "payout-tool"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }
