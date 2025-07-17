@@ -1,9 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+
+// Custom input formatter for currency codes (alphabetic uppercase only)
+class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    // Filter out non-alphabetic characters and convert to uppercase
+    final filteredText = newValue.text.replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase();
+    
+    return TextEditingValue(
+      text: filteredText,
+      selection: TextSelection.collapsed(offset: filteredText.length),
+    );
+  }
+}
 
 void main() {
   runApp(const MyApp());
@@ -51,6 +69,24 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
   List<List<String>>? _filteredData;
   int? _transactionIdIndex;
   int? _publisherTransactionIdIndex;
+  
+  // Editing variables
+  Map<String, int> _editableColumns = {};
+  Map<String, bool> _isEditing = {};
+  Map<String, TextEditingController> _editControllers = {};
+  Map<String, String> _dropdownValues = {};
+  
+  // Column reordering
+  List<int>? _columnOrder;
+  List<String>? _reorderedHeaders;
+  
+  // Dropdown options for Payout Status
+  final Map<String, String> _payoutStatusOptions = {
+    '1': 'SUCCESS',
+    '2': 'FAILED', 
+    '3': 'PROCESSING',
+    '4': 'REJECTED'
+  };
 
   // Check if a string is numeric
   bool _isNumeric(String str) {
@@ -61,6 +97,280 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     } catch (e) {
       return false;
     }
+  }
+  
+  // Initialize editable columns
+  void _initializeEditableColumns() {
+    _editableColumns.clear();
+    if (_csvHeaders == null) return;
+    
+    final editableColumnNames = [
+      'processed amount',
+      'processed currency', 
+      'target amount',
+      'target currency',
+      'payout status'
+    ];
+    
+    for (int i = 0; i < _csvHeaders!.length; i++) {
+      final headerLower = _csvHeaders![i].toLowerCase().trim();
+      for (String editableColumn in editableColumnNames) {
+        if (headerLower.contains(editableColumn)) {
+          _editableColumns[editableColumn] = i;
+          break;
+        }
+      }
+    }
+    
+    // Create column order with editable columns first
+    _createColumnOrder();
+  }
+  
+  // Create column order with input columns first, then editable columns
+  void _createColumnOrder() {
+    if (_csvHeaders == null) return;
+    
+    List<int> inputAmountIndices = [];
+    List<int> inputCurrencyIndices = [];
+    List<int> editableIndices = [];
+    List<int> nonEditableIndices = [];
+    
+    // Separate columns by type
+    for (int i = 0; i < _csvHeaders!.length; i++) {
+      final headerLower = _csvHeaders![i].toLowerCase().trim();
+      
+      if (headerLower.contains('input') && headerLower.contains('amount')) {
+        inputAmountIndices.add(i);
+      } else if (headerLower.contains('input') && headerLower.contains('currency')) {
+        inputCurrencyIndices.add(i);
+      } else if (_isColumnEditable(i)) {
+        editableIndices.add(i);
+      } else {
+        nonEditableIndices.add(i);
+      }
+    }
+    
+    // Sort editable columns in preferred order
+    final preferredEditableOrder = [
+      'processed amount',
+      'processed currency', 
+      'target amount',
+      'target currency',
+      'payout status'
+    ];
+    
+    editableIndices.sort((a, b) {
+      String headerA = _csvHeaders![a].toLowerCase().trim();
+      String headerB = _csvHeaders![b].toLowerCase().trim();
+      
+      int indexA = preferredEditableOrder.length;
+      int indexB = preferredEditableOrder.length;
+      
+      for (int i = 0; i < preferredEditableOrder.length; i++) {
+        if (headerA.contains(preferredEditableOrder[i])) {
+          indexA = i;
+        }
+        if (headerB.contains(preferredEditableOrder[i])) {
+          indexB = i;
+        }
+      }
+      
+      return indexA.compareTo(indexB);
+    });
+    
+    // Combine: input amount, input currency, then editable columns, then non-editable
+    _columnOrder = [
+      ...inputAmountIndices,
+      ...inputCurrencyIndices, 
+      ...editableIndices, 
+      ...nonEditableIndices
+    ];
+    
+    // Create reordered headers
+    _reorderedHeaders = _columnOrder!.map((index) => _csvHeaders![index]).toList();
+  }
+  
+  // Check if a column is editable
+  bool _isColumnEditable(int columnIndex) {
+    return _editableColumns.values.contains(columnIndex);
+  }
+  
+  // Check if a column is dropdown type
+  bool _isDropdownColumn(int columnIndex) {
+    return _editableColumns['payout status'] == columnIndex;
+  }
+  
+  // Check if a column is an input column (read-only but highlighted)
+  bool _isInputColumn(int columnIndex) {
+    if (_csvHeaders == null || columnIndex >= _csvHeaders!.length) return false;
+    final headerLower = _csvHeaders![columnIndex].toLowerCase().trim();
+    return headerLower.contains('input') && 
+           (headerLower.contains('amount') || headerLower.contains('currency'));
+  }
+  
+  // Check if a column is auto-synced (processed amount/currency)
+  bool _isAutoSyncedColumn(int columnIndex) {
+    return _editableColumns['processed amount'] == columnIndex ||
+           _editableColumns['processed currency'] == columnIndex;
+  }
+  
+  // Check if a column is target currency (needs alphabet-only input)
+  bool _isTargetCurrencyColumn(int columnIndex) {
+    return _editableColumns['target currency'] == columnIndex;
+  }
+  
+  // Map common status text to dropdown values
+  String _mapStatusToDropdownValue(String statusText) {
+    final lowerStatus = statusText.toLowerCase().trim();
+    
+    // Direct number mapping
+    if (_payoutStatusOptions.containsKey(statusText.trim())) {
+      return statusText.trim();
+    }
+    
+    // Text to number mapping
+    if (lowerStatus.contains('success') || lowerStatus == 'completed' || lowerStatus == 'paid') {
+      return '1';
+    } else if (lowerStatus.contains('fail') || lowerStatus == 'error') {
+      return '2';
+    } else if (lowerStatus.contains('processing') || lowerStatus == 'pending') {
+      return '3';
+    } else if (lowerStatus.contains('reject') || lowerStatus == 'cancelled') {
+      return '4';
+    }
+    
+    // Default fallback
+    return '1';
+  }
+  
+  // Get reordered row data
+  List<String> _getReorderedRow(List<String> originalRow) {
+    if (_columnOrder == null) return originalRow;
+    
+    List<String> reorderedRow = [];
+    for (int originalIndex in _columnOrder!) {
+      if (originalIndex < originalRow.length) {
+        reorderedRow.add(originalRow[originalIndex]);
+      } else {
+        reorderedRow.add('');
+      }
+    }
+    return reorderedRow;
+  }
+  
+  // Get original column index from reordered index
+  int _getOriginalColumnIndex(int reorderedIndex) {
+    if (_columnOrder == null || reorderedIndex >= _columnOrder!.length) {
+      return reorderedIndex;
+    }
+    return _columnOrder![reorderedIndex];
+  }
+  
+  // Start editing a cell
+  void _startEditing(int rowIndex, int columnIndex, String currentValue) {
+    final key = '${rowIndex}_$columnIndex';
+    setState(() {
+      _isEditing[key] = true;
+      if (_isDropdownColumn(columnIndex)) {
+        // For dropdown columns, map the current value to a valid dropdown option
+        _dropdownValues[key] = _mapStatusToDropdownValue(currentValue);
+      } else {
+        // For text columns, create text controller
+        _editControllers[key] = TextEditingController(text: currentValue);
+      }
+    });
+  }
+  
+  // Save cell edit
+  void _saveEdit(int rowIndex, int columnIndex) {
+    final key = '${rowIndex}_$columnIndex';
+    if (_csvData != null) {
+      setState(() {
+        if (_isDropdownColumn(columnIndex)) {
+          // Save dropdown value
+          _csvData![rowIndex][columnIndex] = _dropdownValues[key] ?? '';
+          _dropdownValues.remove(key);
+        } else {
+          // Save text field value
+          if (_editControllers[key] != null) {
+            _csvData![rowIndex][columnIndex] = _editControllers[key]!.text;
+            _editControllers[key]?.dispose();
+            _editControllers.remove(key);
+          }
+        }
+        
+        _isEditing[key] = false;
+        
+        // Auto-sync processed values with target values
+        _syncProcessedWithTarget(rowIndex, columnIndex);
+        
+        // Update filtered data
+        _filterData();
+      });
+    }
+  }
+  
+  // Sync processed amount/currency with target amount/currency
+  void _syncProcessedWithTarget(int rowIndex, int columnIndex) {
+    if (_csvData == null || rowIndex >= _csvData!.length) return;
+    
+    final headerLower = _csvHeaders![columnIndex].toLowerCase().trim();
+    
+    // If target amount was edited, copy to processed amount
+    if (headerLower.contains('target') && headerLower.contains('amount')) {
+      final processedAmountIndex = _editableColumns['processed amount'];
+      if (processedAmountIndex != null && processedAmountIndex < _csvData![rowIndex].length) {
+        _csvData![rowIndex][processedAmountIndex] = _csvData![rowIndex][columnIndex];
+      }
+    }
+    
+        // If target currency was edited, copy to processed currency (also ensure uppercase)
+    if (headerLower.contains('target') && headerLower.contains('currency')) {
+      final processedCurrencyIndex = _editableColumns['processed currency'];
+      if (processedCurrencyIndex != null && processedCurrencyIndex < _csvData![rowIndex].length) {
+        _csvData![rowIndex][processedCurrencyIndex] = _csvData![rowIndex][columnIndex].toUpperCase();
+      }
+    }
+   }
+   
+   // Perform initial sync of all processed values with target values
+   void _performInitialSync() {
+     if (_csvData == null) return;
+     
+     final processedAmountIndex = _editableColumns['processed amount'];
+     final processedCurrencyIndex = _editableColumns['processed currency'];
+     final targetAmountIndex = _editableColumns['target amount'];
+     final targetCurrencyIndex = _editableColumns['target currency'];
+     
+     for (int rowIndex = 0; rowIndex < _csvData!.length; rowIndex++) {
+       final row = _csvData![rowIndex];
+       
+       // Copy target amount to processed amount
+       if (targetAmountIndex != null && processedAmountIndex != null &&
+           targetAmountIndex < row.length && processedAmountIndex < row.length) {
+         row[processedAmountIndex] = row[targetAmountIndex];
+       }
+       
+       // Copy target currency to processed currency (ensure uppercase)
+       if (targetCurrencyIndex != null && processedCurrencyIndex != null &&
+           targetCurrencyIndex < row.length && processedCurrencyIndex < row.length) {
+         row[processedCurrencyIndex] = row[targetCurrencyIndex].toUpperCase();
+       }
+     }
+   }
+   
+   // Cancel cell edit
+  void _cancelEdit(int rowIndex, int columnIndex) {
+    final key = '${rowIndex}_$columnIndex';
+    setState(() {
+      _isEditing[key] = false;
+      if (_isDropdownColumn(columnIndex)) {
+        _dropdownValues.remove(key);
+      } else {
+        _editControllers[key]?.dispose();
+        _editControllers.remove(key);
+      }
+    });
   }
 
   // Filter data based on Transaction ID or Publisher Transaction ID
@@ -153,6 +463,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       
       // Initialize filtered data with all data
       _filteredData = _csvData;
+      
+      // Initialize editable columns
+      _initializeEditableColumns();
+      
+      // Initial sync of processed values with target values
+      _performInitialSync();
     } catch (e) {
       print('Error parsing CSV: $e');
     }
@@ -346,6 +662,16 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
         _isLoading = false;
       });
     }
+  }
+  
+  @override
+  void dispose() {
+    // Clean up all text editing controllers
+    for (var controller in _editControllers.values) {
+      controller.dispose();
+    }
+    _dropdownValues.clear();
+    super.dispose();
   }
 
   @override
@@ -611,7 +937,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                               child: SingleChildScrollView(
                                 scrollDirection: Axis.vertical,
                                 child: Container(
-                                  width: _csvHeaders!.length * 150.0,
+                                  width: (_reorderedHeaders ?? _csvHeaders!).length * 150.0,
                                   child: Column(
                                     children: [
                                       // Header row
@@ -619,32 +945,83 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                         height: 40,
                                         color: Colors.blue.shade600,
                                         child: Row(
-                                          children: _csvHeaders!.map((header) => 
-                                            Container(
+                                          children: (_reorderedHeaders ?? _csvHeaders!).asMap().entries.map((entry) {
+                                            final reorderedIndex = entry.key;
+                                            final header = entry.value;
+                                            final originalIndex = _getOriginalColumnIndex(reorderedIndex);
+                                            final isEditable = _isColumnEditable(originalIndex);
+                                            final isInput = _isInputColumn(originalIndex);
+                                            final isAutoSynced = _isAutoSyncedColumn(originalIndex);
+                                            
+                                            Color headerColor;
+                                            if (isInput) {
+                                              headerColor = Colors.green.shade600; // Green for input columns
+                                            } else if (isAutoSynced) {
+                                              headerColor = Colors.orange.shade600; // Orange for auto-synced columns
+                                            } else if (isEditable) {
+                                              headerColor = Colors.blue.shade700; // Dark blue for editable
+                                            } else {
+                                              headerColor = Colors.blue.shade600; // Regular blue for read-only
+                                            }
+                                            
+                                            return Container(
                                               width: 150,
                                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                                               decoration: BoxDecoration(
                                                 border: Border(
                                                   right: BorderSide(color: Colors.grey.shade300),
                                                 ),
+                                                color: headerColor,
                                               ),
-                                              child: Text(
-                                                header,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
-                                                  color: Colors.white,
-                                                ),
-                                                overflow: TextOverflow.ellipsis,
-                                                maxLines: 1,
+                                              child: Row(
+                                                children: [
+                                                  if (isInput) ...[
+                                                    Icon(
+                                                      Icons.input,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                  ] else if (isAutoSynced) ...[
+                                                    Icon(
+                                                      Icons.sync,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                  ] else if (isEditable) ...[
+                                                    Icon(
+                                                      _isDropdownColumn(originalIndex) ? Icons.arrow_drop_down : Icons.edit,
+                                                      size: 14,
+                                                      color: Colors.white,
+                                                    ),
+                                                    const SizedBox(width: 4),
+                                                  ],
+                                                  Expanded(
+                                                    child: Text(
+                                                      header,
+                                                      style: TextStyle(
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 12,
+                                                        color: Colors.white,
+                                                      ),
+                                                      overflow: TextOverflow.ellipsis,
+                                                      maxLines: 1,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                            ),
-                                          ).toList(),
+                                            );
+                                          }).toList(),
                                         ),
                                       ),
                                       // Data rows
-                                      ..._filteredData!.map((row) => 
-                                        Container(
+                                      ..._filteredData!.asMap().entries.map((rowEntry) {
+                                        final rowIndex = _csvData!.indexOf(rowEntry.value);
+                                        final originalRow = rowEntry.value;
+                                        final reorderedRow = _getReorderedRow(originalRow);
+                                        
+                                        return Container(
                                           height: 36,
                                           decoration: BoxDecoration(
                                             border: Border(
@@ -652,9 +1029,25 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                             ),
                                           ),
                                           child: Row(
-                                            children: row.asMap().entries.map((entry) {
-                                              final cellIndex = entry.key;
+                                            children: reorderedRow.asMap().entries.map((entry) {
+                                              final reorderedCellIndex = entry.key;
                                               final cell = entry.value;
+                                              final originalCellIndex = _getOriginalColumnIndex(reorderedCellIndex);
+                                              final cellKey = '${rowIndex}_$originalCellIndex';
+                                              final isEditable = _isColumnEditable(originalCellIndex);
+                                              final isInput = _isInputColumn(originalCellIndex);
+                                              final isAutoSynced = _isAutoSyncedColumn(originalCellIndex);
+                                              final isCurrentlyEditing = _isEditing[cellKey] ?? false;
+                                              
+                                              Color? cellBackgroundColor;
+                                              if (isInput) {
+                                                cellBackgroundColor = Colors.green.shade50; // Light green for input columns
+                                              } else if (isAutoSynced) {
+                                                cellBackgroundColor = Colors.orange.shade50; // Light orange for auto-synced columns
+                                              } else if (isEditable) {
+                                                cellBackgroundColor = Colors.blue.shade50; // Light blue for editable columns
+                                              }
+                                              
                                               return Container(
                                                 width: 150,
                                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -662,25 +1055,109 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                                   border: Border(
                                                     right: BorderSide(color: Colors.grey.shade200),
                                                   ),
+                                                  color: cellBackgroundColor,
                                                 ),
-                                                child: Tooltip(
-                                                  message: cell,
-                                                  child: Text(
-                                                    cell,
-                                                    style: TextStyle(
-                                                      fontSize: 11,
-                                                      color: _isNumeric(cell) ? Colors.green.shade700 : Colors.black87,
-                                                      fontWeight: _isNumeric(cell) ? FontWeight.w500 : FontWeight.normal,
+                                                child: isCurrentlyEditing ? 
+                                                  // Editing mode
+                                                  Row(
+                                                    children: [
+                                                      Expanded(
+                                                        child: _isDropdownColumn(originalCellIndex) ?
+                                                          // Dropdown for Payout Status
+                                                          DropdownButton<String>(
+                                                            value: _dropdownValues[cellKey] ?? '1',
+                                                            isExpanded: true,
+                                                            style: const TextStyle(fontSize: 11, color: Colors.black),
+                                                            underline: Container(),
+                                                            items: _payoutStatusOptions.entries.map((entry) {
+                                                              return DropdownMenuItem<String>(
+                                                                value: entry.key,
+                                                                child: Text('${entry.key} - ${entry.value}', style: const TextStyle(fontSize: 11)),
+                                                              );
+                                                            }).toList(),
+                                                            onChanged: (String? newValue) {
+                                                              if (newValue != null) {
+                                                                setState(() {
+                                                                  _dropdownValues[cellKey] = newValue;
+                                                                });
+                                                              }
+                                                            },
+                                                          ) :
+                                                          // Text field for other columns
+                                                          TextField(
+                                                            controller: _editControllers[cellKey],
+                                                            style: const TextStyle(fontSize: 11),
+                                                            decoration: const InputDecoration(
+                                                              border: InputBorder.none,
+                                                              contentPadding: EdgeInsets.zero,
+                                                              isDense: true,
+                                                            ),
+                                                            inputFormatters: _isTargetCurrencyColumn(originalCellIndex) 
+                                                                ? [UppercaseAlphabeticInputFormatter()]
+                                                                : null,
+                                                            onSubmitted: (_) => _saveEdit(rowIndex, originalCellIndex),
+                                                            autofocus: true,
+                                                          ),
+                                                      ),
+                                                      Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          InkWell(
+                                                            onTap: () => _saveEdit(rowIndex, originalCellIndex),
+                                                            child: Icon(Icons.check, size: 14, color: Colors.green),
+                                                          ),
+                                                          const SizedBox(width: 2),
+                                                          InkWell(
+                                                            onTap: () => _cancelEdit(rowIndex, originalCellIndex),
+                                                            child: Icon(Icons.close, size: 14, color: Colors.red),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ],
+                                                  ) :
+                                                  // Display mode
+                                                  InkWell(
+                                                    onTap: (isEditable && !isAutoSynced) ? () => _startEditing(rowIndex, originalCellIndex, cell) : null,
+                                                    child: Container(
+                                                      width: double.infinity,
+                                                      child: Row(
+                                                        children: [
+                                                          Expanded(
+                                                            child: Tooltip(
+                                                              message: cell,
+                                                              child: Text(
+                                                                cell,
+                                                                style: TextStyle(
+                                                                  fontSize: 11,
+                                                                  color: _isNumeric(cell) ? Colors.green.shade700 : Colors.black87,
+                                                                  fontWeight: _isNumeric(cell) ? FontWeight.w500 : FontWeight.normal,
+                                                                ),
+                                                                overflow: TextOverflow.ellipsis,
+                                                                maxLines: 1,
+                                                              ),
+                                                            ),
+                                                          ),
+                                                          if (isAutoSynced)
+                                                            Icon(
+                                                              Icons.sync,
+                                                              size: 12,
+                                                              color: Colors.orange.shade600
+                                                            )
+                                                          else if (isEditable) 
+                                                            Icon(
+                                                              _isDropdownColumn(originalCellIndex) ? Icons.arrow_drop_down : Icons.edit, 
+                                                              size: 12, 
+                                                              color: Colors.blue.shade600
+                                                            ),
+                                                        ],
+                                                      ),
                                                     ),
-                                                    overflow: TextOverflow.ellipsis,
-                                                    maxLines: 1,
                                                   ),
-                                                ),
                                               );
                                             }).toList(),
                                           ),
-                                        ),
-                                      ).toList(),
+                                        );
+                                      }).toList(),
                                     ],
                                   ),
                                 ),
@@ -731,7 +1208,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                 color: Colors.grey.shade600,
                               ),
                               const SizedBox(width: 6),
-                              Text(
+            Text(
                                 _filterText.isNotEmpty
                                     ? 'Filter Results: ${_filteredData!.length} of ${_csvData!.length} rows'
                                     : 'Data Summary: ${_csvHeaders!.length} columns, ${_csvData!.length} rows',
