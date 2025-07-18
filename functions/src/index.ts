@@ -338,6 +338,10 @@ please contact Nelson via Slack, or Email to nelson.wong@codapayments.com.`,
     });
   }
 });
+
+// Note: VPN check is done client-side using JavaScript fetch with no-cors mode
+// Firebase Functions cannot access internal company VPN endpoints
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");

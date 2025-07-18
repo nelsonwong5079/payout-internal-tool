@@ -6,6 +6,7 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'dart:math' as math;
+import 'dart:async';
 
 // Custom input formatter for currency codes (alphabetic uppercase only)
 class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
@@ -690,8 +691,153 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     return result;
   }
 
-  // File upload handler
-  void _handleFileUpload() {
+  // VPN connection check - JavaScript fetch with no-cors mode
+  Future<bool> _checkVpnConnection() async {
+    try {
+      // Use JavaScript fetch with no-cors mode to bypass CORS restrictions
+      final result = await html.window.fetch(
+        'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email',
+        {
+          'method': 'POST',
+          'mode': 'no-cors', // This bypasses CORS but limits response access
+        }
+      );
+      
+      // In no-cors mode, we can't read the status code directly
+      // But if the request completes without error, it means the endpoint is reachable
+      // and likely the VPN is connected (since this is an internal endpoint)
+      print('VPN check fetch completed - assuming VPN is connected');
+      return true;
+    } catch (e) {
+      print('VPN check failed: $e');
+      return false;
+    }
+  }
+
+
+  // Show VPN connection dialog
+  void _showVpnDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red.shade600),
+              const SizedBox(width: 8),
+              const Text('VPN Required'),
+            ],
+          ),
+          content: const Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Please connect to VPN before using this application.',
+                style: TextStyle(fontSize: 16),
+              ),
+              SizedBox(height: 16),
+              Text(
+                'Steps:',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              Text('1. Connect to your VPN'),
+              Text('2. Click "Recheck Connection" below'),
+              Text('3. Once connected, you can select files'),
+            ],
+          ),
+          actions: [
+            ElevatedButton.icon(
+              onPressed: () async {
+                // Show loading
+                final navigator = Navigator.of(context);
+                showDialog(
+                  context: context,
+                  barrierDismissible: false,
+                  builder: (BuildContext context) {
+                    return const AlertDialog(
+                      content: Row(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(width: 16),
+                          Text('Checking VPN connection...'),
+                        ],
+                      ),
+                    );
+                  },
+                );
+
+                // Check VPN
+                final isConnected = await _checkVpnConnection();
+                
+                // Close loading dialog
+                navigator.pop();
+                
+                if (isConnected) {
+                  // Close VPN dialog and proceed with file upload
+                  navigator.pop();
+                  _proceedWithFileUpload();
+                } else {
+                  // Show error
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('VPN connection failed. Please check your connection and try again.'),
+                      backgroundColor: Colors.red,
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                }
+              },
+              icon: const Icon(Icons.refresh),
+              label: const Text('Recheck Connection'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // File upload handler with VPN check
+  void _handleFileUpload() async {
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 16),
+              Text('Checking VPN connection...'),
+            ],
+          ),
+        );
+      },
+    );
+
+    // Check VPN connection first
+    final isVpnConnected = await _checkVpnConnection();
+    
+    // Close loading dialog
+    Navigator.of(context).pop();
+
+    if (isVpnConnected) {
+      // VPN is connected, proceed with file upload
+      _proceedWithFileUpload();
+    } else {
+      // VPN not connected, show VPN dialog
+      _showVpnDialog();
+    }
+  }
+
+  // Proceed with actual file upload
+  void _proceedWithFileUpload() {
     final input = html.FileUploadInputElement()..accept = '.csv,.zip';
     input.click();
 
