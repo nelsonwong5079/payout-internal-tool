@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:html' as html;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
+import 'dart:math' as math;
 
 // Custom input formatter for currency codes (alphabetic uppercase only)
 class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
@@ -51,10 +52,6 @@ class EmailSenderPage extends StatefulWidget {
 }
 
 class _EmailSenderPageState extends State<EmailSenderPage> {
-  bool _isLoading = false;
-  String _statusMessage = '';
-  bool _isSuccess = false;
-  Map<String, dynamic>? _apiResponse;
   
   // File processing variables
   String? _selectedFileName;
@@ -79,6 +76,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
   // Column reordering
   List<int>? _columnOrder;
   List<String>? _reorderedHeaders;
+  
+  // Track edited rows
+  Set<int> _editedRowIndices = {};
+  
+  // Transaction type for file naming
+  String _transactionType = '';
   
   // Dropdown options for Payout Status
   final Map<String, String> _payoutStatusOptions = {
@@ -112,15 +115,22 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       'payout status'
     ];
     
+    print('Initializing editable columns from headers: ${_csvHeaders!.join(", ")}');
+    
     for (int i = 0; i < _csvHeaders!.length; i++) {
       final headerLower = _csvHeaders![i].toLowerCase().trim();
+      print('  Checking header $i: "$headerLower"');
+      
       for (String editableColumn in editableColumnNames) {
         if (headerLower.contains(editableColumn)) {
           _editableColumns[editableColumn] = i;
+          print('    Found $editableColumn at index $i');
           break;
         }
       }
     }
+    
+    print('Final editable columns mapping: $_editableColumns');
     
     // Create column order with editable columns first
     _createColumnOrder();
@@ -269,6 +279,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
   // Start editing a cell
   void _startEditing(int rowIndex, int columnIndex, String currentValue) {
     final key = '${rowIndex}_$columnIndex';
+    
+    print('START EDITING: Row $rowIndex, Column $columnIndex');
+    print('  Header: ${_csvHeaders![columnIndex]}');
+    print('  Current value: "$currentValue"');
+    print('  Column index is ALREADY the original index from UI click mapping');
+    
     setState(() {
       _isEditing[key] = true;
       if (_isDropdownColumn(columnIndex)) {
@@ -286,10 +302,16 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     final key = '${rowIndex}_$columnIndex';
     if (_csvData != null) {
       setState(() {
+        final oldValue = _csvData![rowIndex][columnIndex];
+        
         if (_isDropdownColumn(columnIndex)) {
           // Save dropdown value
-          _csvData![rowIndex][columnIndex] = _dropdownValues[key] ?? '';
+          final dropdownValue = _dropdownValues[key] ?? '';
+          _csvData![rowIndex][columnIndex] = dropdownValue;
           _dropdownValues.remove(key);
+          print('DROPDOWN SAVE: Payout Status');
+          print('  Dropdown value selected: "$dropdownValue"');
+          print('  Mapping: ${_payoutStatusOptions[dropdownValue] ?? "NOT FOUND"}');
         } else {
           // Save text field value
           if (_editControllers[key] != null) {
@@ -299,7 +321,17 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
           }
         }
         
+        final newValue = _csvData![rowIndex][columnIndex];
+        print('SAVE EDIT: Row $rowIndex, Column $columnIndex (${_csvHeaders![columnIndex]})');
+        print('  Old value: "$oldValue"');
+        print('  New value: "$newValue"');
+        print('  Full row after edit: ${_csvData![rowIndex].join(" | ")}');
+        
         _isEditing[key] = false;
+        
+        // Track that this row has been edited
+        _editedRowIndices.add(rowIndex);
+        print('  Edited row indices now: $_editedRowIndices');
         
         // Auto-sync processed values with target values
         _syncProcessedWithTarget(rowIndex, columnIndex);
@@ -315,23 +347,31 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     if (_csvData == null || rowIndex >= _csvData!.length) return;
     
     final headerLower = _csvHeaders![columnIndex].toLowerCase().trim();
+    final editedValue = _csvData![rowIndex][columnIndex];
+    
+    print('Syncing row $rowIndex, column $columnIndex (${_csvHeaders![columnIndex]}) with value: "$editedValue"');
     
     // If target amount was edited, copy to processed amount
     if (headerLower.contains('target') && headerLower.contains('amount')) {
       final processedAmountIndex = _editableColumns['processed amount'];
       if (processedAmountIndex != null && processedAmountIndex < _csvData![rowIndex].length) {
-        _csvData![rowIndex][processedAmountIndex] = _csvData![rowIndex][columnIndex];
+        final oldProcessedValue = _csvData![rowIndex][processedAmountIndex];
+        _csvData![rowIndex][processedAmountIndex] = editedValue;
+        print('  Target amount sync: "$oldProcessedValue" -> "$editedValue" (processed amount index: $processedAmountIndex)');
       }
     }
     
-        // If target currency was edited, copy to processed currency (also ensure uppercase)
+    // If target currency was edited, copy to processed currency (also ensure uppercase)
     if (headerLower.contains('target') && headerLower.contains('currency')) {
       final processedCurrencyIndex = _editableColumns['processed currency'];
       if (processedCurrencyIndex != null && processedCurrencyIndex < _csvData![rowIndex].length) {
-        _csvData![rowIndex][processedCurrencyIndex] = _csvData![rowIndex][columnIndex].toUpperCase();
+        final oldProcessedValue = _csvData![rowIndex][processedCurrencyIndex];
+        final newValue = editedValue.toUpperCase();
+        _csvData![rowIndex][processedCurrencyIndex] = newValue;
+        print('  Target currency sync: "$oldProcessedValue" -> "$newValue" (processed currency index: $processedCurrencyIndex)');
       }
     }
-   }
+  }
    
    // Perform initial sync of all processed values with target values
    void _performInitialSync() {
@@ -342,21 +382,121 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
      final targetAmountIndex = _editableColumns['target amount'];
      final targetCurrencyIndex = _editableColumns['target currency'];
      
+     // Also find input amount and currency indices to copy from
+     int? inputAmountIndex;
+     int? inputCurrencyIndex;
+     
+     for (int i = 0; i < _csvHeaders!.length; i++) {
+       final headerLower = _csvHeaders![i].toLowerCase().trim();
+       if (headerLower.contains('input') && headerLower.contains('amount')) {
+         inputAmountIndex = i;
+       } else if (headerLower.contains('input') && headerLower.contains('currency')) {
+         inputCurrencyIndex = i;
+       }
+     }
+     
+     print('Initial sync - Column indices:');
+     print('  Input Amount: $inputAmountIndex');
+     print('  Input Currency: $inputCurrencyIndex');
+     print('  Processed Amount: $processedAmountIndex');
+     print('  Processed Currency: $processedCurrencyIndex');
+     print('  Target Amount: $targetAmountIndex');
+     print('  Target Currency: $targetCurrencyIndex');
+     
      for (int rowIndex = 0; rowIndex < _csvData!.length; rowIndex++) {
        final row = _csvData![rowIndex];
        
-       // Copy target amount to processed amount
-       if (targetAmountIndex != null && processedAmountIndex != null &&
-           targetAmountIndex < row.length && processedAmountIndex < row.length) {
-         row[processedAmountIndex] = row[targetAmountIndex];
+       print('  Row $rowIndex original values:');
+       if (inputAmountIndex != null && inputAmountIndex < row.length) {
+         print('    Original Input Amount: "${row[inputAmountIndex]}"');
+       }
+       if (inputCurrencyIndex != null && inputCurrencyIndex < row.length) {
+         print('    Original Input Currency: "${row[inputCurrencyIndex]}"');
+       }
+       if (processedAmountIndex != null && processedAmountIndex < row.length) {
+         print('    Original Processed Amount: "${row[processedAmountIndex]}"');
+       }
+       if (targetAmountIndex != null && targetAmountIndex < row.length) {
+         print('    Original Target Amount: "${row[targetAmountIndex]}"');
+       }
+       if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
+         print('    Original Processed Currency: "${row[processedCurrencyIndex]}"');
+       }
+       if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
+         print('    Original Target Currency: "${row[targetCurrencyIndex]}"');
        }
        
-       // Copy target currency to processed currency (ensure uppercase)
+       // First, copy from Input fields to Target fields if Target fields are empty
+       // DO NOT copy Input Amount to Target Amount - let users enter manually
+       // DO NOT copy Input Currency to Target Currency - let users enter manually
+       // Removed: All Input -> Target auto-copy logic
+       
+       // Handle target amount to processed amount sync (will be empty initially)
+       if (targetAmountIndex != null && processedAmountIndex != null &&
+           targetAmountIndex < row.length && processedAmountIndex < row.length) {
+         final targetValue = row[targetAmountIndex].trim();
+         final processedValue = row[processedAmountIndex].trim();
+         
+         // Only sync if one field has a value and the other doesn't
+         if (targetValue.isNotEmpty && processedValue.isEmpty) {
+           // Target has value, processed is empty - copy to processed
+           row[processedAmountIndex] = targetValue;
+           print('    Amount sync: Target "$targetValue" -> Processed (was empty)');
+         } else if (processedValue.isNotEmpty && targetValue.isEmpty) {
+           // Processed has value, target is empty - copy to target
+           row[targetAmountIndex] = processedValue;
+           print('    Amount sync: Processed "$processedValue" -> Target (was empty)');
+         } else if (targetValue.isNotEmpty && processedValue.isNotEmpty) {
+           // Both have values - keep target as the source of truth
+           row[processedAmountIndex] = targetValue;
+           print('    Amount sync: Both had values, keeping Target "$targetValue" in both');
+         }
+         // If both are empty, do nothing
+       }
+       
+       // Handle target currency to processed currency sync
        if (targetCurrencyIndex != null && processedCurrencyIndex != null &&
            targetCurrencyIndex < row.length && processedCurrencyIndex < row.length) {
-         row[processedCurrencyIndex] = row[targetCurrencyIndex].toUpperCase();
+         final targetValue = row[targetCurrencyIndex].trim();
+         final processedValue = row[processedCurrencyIndex].trim();
+         
+         // Only sync if one field has a value and the other doesn't
+         if (targetValue.isNotEmpty && processedValue.isEmpty) {
+           // Target has value, processed is empty - copy to processed (ensure uppercase)
+           row[processedCurrencyIndex] = targetValue.toUpperCase();
+           print('    Currency sync: Target "$targetValue" -> Processed "${targetValue.toUpperCase()}" (was empty)');
+         } else if (processedValue.isNotEmpty && targetValue.isEmpty) {
+           // Processed has value, target is empty - copy to target (ensure uppercase)
+           final upperValue = processedValue.toUpperCase();
+           row[targetCurrencyIndex] = upperValue;
+           row[processedCurrencyIndex] = upperValue; // Ensure both are uppercase
+           print('    Currency sync: Processed "$processedValue" -> Target "$upperValue" (was empty)');
+         } else if (targetValue.isNotEmpty && processedValue.isNotEmpty) {
+           // Both have values - ensure both are uppercase and synchronized
+           final upperValue = targetValue.toUpperCase();
+           row[targetCurrencyIndex] = upperValue;
+           row[processedCurrencyIndex] = upperValue;
+           print('    Currency sync: Both had values, standardized to "$upperValue"');
+         }
+         // If both are empty, do nothing
+       }
+       
+       print('  Row $rowIndex final values:');
+       if (processedAmountIndex != null && processedAmountIndex < row.length) {
+         print('    Final Processed Amount: "${row[processedAmountIndex]}"');
+       }
+       if (targetAmountIndex != null && targetAmountIndex < row.length) {
+         print('    Final Target Amount: "${row[targetAmountIndex]}"');
+       }
+       if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
+         print('    Final Processed Currency: "${row[processedCurrencyIndex]}"');
+       }
+       if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
+         print('    Final Target Currency: "${row[targetCurrencyIndex]}"');
        }
      }
+     
+     print('Initial sync completed for ${_csvData!.length} rows');
    }
    
    // Cancel cell edit
@@ -444,6 +584,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
 
       // Parse headers (first line)
       _csvHeaders = _parseCsvLine(lines[0]);
+      print('Parsed CSV headers: ${_csvHeaders!.join(", ")}');
       
       // Reset filter indices when new data is loaded
       _transactionIdIndex = null;
@@ -457,15 +598,43 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
           final row = _parseCsvLine(lines[i]);
           if (row.isNotEmpty) {
             _csvData!.add(row);
+            
+            // Debug first few rows to see if amounts are preserved
+            if (i <= 3) {
+              print('Row $i parsed: ${row.join(" | ")}');
+            }
           }
         }
       }
+      
+      print('Parsed ${_csvData!.length} data rows');
       
       // Initialize filtered data with all data
       _filteredData = _csvData;
       
       // Initialize editable columns
       _initializeEditableColumns();
+      
+      // Show sample data for amount columns after column detection
+      if (_csvData!.isNotEmpty) {
+        final processedAmountIndex = _editableColumns['processed amount'];
+        final targetAmountIndex = _editableColumns['target amount'];
+        final payoutStatusIndex = _editableColumns['payout status'];
+        
+        print('Sample data for amount columns:');
+        for (int rowIndex = 0; rowIndex < math.min(3, _csvData!.length); rowIndex++) {
+          final row = _csvData![rowIndex];
+          if (processedAmountIndex != null && processedAmountIndex < row.length) {
+            print('  Row $rowIndex - Processed Amount (index $processedAmountIndex): "${row[processedAmountIndex]}"');
+          }
+          if (targetAmountIndex != null && targetAmountIndex < row.length) {
+            print('  Row $rowIndex - Target Amount (index $targetAmountIndex): "${row[targetAmountIndex]}"');
+          }
+          if (payoutStatusIndex != null && payoutStatusIndex < row.length) {
+            print('  Row $rowIndex - Original Payout Status (index $payoutStatusIndex): "${row[payoutStatusIndex]}"');
+          }
+        }
+      }
       
       // Initial sync of processed values with target values
       _performInitialSync();
@@ -495,6 +664,29 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     
     // Add the last field
     result.add(current.trim());
+    
+    // Debug the first few lines parsed
+    if (result.length > 15) { // Only debug if it looks like a data row (not header)
+      bool hasAmountData = false;
+      for (String field in result) {
+        if (field.contains('.') && double.tryParse(field) != null) {
+          hasAmountData = true;
+          break;
+        }
+      }
+      
+      if (hasAmountData) {
+        print('CSV line parsing debug:');
+        print('  Input: ${line.length > 100 ? line.substring(0, 100) + "..." : line}');
+        print('  Parsed into ${result.length} fields');
+        for (int i = 0; i < result.length; i++) {
+          if (result[i].isNotEmpty && double.tryParse(result[i]) != null) {
+            print('    Field $i (numeric): "${result[i]}"');
+          }
+        }
+      }
+    }
+    
     return result;
   }
 
@@ -617,53 +809,496 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
   }
 
-  Future<void> _sendEmail() async {
-    setState(() {
-      _isLoading = true;
-      _statusMessage = '';
-      _apiResponse = null;
-    });
 
-    try {
-      // Firebase function URL
-      const String functionUrl = 'https://us-central1-codapay-webhook.cloudfunctions.net/sendEmail';
-      
-      final response = await http.get(Uri.parse(functionUrl));
-      
-      // Parse the response
-      Map<String, dynamic> responseData = {};
-      try {
-        responseData = json.decode(response.body);
-      } catch (e) {
-        responseData = {'raw_response': response.body};
-      }
-      
-      if (response.statusCode == 200) {
-        setState(() {
-          _isSuccess = true;
-          _statusMessage = 'Email sent successfully!';
-          _apiResponse = responseData;
-        });
-      } else {
-        setState(() {
-          _isSuccess = false;
-          _statusMessage = 'Failed to send email. Status: ${response.statusCode}';
-          _apiResponse = responseData;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _isSuccess = false;
-        _statusMessage = 'Error: $e';
-        _apiResponse = {'error': e.toString()};
-      });
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
-    }
+  
+  // Convert payout status number to text
+  String _convertPayoutStatusToText(String status) {
+    final trimmedStatus = status.trim();
+    print('Converting payout status: "$trimmedStatus" -> "${_payoutStatusOptions[trimmedStatus] ?? trimmedStatus}"');
+    return _payoutStatusOptions[trimmedStatus] ?? trimmedStatus;
   }
   
+  // Generate CSV content with only edited rows
+  String _generateEditedCsvContent() {
+    if (_csvHeaders == null || _csvData == null || _editedRowIndices.isEmpty) {
+      return '';
+    }
+    
+    List<String> csvLines = [];
+    
+    // Add header
+    csvLines.add(_csvHeaders!.map((header) => '"$header"').join(','));
+    
+    // Find column indices
+    final payoutStatusIndex = _editableColumns['payout status'];
+    final processedAmountIndex = _editableColumns['processed amount'];
+    final targetAmountIndex = _editableColumns['target amount'];
+    final processedCurrencyIndex = _editableColumns['processed currency'];
+    final targetCurrencyIndex = _editableColumns['target currency'];
+    
+    print('Generating edited CSV content:');
+    print('  Headers: ${_csvHeaders!.join(", ")}');
+    print('  Edited row indices: $_editedRowIndices');
+    print('  Payout status index: $payoutStatusIndex');
+    print('  Editable columns: $_editableColumns');
+    print('  Current _csvData state check:');
+    
+    // Add only edited rows
+    for (int rowIndex in _editedRowIndices) {
+      if (rowIndex < _csvData!.length) {
+        // Get the CURRENT state of the row from _csvData (this should include all edits)
+        final row = List<String>.from(_csvData![rowIndex]);
+        
+        print('  Row $rowIndex CURRENT state: ${row.join(" | ")}');
+        
+        // Show specific currency and amount values from current state
+        if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
+          print('    CURRENT Processed Currency (index $processedCurrencyIndex): "${row[processedCurrencyIndex]}"');
+        }
+        if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
+          print('    CURRENT Target Currency (index $targetCurrencyIndex): "${row[targetCurrencyIndex]}"');
+        }
+        if (processedAmountIndex != null && processedAmountIndex < row.length) {
+          print('    CURRENT Processed Amount (index $processedAmountIndex): "${row[processedAmountIndex]}"');
+        }
+        if (targetAmountIndex != null && targetAmountIndex < row.length) {
+          print('    CURRENT Target Amount (index $targetAmountIndex): "${row[targetAmountIndex]}"');
+        }
+        
+        // IMPORTANT: Override Processed Amount/Currency with Target Amount/Currency for export
+        // This ensures user's Target edits take precedence in the exported file
+        if (targetAmountIndex != null && processedAmountIndex != null && 
+            targetAmountIndex < row.length && processedAmountIndex < row.length) {
+          final targetAmount = row[targetAmountIndex].trim();
+          if (targetAmount.isNotEmpty) {
+            row[processedAmountIndex] = targetAmount;
+            print('    EXPORT OVERRIDE: Using Target Amount "$targetAmount" for Processed Amount');
+          }
+        }
+        
+        if (targetCurrencyIndex != null && processedCurrencyIndex != null && 
+            targetCurrencyIndex < row.length && processedCurrencyIndex < row.length) {
+          final targetCurrency = row[targetCurrencyIndex].trim();
+          if (targetCurrency.isNotEmpty) {
+            row[processedCurrencyIndex] = targetCurrency.toUpperCase();
+            print('    EXPORT OVERRIDE: Using Target Currency "$targetCurrency" for Processed Currency');
+          }
+        }
+        
+        // Convert payout status from number to text
+        if (payoutStatusIndex != null && payoutStatusIndex < row.length) {
+          final originalStatus = row[payoutStatusIndex];
+          row[payoutStatusIndex] = _convertPayoutStatusToText(row[payoutStatusIndex]);
+          print('    Converted payout status: $originalStatus -> ${row[payoutStatusIndex]}');
+        }
+        
+        print('  Row $rowIndex FINAL for CSV (after export overrides): ${row.join(" | ")}');
+        
+        final csvRow = row.map((cell) => '"$cell"').join(',');
+        csvLines.add(csvRow);
+      }
+    }
+    
+    final result = csvLines.join('\n');
+    print('Generated CSV content (${csvLines.length} lines):');
+    print('--- CSV START ---');
+    print(result);
+    print('--- CSV END ---');
+    return result;
+  }
+  
+
+  
+  // Download ZIP file from base64 content
+  void _downloadZipFile(String base64Content, String fileName) {
+    final bytes = base64Decode(base64Content);
+    final blob = html.Blob([bytes]);
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', fileName)
+      ..click();
+    
+    html.Url.revokeObjectUrl(url);
+  }
+  
+  // Show transaction type selection dialog
+  void _showTransactionTypeDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Transaction Type'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('1. Wallet'),
+                leading: Radio<String>(
+                  value: '_WALLET',
+                  groupValue: _transactionType,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _transactionType = value ?? '';
+                    });
+                    Navigator.of(context).pop();
+                    _showFileNameDialog();
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('2. Bank Transfer'),
+                leading: Radio<String>(
+                  value: '_BANK_TRANSFER',
+                  groupValue: _transactionType,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _transactionType = value ?? '';
+                    });
+                    Navigator.of(context).pop();
+                    _showFileNameDialog();
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  // Show file name input dialog
+  void _showFileNameDialog() {
+    final TextEditingController fileNameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter ZIP File Name'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: fileNameController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., MyData',
+                  labelText: 'File Name',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Final file names will be:\n'
+                '• ${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.csv\n'
+                '• approved_${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.csv',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (fileNameController.text.trim().isNotEmpty) {
+                  Navigator.of(context).pop();
+                  _generateAndDownloadFiles(fileNameController.text.trim());
+                }
+              },
+              child: const Text('Generate Files'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Show transaction type selection dialog for email
+  void _showEmailTransactionTypeDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Choose Transaction Type for Email'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text('1. Wallet'),
+                leading: Radio<String>(
+                  value: '_WALLET',
+                  groupValue: _transactionType,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _transactionType = value ?? '';
+                    });
+                    Navigator.of(context).pop();
+                    _showEmailFileNameDialog();
+                  },
+                ),
+              ),
+              ListTile(
+                title: const Text('2. Bank Transfer'),
+                leading: Radio<String>(
+                  value: '_BANK_TRANSFER',
+                  groupValue: _transactionType,
+                  onChanged: (String? value) {
+                    setState(() {
+                      _transactionType = value ?? '';
+                    });
+                    Navigator.of(context).pop();
+                    _showEmailFileNameDialog();
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  
+  // Show file name input dialog for email
+  void _showEmailFileNameDialog() {
+    final TextEditingController fileNameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Enter File Name for Email'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: fileNameController,
+                decoration: const InputDecoration(
+                  hintText: 'e.g., MyData',
+                  labelText: 'File Name',
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Files to be emailed:\n'
+                '• approved_${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.zip\n'
+                '• ${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.zip',
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (fileNameController.text.trim().isNotEmpty) {
+                  Navigator.of(context).pop();
+                  _sendEmailWithFiles(fileNameController.text.trim());
+                }
+              },
+              child: const Text('Send Email'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  
+  // Send email with generated ZIP files
+  Future<void> _sendEmailWithFiles(String baseName) async {
+    if (_editedRowIndices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No edited rows to send via email')),
+      );
+      return;
+    }
+    
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Generating and sending ZIP files via email...'),
+            ],
+          ),
+          duration: Duration(seconds: 15),
+        ),
+      );
+
+      // Generate CSV content with user's selected payout status
+      final originalContent = _generateEditedCsvContent();
+      
+      print('=== EMAIL PAYLOAD DEBUG ===');
+      print('CSV content being sent to email API:');
+      print('--- CSV START ---');
+      print(originalContent);
+      print('--- CSV END ---');
+      print('Email API will generate and send:');
+      print('1. Email with approved_${baseName}${_transactionType}.zip - All payout status = APPROVED');
+      print('2. Email with ${baseName}${_transactionType}.zip - User\'s selected payout status');
+      print('To: wkarweng98@gmail.com');
+      print('==============================');
+      
+             // Call backend API to send email with ZIP files
+       final response = await http.post(
+         Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
+         headers: {'Content-Type': 'application/json'},
+         body: json.encode({
+           'originalCsv': originalContent,
+           'fileName': baseName,
+           'transactionType': _transactionType,
+         }),
+       );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Email sent successfully!\n'
+                '• ${responseData['files']['approved']} (All status = APPROVED)\n'
+                '• ${responseData['files']['original']} (Your selected status)\n'
+                'Sent to: ${responseData['recipient']}\n'
+                'Password: P@ssw0rd'
+              ),
+              duration: const Duration(seconds: 8),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Backend returned error: ${responseData['error']}');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sending email: $error'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  // Generate and download password-protected ZIP files via backend
+  Future<void> _generateAndDownloadFiles(String baseName) async {
+    if (_editedRowIndices.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No edited rows to export')),
+      );
+      return;
+    }
+    
+    try {
+              // Show loading indicator
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                SizedBox(width: 16),
+                Text('Generating password-protected ZIP files...'),
+              ],
+            ),
+            duration: Duration(seconds: 10),
+          ),
+        );
+
+      // Generate CSV content with user's selected payout status
+      final originalContent = _generateEditedCsvContent();
+      
+      print('=== BACKEND PAYLOAD DEBUG ===');
+      print('CSV content being sent to backend (with user\'s selected payout status):');
+      print('--- CSV START ---');
+      print(originalContent);
+      print('--- CSV END ---');
+      print('Backend will generate:');
+      print('1. approved_${baseName}${_transactionType}.zip - All payout status = APPROVED');
+      print('2. ${baseName}${_transactionType}.zip - User\'s selected payout status');
+      print('==============================');
+      
+      // Call backend API to create ZIP files
+      final response = await http.post(
+        Uri.parse('https://generatezipfiles-amxcplfi6q-uc.a.run.app'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'originalCsv': originalContent,
+          'fileName': baseName,
+          'transactionType': _transactionType,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        if (responseData['success'] == true) {
+          final files = responseData['files'];
+          
+          print('=== DOWNLOAD DEBUG ===');
+          print('File 1 (Approved): ${files['approved']['name']} - All payout status = APPROVED');
+          print('File 2 (Original): ${files['original']['name']} - User\'s selected payout status');
+          print('Number of edited rows exported: ${_editedRowIndices.length}');
+          print('Edited row indices: $_editedRowIndices');
+          print('======================');
+          
+          // Download both ZIP files (approved first, then original)
+          _downloadZipFile(files['approved']['content'], files['approved']['name']);
+          
+          // Delay the second download slightly
+          Future.delayed(const Duration(milliseconds: 500), () {
+            _downloadZipFile(files['original']['content'], files['original']['name']);
+          });
+          
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Generated password-protected ZIP files:\n'
+                '• ${files['approved']['name']} (${_editedRowIndices.length} edited rows - ALL payout status = APPROVED)\n'
+                '• ${files['original']['name']} (${_editedRowIndices.length} edited rows - YOUR selected payout status)\n'
+                'Password: P@ssw0rd'
+              ),
+              duration: const Duration(seconds: 8),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Backend returned error: ${responseData['error']}');
+        }
+      } else {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+    } catch (error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error generating ZIP files: $error'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+
+
   @override
   void dispose() {
     // Clean up all text editing controllers
@@ -896,7 +1531,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                               ),
                               if (_filteredData != null && _filterText.isNotEmpty) ...[
                                 const SizedBox(height: 8),
-                                Text(
+            Text(
                                   'Found ${_filteredData!.length} matching transactions',
                                   style: TextStyle(
                                     color: Colors.green.shade700,
@@ -905,9 +1540,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                   ),
                                 ),
                               ],
-                            ],
-                          ),
-                        ),
+          ],
+        ),
+      ),
                         
                         const SizedBox(height: 12),
                         ConstrainedBox(
@@ -1117,7 +1752,13 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                                                   ) :
                                                   // Display mode
                                                   InkWell(
-                                                    onTap: (isEditable && !isAutoSynced) ? () => _startEditing(rowIndex, originalCellIndex, cell) : null,
+                                                    onTap: (isEditable && !isAutoSynced) ? () {
+                                                      print('UI CLICK: Reordered cell $reorderedCellIndex -> Original cell $originalCellIndex');
+                                                      print('  Reordered header: ${(_reorderedHeaders ?? _csvHeaders!)[reorderedCellIndex]}');
+                                                      print('  Original header: ${_csvHeaders![originalCellIndex]}');
+                                                      print('  Cell value: "$cell"');
+                                                      _startEditing(rowIndex, originalCellIndex, cell);
+                                                    } : null,
                                                     child: Container(
                                                       width: double.infinity,
                                                       child: Row(
@@ -1228,149 +1869,154 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                 
                 const SizedBox(height: 32),
                 
-                // Email Sending Section
-                Container(
-                  width: 400,
-                  padding: const EdgeInsets.all(24),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'Step 2: Send Email',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'This will send a test email to wkarweng98@gmail.com',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: 200,
-                        height: 50,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _sendEmail,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                  ),
-                                )
-                              : const Text(
-                                  'Send Email',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                const SizedBox(height: 24),
-                
-                // Status Messages
-                if (_statusMessage.isNotEmpty)
+                // Email Section
+                if (_editedRowIndices.isNotEmpty) ...[
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    width: 400,
+                    padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: _isSuccess ? Colors.green.shade50 : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _isSuccess ? Colors.green : Colors.red,
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _isSuccess ? Icons.check_circle : Icons.error,
-                          color: _isSuccess ? Colors.green : Colors.red,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            _statusMessage,
-                            style: TextStyle(
-                              color: _isSuccess ? Colors.green.shade800 : Colors.red.shade800,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                
-                // API Response Display
-                if (_apiResponse != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
+                      border: Border.all(color: Colors.blue.shade300),
+                      borderRadius: BorderRadius.circular(12),
                     ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.code, size: 20, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'API Response:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
+                        const Text(
+                          'Step 2: Send Email',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Send ${_editedRowIndices.length} modified transaction(s) via email to wkarweng98@gmail.com',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
                         Container(
-                          width: double.infinity,
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(4),
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.blue.shade200),
                           ),
-                          child: SelectableText(
-                            const JsonEncoder.withIndent('  ').convert(_apiResponse),
-                            style: const TextStyle(
-                              color: Colors.green,
-                              fontFamily: 'monospace',
-                              fontSize: 12,
+                          child: const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'This will send 2 separate emails with:',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              SizedBox(height: 4),
+                              Text('• Email 1: ZIP file with ALL payout status = APPROVED', style: TextStyle(fontSize: 11)),
+                              Text('• Email 2: ZIP file with YOUR selected payout status', style: TextStyle(fontSize: 11)),
+                              Text('• Password: P@ssw0rd for both files', style: TextStyle(fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: 200,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _showEmailTransactionTypeDialog,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Send Email',
+                              style: TextStyle(fontSize: 16),
                             ),
                           ),
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(height: 32),
                 ],
+                
+                // Export Section
+                if (_editedRowIndices.isNotEmpty) ...[
+                  Container(
+                    width: 400,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.green.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          'Step 3: Export Modified Data',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Export ${_editedRowIndices.length} modified transaction(s) to CSV files',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'This will generate:',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                              ),
+                              const SizedBox(height: 4),
+                              const Text('• Original CSV with your edits', style: TextStyle(fontSize: 11)),
+                              const Text('• Approved CSV (all status = SUCCESS)', style: TextStyle(fontSize: 11)),
+                              const Text('• Files contain only modified rows', style: TextStyle(fontSize: 11)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: 200,
+                          height: 50,
+                          child: ElevatedButton(
+                            onPressed: _showTransactionTypeDialog,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.green,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Text(
+                              'Export CSV Files',
+                              style: TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+
               ],
             ),
           ),
