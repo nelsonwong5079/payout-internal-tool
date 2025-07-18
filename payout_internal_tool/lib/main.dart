@@ -714,6 +714,25 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
   }
 
+  // Call check-new-email API client-side with no-cors
+  Future<void> _callCheckNewEmailApi() async {
+    try {
+      print('Calling check-new-email API...');
+      await html.window.fetch(
+        'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email',
+        {
+          'method': 'POST',
+          'mode': 'no-cors',
+        }
+      );
+      print('API call completed successfully');
+    } catch (e) {
+      print('API call failed: $e');
+    }
+  }
+
+
+
 
   // Show VPN connection dialog
   void _showVpnDialog() {
@@ -1254,7 +1273,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     );
   }
   
-  // Send email with generated ZIP files
+  // Send email with generated ZIP files - step by step process
   Future<void> _sendEmailWithFiles(String baseName) async {
     if (_editedRowIndices.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1264,7 +1283,16 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
     
     try {
-      // Show loading indicator
+      // Generate CSV content with user's selected payout status
+      final originalContent = _generateEditedCsvContent();
+      
+      print('=== EMAIL STEP-BY-STEP PROCESS ===');
+      print('To: payout-qa-internal@codapayments.com');
+      print('Subject: Sandbox Txn Status Update');
+      print('Password: P@ssw0rd');
+      print('===================================');
+      
+      // Step 1: Send approved ZIP file
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Row(
@@ -1275,69 +1303,156 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 16),
-              Text('Generating and sending ZIP files via email...'),
+              Text('Step 1: Sending approved ZIP file...'),
             ],
           ),
-          duration: Duration(seconds: 15),
+          duration: Duration(seconds: 10),
         ),
       );
 
-      // Generate CSV content with user's selected payout status
-      final originalContent = _generateEditedCsvContent();
-      
-      print('=== EMAIL PAYLOAD DEBUG ===');
-      print('CSV content being sent to email API:');
-      print('--- CSV START ---');
-      print(originalContent);
-      print('--- CSV END ---');
-      print('Email API will generate and send:');
-      print('1. Email with approved_${baseName}${_transactionType}.zip - All payout status = APPROVED');
-      print('2. Email with ${baseName}${_transactionType}.zip - User\'s selected payout status');
-      print('To: wkarweng98@gmail.com');
-      print('==============================');
-      
-             // Call backend API to send email with ZIP files
-       final response = await http.post(
-         Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
-         headers: {'Content-Type': 'application/json'},
-         body: json.encode({
-           'originalCsv': originalContent,
-           'fileName': baseName,
-           'transactionType': _transactionType,
-         }),
-       );
+      print('Step 1: Sending approved ZIP file...');
+      final approvedResponse = await http.post(
+        Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'originalCsv': originalContent,
+          'fileName': baseName,
+          'transactionType': _transactionType,
+          'emailType': 'approved',
+        }),
+      );
 
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['success'] == true) {
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Email sent successfully!\n'
-                '• ${responseData['files']['approved']} (All status = APPROVED)\n'
-                '• ${responseData['files']['original']} (Your selected status)\n'
-                'Sent to: ${responseData['recipient']}\n'
-                'Password: P@ssw0rd'
-              ),
-              duration: const Duration(seconds: 8),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          throw Exception('Backend returned error: ${responseData['error']}');
-        }
-      } else {
-        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      if (approvedResponse.statusCode != 200) {
+        throw Exception('Failed to send approved email: ${approvedResponse.body}');
       }
+      
+      // Download approved ZIP file to user's computer
+      final approvedData = json.decode(approvedResponse.body);
+      if (approvedData['zipContent'] != null) {
+        _downloadZipFile(approvedData['zipContent'], approvedData['fileName']);
+      }
+      
+      print('✅ Approved email sent successfully');
+
+      // Step 2: Wait 20 seconds then call API
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Step 2: Waiting 20 seconds then calling API...'),
+            ],
+          ),
+          duration: Duration(seconds: 21),
+        ),
+      );
+
+      print('Step 2: Waiting 20 seconds...');
+      await Future.delayed(const Duration(seconds: 20));
+      
+      print('Step 2: Calling check-new-email API...');
+      await _callCheckNewEmailApi();
+
+      // Step 3: Wait another 20 seconds then send original ZIP
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Step 3: Waiting 20 seconds then sending original ZIP...'),
+            ],
+          ),
+          duration: Duration(seconds: 21),
+        ),
+      );
+
+      print('Step 3: Waiting 20 seconds...');
+      await Future.delayed(const Duration(seconds: 20));
+      
+      print('Step 3: Sending original ZIP file...');
+      final originalResponse = await http.post(
+        Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'originalCsv': originalContent,
+          'fileName': baseName,
+          'transactionType': _transactionType,
+          'emailType': 'original',
+        }),
+      );
+
+      if (originalResponse.statusCode != 200) {
+        throw Exception('Failed to send original email: ${originalResponse.body}');
+      }
+      
+      // Download original ZIP file to user's computer
+      final originalData = json.decode(originalResponse.body);
+      if (originalData['zipContent'] != null) {
+        _downloadZipFile(originalData['zipContent'], originalData['fileName']);
+      }
+      
+      print('✅ Original email sent successfully');
+
+      // Step 4: Wait 15 seconds and call API
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 16),
+              Text('Step 4: Waiting 15 seconds then final API call...'),
+            ],
+          ),
+          duration: Duration(seconds: 16),
+        ),
+      );
+
+      print('Step 4: Waiting 15 seconds...');
+      await Future.delayed(const Duration(seconds: 15));
+      
+      print('Step 4: Final API call...');
+      await _callCheckNewEmailApi();
+
+      // Show final success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Email process completed successfully!\n'
+            '✅ Approved ZIP sent (all status = APPROVED)\n'
+            '✅ Original ZIP sent (your selected status)\n'
+            '✅ ZIP files downloaded to your computer\n'
+            '✅ All API calls completed\n'
+            'Sent to: payout-qa-internal@codapayments.com\n'
+          ),
+          duration: const Duration(seconds: 8),
+          backgroundColor: Colors.green,
+        ),
+      );
+      print('=== PROCESS COMPLETED SUCCESSFULLY ===');
+
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error sending email: $error'),
+          content: Text('Error in email process: $error'),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 5),
         ),
       );
+      print('❌ Error in email process: $error');
     }
   }
 

@@ -221,41 +221,15 @@ export const sendEmail = onRequest(async (request, response) => {
   }
 
   try {
-    const {originalCsv, fileName, transactionType} = request.body;
+    const {originalCsv, fileName, transactionType, emailType} = request.body;
 
-    if (!originalCsv || !fileName || !transactionType) {
+    if (!originalCsv || !fileName || !transactionType || !emailType) {
       response.status(400).json({error: "Missing required fields"});
       return;
     }
 
     const password = "P@ssw0rd";
-    const recipient = "wkarweng98@gmail.com";
-
-    // File 1: approved_${fileName}${transactionType} with all APPROVED status
-    const approvedFileName = `approved_${fileName}${transactionType}`;
-    const approvedCsvContent = convertToApprovedStatus(originalCsv);
-
-    // File 2: ${fileName}${transactionType} with user's selected status
-    const originalFileName = `${fileName}${transactionType}`;
-    const originalCsvContent = originalCsv;
-
-    logger.info(`Generating and emailing files:
-    1. ${approvedFileName}.zip - All payout status = APPROVED
-    2. ${originalFileName}.zip - User's selected payout status`);
-
-    // Create both password-protected ZIP files
-    const [approvedZip, originalZip] = await Promise.all([
-      createPasswordProtectedZip(
-        approvedCsvContent,
-        approvedFileName,
-        password
-      ),
-      createPasswordProtectedZip(
-        originalCsvContent,
-        originalFileName,
-        password
-      ),
-    ]);
+    const recipient = "payout-qa-internal@codapayments.com";
 
     // Configure nodemailer with Gmail SMTP
     const transporter = nodemailer.createTransport({
@@ -266,70 +240,87 @@ export const sendEmail = onRequest(async (request, response) => {
       },
     });
 
-    // Send first email with approved ZIP file
-    const approvedMailOptions = {
-      from: "nelson.wong@codapayments.com",
-      to: recipient,
-      subject: `Payout Data - Approved Version (${approvedFileName})`,
-      text: `This email contains the approved version of payout data.
-      
-File: ${approvedFileName}.zip
-Password: ${password}
-Status: All payout status = APPROVED
+    if (emailType === "approved") {
+      // Send approved ZIP file
+      const approvedFileName = `approved_${fileName}${transactionType}`;
+      const approvedCsvContent = convertToApprovedStatus(originalCsv);
 
-This email is sent by PS Team Internal Tools. If you have any concerns, 
-please contact Nelson via Slack, or Email to nelson.wong@codapayments.com.`,
-      attachments: [
-        {
-          filename: `${approvedFileName}.zip`,
-          content: approvedZip,
-        },
-      ],
-    };
+      logger.info(`Sending approved email: ${approvedFileName}.zip`);
 
-    // Send second email with original ZIP file
-    const originalMailOptions = {
-      from: "nelson.wong@codapayments.com",
-      to: recipient,
-      subject: `Payout Data - Original Version (${originalFileName})`,
-      text: `This email contains the original version of payout data 
-with your selected status.
-      
-File: ${originalFileName}.zip
-Password: ${password}
-Status: User's selected payout status
+      const approvedZip = await createPasswordProtectedZip(
+        approvedCsvContent,
+        approvedFileName,
+        password
+      );
 
-This email is sent by PS Team Internal Tools. If you have any concerns, 
-please contact Nelson via Slack, or Email to nelson.wong@codapayments.com.`,
-      attachments: [
-        {
-          filename: `${originalFileName}.zip`,
-          content: originalZip,
-        },
-      ],
-    };
+      const approvedMailOptions = {
+        from: "nelson.wong@codapayments.com",
+        to: recipient,
+        subject: "Sandbox Txn Status Update",
+        text: "This email is sent by PS Team Internal Tools. " +
+          "If you have any concerns, please contact Nelson via Slack, " +
+          "or Email to nelson.wong@codapayments.com.",
+        attachments: [
+          {
+            filename: `${approvedFileName}.zip`,
+            content: approvedZip,
+          },
+        ],
+      };
 
-    // Send emails sequentially (file by file)
-    logger.info("Sending first email with approved ZIP file...");
-    await transporter.sendMail(approvedMailOptions);
-    logger.info("First email sent successfully");
+      await transporter.sendMail(approvedMailOptions);
+      logger.info("Approved email sent successfully");
 
-    // Wait 2 seconds before sending second email
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+      response.status(200).json({
+        success: true,
+        message: "Approved ZIP file sent via email successfully",
+        fileName: `${approvedFileName}.zip`,
+        type: "approved",
+        zipContent: approvedZip.toString("base64"),
+      });
+    } else if (emailType === "original") {
+      // Send original ZIP file
+      const originalFileName = `${fileName}${transactionType}`;
 
-    logger.info("Sending second email with original ZIP file...");
-    await transporter.sendMail(originalMailOptions);
-    logger.info("Second email sent successfully");
+      logger.info(`Sending original email: ${originalFileName}.zip`);
 
-    response.status(200).json({
-      success: true,
-      message: "Both ZIP files generated and sent via email successfully",
-      files: {
-        approved: `${approvedFileName}.zip`,
-        original: `${originalFileName}.zip`,
-      },
-      recipient: recipient,
-    });
+      const originalZip = await createPasswordProtectedZip(
+        originalCsv,
+        originalFileName,
+        password
+      );
+
+      const originalMailOptions = {
+        from: "nelson.wong@codapayments.com",
+        to: recipient,
+        subject: "Sandbox Txn Status Update",
+        text: "This email is sent by PS Team Internal Tools. " +
+          "If you have any concerns, please contact Nelson via Slack, " +
+          "or Email to nelson.wong@codapayments.com.",
+        attachments: [
+          {
+            filename: `${originalFileName}.zip`,
+            content: originalZip,
+          },
+        ],
+      };
+
+      await transporter.sendMail(originalMailOptions);
+      logger.info("Original email sent successfully");
+
+      response.status(200).json({
+        success: true,
+        message: "Original ZIP file sent via email successfully",
+        fileName: `${originalFileName}.zip`,
+        type: "original",
+        zipContent: originalZip.toString("base64"),
+      });
+    } else {
+      response.status(400).json({
+        error: "Invalid emailType. Use 'approved' or 'original'",
+      });
+      return;
+    }
   } catch (error) {
     logger.error("Error in sendEmail function", error);
     response.status(500).json({
