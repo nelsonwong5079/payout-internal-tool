@@ -8,6 +8,9 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'dart:math' as math;
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
+import 'app.dart';
 
 // Custom input formatter for currency codes (alphabetic uppercase only)
 class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
@@ -26,87 +29,19 @@ class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
   }
 }
 
-void main() {
+// This file now only contains the EmailSenderPage widget
+// The main app entry point has been moved to app.dart
+
+// Initialize Firebase and run the app
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
   runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Payout Internal Tool',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2563EB), // Modern blue
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        // Enhanced typography
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
-          headlineMedium: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w600,
-            letterSpacing: -0.25,
-          ),
-          titleLarge: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
-          bodyLarge: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.normal,
-          ),
-        ),
-        // Enhanced card theme
-        cardTheme: CardThemeData(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
-        // Enhanced button theme
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 2,
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        // Enhanced input decoration
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.grey.shade50,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade300),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
-      ),
-      home: const EmailSenderPage(),
-    );
-  }
 }
 
 class EmailSenderPage extends StatefulWidget {
@@ -2057,44 +1992,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       onKey: _handleKeyEvent,
       child: Scaffold(
         backgroundColor: Colors.grey.shade50,
-        appBar: AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          centerTitle: true,
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primary,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(
-                  Icons.account_balance_wallet,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Payout Internal Tool',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
-                ),
-              ),
-            ],
-          ),
-          bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(1),
-            child: Container(
-              height: 1,
-              color: Colors.grey.shade200,
-            ),
-          ),
-        ),
         body: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(

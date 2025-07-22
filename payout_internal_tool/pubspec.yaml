@@ -41,6 +41,13 @@ dependencies:
   # Archive package for ZIP file processing
   archive: ^3.4.9
 
+  # Firebase dependencies
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.15.3
+
+  # Provider for state management
+  provider: ^6.1.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
