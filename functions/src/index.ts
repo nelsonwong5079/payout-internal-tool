@@ -12,8 +12,14 @@ import {onRequest} from "firebase-functions/https";
 import * as logger from "firebase-functions/logger";
 import nodemailer from "nodemailer";
 import * as archiver from "archiver";
+import {defineSecret} from "firebase-functions/params";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ArchiverZipEncrypted = require("archiver-zip-encrypted");
+
+// Define secrets
+const emailAppPassword = defineSecret(
+  "EMAIL_APP_PASSWORD"
+);
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -50,13 +56,13 @@ async function createPasswordProtectedZip(
       } catch (err) {
         // Format already registered, ignore the error
       }
+
       // Create archiver with encryption
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const archive = archiver.create("zip-encrypted", {
         zlib: {level: 8},
         encryptionMethod: "aes256",
         password: password,
-      } as any);
+      } as archiver.ArchiverOptions);
 
       const chunks: Buffer[] = [];
 
@@ -204,7 +210,7 @@ export const generateZipFiles = onRequest(async (request, response) => {
 });
 
 // Email sending API with ZIP file generation and attachment
-export const sendEmail = onRequest(async (request, response) => {
+export const sendEmail = onRequest({secrets: [emailAppPassword]}, async (request, response) => {
   // CORS headers
   response.set("Access-Control-Allow-Origin", "*");
   response.set("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -236,7 +242,7 @@ export const sendEmail = onRequest(async (request, response) => {
       service: "gmail",
       auth: {
         user: "nelson.wong@codapayments.com",
-        pass: "cwkb zqbq dwau aohd", // Use app password
+        pass: emailAppPassword.value(), // Use environment variable
       },
     });
 
