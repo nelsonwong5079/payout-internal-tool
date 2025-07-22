@@ -29,6 +29,47 @@ class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
   }
 }
 
+// Floating particle class
+class _FloatingParticle {
+  final double x = math.Random().nextDouble();
+  final double y = math.Random().nextDouble();
+  final double size = math.Random().nextDouble() * 4 + 2;
+  final double speed = math.Random().nextDouble() * 0.5 + 0.1;
+  final double angle = math.Random().nextDouble() * 2 * math.pi;
+}
+
+// Custom painter for floating particles
+class _FloatingParticlesPainter extends CustomPainter {
+  final List<_FloatingParticle> particles;
+  final Animation<double> animation;
+
+  _FloatingParticlesPainter({
+    required this.particles,
+    required this.animation,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.1)
+      ..style = PaintingStyle.fill;
+
+    for (final particle in particles) {
+      final x = (particle.x + animation.value * particle.speed) * size.width;
+      final y = (particle.y + math.sin(animation.value * 2 * math.pi + particle.angle) * 20) * size.height;
+      
+      canvas.drawCircle(
+        Offset(x, y),
+        particle.size,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
+}
+
 // This file now only contains the EmailSenderPage widget
 // The main app entry point has been moved to app.dart
 
@@ -51,15 +92,115 @@ class EmailSenderPage extends StatefulWidget {
   State<EmailSenderPage> createState() => _EmailSenderPageState();
 }
 
-class _EmailSenderPageState extends State<EmailSenderPage> {
+class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderStateMixin {
   // Add keyboard listener
   final FocusNode _focusNode = FocusNode();
   bool _showAdminSection = false;
+
+  // Animation controllers
+  late AnimationController _fadeController;
+  late AnimationController _slideController;
+  late AnimationController _pulseController;
+  late AnimationController _floatingController;
+  late AnimationController _glowController;
+  
+  // Animations
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+  late Animation<double> _pulseAnimation;
+  late Animation<double> _floatingAnimation;
+  late Animation<double> _glowAnimation;
+
+  // Floating particles
+  final List<_FloatingParticle> _particles = [];
 
   @override
   void initState() {
     super.initState();
     _focusNode.requestFocus();
+    
+    // Initialize animation controllers
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+    
+    _slideController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 2000),
+      vsync: this,
+    );
+    
+    _floatingController = AnimationController(
+      duration: const Duration(milliseconds: 4000),
+      vsync: this,
+    );
+    
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 2500),
+      vsync: this,
+    );
+    
+    // Setup animations
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _fadeController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.05,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _floatingAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _floatingController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _glowAnimation = Tween<double>(
+      begin: 0.5,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _glowController,
+      curve: Curves.easeInOut,
+    ));
+    
+    // Start animations
+    _fadeController.forward();
+    _slideController.forward();
+    _pulseController.repeat(reverse: true);
+    _floatingController.repeat();
+    _glowController.repeat(reverse: true);
+    
+    // Initialize floating particles
+    _initializeParticles();
+  }
+
+  void _initializeParticles() {
+    for (int i = 0; i < 15; i++) {
+      _particles.add(_FloatingParticle());
+    }
   }
 
   @override
@@ -70,6 +211,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
     _dropdownValues.clear();
     _focusNode.dispose();
+    
+    // Dispose animation controllers
+    _fadeController.dispose();
+    _slideController.dispose();
+    _pulseController.dispose();
+    _floatingController.dispose();
+    _glowController.dispose();
+    
     super.dispose();
   }
 
@@ -88,135 +237,195 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
   }
 
-  // Build admin section
+  // Build enhanced admin section
   Widget _buildAdminSection() {
     if (!_showAdminSection) return const SizedBox.shrink();
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(bottom: 32),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade900,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade800),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.amber.shade200,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.admin_panel_settings,
-                  size: 20,
-                  color: Colors.amber.shade900,
-                ),
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          margin: const EdgeInsets.only(bottom: 32),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.grey.shade900,
+                Colors.grey.shade800,
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade700),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
-              const SizedBox(width: 12),
-              Text(
-                'Admin Section (Firebase CLI Commands)',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.white,
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.amber.shade400,
+                          Colors.amber.shade600,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.amber.shade400.withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      Icons.admin_panel_settings,
+                      size: 24,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    'Admin Section (Firebase CLI Commands)',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              _buildCommandSection(
+                title: 'View Current Email Password',
+                command: 'firebase functions:secrets:access EMAIL_APP_PASSWORD',
+                description: 'Shows the current value of the email app password.',
+              ),
+              const SizedBox(height: 16),
+              _buildCommandSection(
+                title: 'Update Email Password',
+                command: 'firebase functions:secrets:set EMAIL_APP_PASSWORD',
+                description: 'Sets a new value for the email app password. You will be prompted to enter the new value.',
+              ),
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.amber.shade100.withOpacity(0.1),
+                      Colors.amber.shade200.withOpacity(0.1),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.shade300.withOpacity(0.3)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.info_outline,
+                      size: 18,
+                      color: Colors.amber.shade300,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Press Ctrl+Shift+A again to hide this section',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.amber.shade300,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 24),
-          _buildCommandSection(
-            title: 'View Current Email Password',
-            command: 'firebase functions:secrets:access EMAIL_APP_PASSWORD',
-            description: 'Shows the current value of the email app password.',
-          ),
-          const SizedBox(height: 16),
-          _buildCommandSection(
-            title: 'Update Email Password',
-            command: 'firebase functions:secrets:set EMAIL_APP_PASSWORD',
-            description: 'Sets a new value for the email app password. You will be prompted to enter the new value.',
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.amber.shade100.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.amber.shade200.withOpacity(0.2)),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Colors.amber.shade200,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Press Ctrl+Shift+A again to hide this section',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.amber.shade200,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  // Helper to build command sections
+  // Helper to build enhanced command sections
   Widget _buildCommandSection({
     required String title,
     required String command,
     required String description,
   }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade800.withOpacity(0.8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade700),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade800,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade700),
-          ),
-          child: Text(
-            command,
-            style: TextStyle(
-              color: Colors.amber.shade200,
-              fontFamily: 'monospace',
-              fontSize: 14,
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          description,
-          style: TextStyle(
-            color: Colors.grey.shade400,
-            fontSize: 12,
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Colors.grey.shade900,
+                  Colors.grey.shade800,
+                ],
+              ),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade600),
+            ),
+            child: Text(
+              command,
+              style: TextStyle(
+                color: Colors.amber.shade300,
+                fontFamily: 'monospace',
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
-        ),
-      ],
+          const SizedBox(height: 12),
+          Text(
+            description,
+            style: TextStyle(
+              color: Colors.grey.shade400,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1991,77 +2200,133 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       focusNode: _focusNode,
       onKey: _handleKeyEvent,
       child: Scaffold(
-        backgroundColor: Colors.grey.shade50,
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Colors.grey.shade50,
-                Colors.white,
-              ],
+        body: Stack(
+          children: [
+            // Animated Background
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    const Color(0xFF667eea),
+                    const Color(0xFF764ba2),
+                    const Color(0xFFf093fb),
+                    const Color(0xFF667eea),
+                  ],
+                  stops: const [0.0, 0.3, 0.7, 1.0],
+                ),
+              ),
+              child: AnimatedBuilder(
+                animation: _floatingAnimation,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: _FloatingParticlesPainter(
+                      particles: _particles,
+                      animation: _floatingAnimation,
+                    ),
+                    child: Container(),
+                  );
+                },
+              ),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-            child: SingleChildScrollView(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1000),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Admin Section
-                      _buildAdminSection(),
-                      
-                      // Compact Hero Section
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.08),
-                              blurRadius: 16,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+            
+            // Main Content
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                child: SingleChildScrollView(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Admin Section
+                          _buildAdminSection(),
+                          
+                          // Enhanced Hero Section
+                          FadeTransition(
+                            opacity: _fadeAnimation,
+                            child: SlideTransition(
+                              position: _slideAnimation,
+                              child: Container(
+                                padding: const EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(24),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.15),
+                                      blurRadius: 24,
+                                      offset: const Offset(0, 8),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  children: [
+                                    // Animated Icon with Glow Effect
+                                    AnimatedBuilder(
+                                      animation: Listenable.merge([_pulseAnimation, _glowAnimation]),
+                                      builder: (context, child) {
+                                        return Transform.scale(
+                                          scale: _pulseAnimation.value,
+                                          child: Container(
+                                            padding: const EdgeInsets.all(24),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
+                                                colors: [
+                                                  const Color(0xFF667eea).withOpacity(0.1),
+                                                  const Color(0xFF764ba2).withOpacity(0.1),
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: const Color(0xFF667eea).withOpacity(0.2),
+                                                width: 2,
+                                              ),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(0xFF667eea).withOpacity(0.3 * _glowAnimation.value),
+                                                  blurRadius: 20 * _glowAnimation.value,
+                                                  spreadRadius: 2 * _glowAnimation.value,
+                                                ),
+                                              ],
+                                            ),
+                                            child: Icon(
+                                              Icons.upload_file,
+                                              size: 64,
+                                              color: const Color(0xFF667eea),
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                    const SizedBox(height: 24),
+                                    Text(
+                                      'Payout Internal Tool',
+                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                        color: const Color(0xFF1F2937),
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Upload and process CSV/ZIP files for transaction editing',
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                              child: Icon(
-                                Icons.upload_file,
-                                size: 48,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-            Text(
-                            'Payout Internal Tool',
-                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              color: const Color(0xFF1F2937),
-                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Upload and process CSV/ZIP files for transaction editing',
-                            textAlign: TextAlign.center,
-                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-            ),
-          ],
-        ),
-      ),
                       const SizedBox(height: 20),
                   
                   // Compact File Upload Section
@@ -2986,6 +3251,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
         ),
       ),
       ),
+      ),
+          ],
       ),
       ),
     );
