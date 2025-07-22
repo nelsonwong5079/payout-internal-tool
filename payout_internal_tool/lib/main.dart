@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:js' as js;
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'dart:math' as math;
@@ -794,8 +795,183 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
   }
 
+  // Helper function to create HTTP options for fetch API
+  Map<String, dynamic> createHttpOptions({required String method, required String mode}) {
+    return {
+      'method': method,
+      'mode': mode,
+      'credentials': 'include',
+      'headers': {
+        'Content-Type': 'application/json',
+      },
+    };
+  }
 
+  // Call wallet unfinished report API
+  Future<void> _callWalletUnfinishedReportApi() async {
+    try {
+      // Use fetch API with no-cors mode
+      await html.window.fetch(
+        'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-wallet-unfinished-report',
+        createHttpOptions(method: 'POST', mode: 'no-cors'),
+      );
+      print('Wallet Report API called successfully');
+      
+      // Always show success since no-cors mode doesn't return status
+      {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade600),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Wallet Unfinished Report sent successfully',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (error) {
+      print('Error calling Wallet Report API: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Error sending Wallet Report: $error',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      rethrow;
+    }
+  }
 
+  // Call bank transfer unfinished report API
+  Future<void> _callBankTransferUnfinishedReportApi() async {
+    try {
+      // Use fetch API with no-cors mode
+      await html.window.fetch(
+        'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-bank-transfer-unfinished-report',
+        createHttpOptions(method: 'POST', mode: 'no-cors'),
+      );
+      print('Bank Transfer Report API called successfully');
+      
+      // Always show success since no-cors mode doesn't return status
+      {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.green.shade600),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Bank Transfer Unfinished Report sent successfully',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (error) {
+      print('Error calling Bank Transfer Report API: $error');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.red.shade200),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red.shade600),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Error sending Bank Transfer Report: $error',
+                    style: TextStyle(
+                      color: Colors.red.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      rethrow;
+    }
+  }
 
   // Show VPN connection dialog
   void _showVpnDialog() {
@@ -1776,8 +1952,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
             child: Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1000),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Compact Hero Section
                     Container(
@@ -1808,7 +1984,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-                          Text(
+            Text(
                             'Payout Internal Tool',
                             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                               color: const Color(0xFF1F2937),
@@ -1822,10 +1998,10 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                               color: Colors.grey.shade600,
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
+            ),
+          ],
+        ),
+      ),
                     const SizedBox(height: 20),
                 
                 // Compact File Upload Section
@@ -2585,6 +2761,164 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                   ),
                   const SizedBox(height: 20),
                 ],
+
+                // Additional API Actions Section
+                const SizedBox(height: 32),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.shade100,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.email_outlined,
+                              size: 20,
+                              color: Colors.purple.shade600,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Additional Reports',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          // Wallet Report Button
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.indigo.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.indigo.shade200),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _callWalletUnfinishedReportApi,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.account_balance_wallet,
+                                              size: 20,
+                                              color: Colors.indigo.shade600,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Wallet Report',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.indigo.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Send unfinished wallet transactions report',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.indigo.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          
+                          // Bank Transfer Report Button
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.teal.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.teal.shade200),
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  onTap: _callBankTransferUnfinishedReportApi,
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.account_balance,
+                                              size: 20,
+                                              color: Colors.teal.shade600,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Text(
+                                              'Bank Transfer Report',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.teal.shade700,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          'Send unfinished bank transfer report',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.teal.shade600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
 
               ],
             ),
