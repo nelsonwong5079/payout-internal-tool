@@ -35,10 +35,73 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Email Sender',
+      title: 'Payout Internal Tool',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF2563EB), // Modern blue
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        // Enhanced typography
+        textTheme: const TextTheme(
+          headlineLarge: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.5,
+          ),
+          headlineMedium: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.25,
+          ),
+          titleLarge: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+          bodyLarge: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.normal,
+          ),
+        ),
+        // Enhanced card theme
+        cardTheme: CardThemeData(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        // Enhanced button theme
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            elevation: 2,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        // Enhanced input decoration
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade300),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
       ),
       home: const EmailSenderPage(),
     );
@@ -1087,98 +1150,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     html.Url.revokeObjectUrl(url);
   }
   
-  // Show transaction type selection dialog
-  void _showTransactionTypeDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Choose Transaction Type'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                title: const Text('1. Wallet'),
-                leading: Radio<String>(
-                  value: '_WALLET',
-                  groupValue: _transactionType,
-                  onChanged: (String? value) {
-                    setState(() {
-                      _transactionType = value ?? '';
-                    });
-                    Navigator.of(context).pop();
-                    _showFileNameDialog();
-                  },
-                ),
-              ),
-              ListTile(
-                title: const Text('2. Bank Transfer'),
-                leading: Radio<String>(
-                  value: '_BANK_TRANSFER',
-                  groupValue: _transactionType,
-                  onChanged: (String? value) {
-                    setState(() {
-                      _transactionType = value ?? '';
-                    });
-                    Navigator.of(context).pop();
-                    _showFileNameDialog();
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
-  // Show file name input dialog
-  void _showFileNameDialog() {
-    final TextEditingController fileNameController = TextEditingController();
-    
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Enter ZIP File Name'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: fileNameController,
-                decoration: const InputDecoration(
-                  hintText: 'e.g., MyData',
-                  labelText: 'File Name',
-                ),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Final file names will be:\n'
-                '• ${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.csv\n'
-                '• approved_${fileNameController.text.isEmpty ? "filename" : fileNameController.text}$_transactionType.csv',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (fileNameController.text.trim().isNotEmpty) {
-                  Navigator.of(context).pop();
-                  _generateAndDownloadFiles(fileNameController.text.trim());
-                }
-              },
-              child: const Text('Generate Files'),
-            ),
-          ],
-        );
-      },
-    );
-  }
+
   
   // Show transaction type selection dialog for email
   void _showEmailTransactionTypeDialog() {
@@ -1292,22 +1264,79 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       print('Password: P@ssw0rd');
       print('===================================');
       
-      // Step 1: Send approved ZIP file
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      // Show full-screen progress overlay
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return WillPopScope(
+            onWillPop: () async => false,
+            child: Dialog(
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              child: Container(
+                width: 400,
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 16),
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Sending Emails',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    _buildProgressStep(1, 'Sending approved ZIP file...', true),
+                    _buildProgressStep(2, 'Waiting for API (10s)', false),
+                    _buildProgressStep(3, 'Sending original ZIP file...', false),
+                    _buildProgressStep(4, 'Final API call (10s)', false),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.blue.shade100),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Process Information',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 12,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                                                      Text(
+                              'Total time: ~40 seconds\nDo not close this window',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.blue.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              SizedBox(width: 16),
-              Text('Step 1: Sending approved ZIP file...'),
-            ],
-          ),
-          duration: Duration(seconds: 10),
-        ),
+            ),
+          );
+        },
       );
 
       print('Step 1: Sending approved ZIP file...');
@@ -1323,62 +1352,181 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       );
 
       if (approvedResponse.statusCode != 200) {
+        Navigator.of(context).pop(); // Close progress dialog
         throw Exception('Failed to send approved email: ${approvedResponse.body}');
       }
       
-      // Download approved ZIP file to user's computer
+      // Download approved ZIP file
       final approvedData = json.decode(approvedResponse.body);
       if (approvedData['zipContent'] != null) {
         _downloadZipFile(approvedData['zipContent'], approvedData['fileName']);
       }
-      
       print('✅ Approved email sent successfully');
 
-      // Step 2: Wait 20 seconds then call API
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      // Update progress dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return WillPopScope(
+              onWillPop: () async => false,
+              child: Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Container(
+                  width: 400,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Sending Emails',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildProgressStep(1, 'Approved ZIP sent ✓', true, isDone: true),
+                      _buildProgressStep(2, 'Waiting for API (20s)', true),
+                      _buildProgressStep(3, 'Sending original ZIP file...', false),
+                      _buildProgressStep(4, 'Final API call (15s)', false),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Process Information',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Time remaining: ~30 seconds\nDo not close this window',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(width: 16),
-              Text('Step 2: Waiting 20 seconds then calling API...'),
-            ],
-          ),
-          duration: Duration(seconds: 21),
-        ),
-      );
+            );
+          },
+        );
+      }
 
-      print('Step 2: Waiting 20 seconds...');
-      await Future.delayed(const Duration(seconds: 20));
-      
+      print('Step 2: Waiting 10 seconds...');
+      await Future.delayed(const Duration(seconds: 10));
       print('Step 2: Calling check-new-email API...');
       await _callCheckNewEmailApi();
 
-      // Step 3: Wait another 20 seconds then send original ZIP
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      // Update progress dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return WillPopScope(
+              onWillPop: () async => false,
+              child: Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Container(
+                  width: 400,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Sending Emails',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildProgressStep(1, 'Approved ZIP sent ✓', true, isDone: true),
+                      _buildProgressStep(2, 'API call completed ✓', true, isDone: true),
+                      _buildProgressStep(3, 'Sending original ZIP file...', true),
+                      _buildProgressStep(4, 'Final API call (15s)', false),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Process Information',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Time remaining: ~20 seconds\nDo not close this window',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(width: 16),
-              Text('Step 3: Waiting 20 seconds then sending original ZIP...'),
-            ],
-          ),
-          duration: Duration(seconds: 21),
-        ),
-      );
+            );
+          },
+        );
+      }
 
-      print('Step 3: Waiting 20 seconds...');
-      await Future.delayed(const Duration(seconds: 20));
-      
+      // Step 3: Send original ZIP
+      print('Step 3: Waiting 10 seconds...');
+      await Future.delayed(const Duration(seconds: 10));
       print('Step 3: Sending original ZIP file...');
       final originalResponse = await http.post(
         Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
@@ -1392,54 +1540,153 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
       );
 
       if (originalResponse.statusCode != 200) {
+        Navigator.of(context).pop(); // Close progress dialog
         throw Exception('Failed to send original email: ${originalResponse.body}');
       }
       
-      // Download original ZIP file to user's computer
+      // Download original ZIP file
       final originalData = json.decode(originalResponse.body);
       if (originalData['zipContent'] != null) {
         _downloadZipFile(originalData['zipContent'], originalData['fileName']);
       }
-      
       print('✅ Original email sent successfully');
 
-      // Step 4: Wait 15 seconds and call API
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Row(
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+      // Update progress dialog for final step
+      if (mounted) {
+        Navigator.of(context).pop();
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return WillPopScope(
+              onWillPop: () async => false,
+              child: Dialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Container(
+                  width: 400,
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 16),
+                      const CircularProgressIndicator(),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Sending Emails',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1F2937),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      _buildProgressStep(1, 'Approved ZIP sent ✓', true, isDone: true),
+                      _buildProgressStep(2, 'API call completed ✓', true, isDone: true),
+                      _buildProgressStep(3, 'Original ZIP sent ✓', true, isDone: true),
+                      _buildProgressStep(4, 'Final API call (15s)', true),
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.blue.shade100),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 16, color: Colors.blue.shade700),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Process Information',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Time remaining: ~10 seconds\nDo not close this window',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              SizedBox(width: 16),
-              Text('Step 4: Waiting 15 seconds then final API call...'),
-            ],
-          ),
-          duration: Duration(seconds: 16),
-        ),
-      );
+            );
+          },
+        );
+      }
 
-      print('Step 4: Waiting 15 seconds...');
-      await Future.delayed(const Duration(seconds: 15));
-      
+      // Step 4: Final API call
+      print('Step 4: Waiting 10 seconds...');
+      await Future.delayed(const Duration(seconds: 10));
       print('Step 4: Final API call...');
       await _callCheckNewEmailApi();
 
-      // Show final success message
+      // Close progress dialog
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
+
+      // Show success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Email process completed successfully!\n'
-            '✅ Approved ZIP sent (all status = APPROVED)\n'
-            '✅ Original ZIP sent (your selected status)\n'
-            '✅ ZIP files downloaded to your computer\n'
-            '✅ All API calls completed\n'
-            'Sent to: payout-qa-internal@codapayments.com\n'
+          content: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.green.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.green.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Process Completed Successfully!',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '✅ Approved ZIP sent (all status = APPROVED)\n'
+                  '✅ Original ZIP sent (your selected status)\n'
+                  '✅ ZIP files downloaded to your computer\n'
+                  '✅ Transaction Status updated to your selected status\n\n',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
           duration: const Duration(seconds: 8),
-          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
         ),
       );
       print('=== PROCESS COMPLETED SUCCESSFULLY ===');
@@ -1456,107 +1703,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
     }
   }
 
-  // Generate and download password-protected ZIP files via backend
-  Future<void> _generateAndDownloadFiles(String baseName) async {
-    if (_editedRowIndices.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No edited rows to export')),
-      );
-      return;
-    }
-    
-    try {
-              // Show loading indicator
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 16),
-                Text('Generating password-protected ZIP files...'),
-              ],
-            ),
-            duration: Duration(seconds: 10),
-          ),
-        );
 
-      // Generate CSV content with user's selected payout status
-      final originalContent = _generateEditedCsvContent();
-      
-      print('=== BACKEND PAYLOAD DEBUG ===');
-      print('CSV content being sent to backend (with user\'s selected payout status):');
-      print('--- CSV START ---');
-      print(originalContent);
-      print('--- CSV END ---');
-      print('Backend will generate:');
-      print('1. approved_${baseName}${_transactionType}.zip - All payout status = APPROVED');
-      print('2. ${baseName}${_transactionType}.zip - User\'s selected payout status');
-      print('==============================');
-      
-      // Call backend API to create ZIP files
-      final response = await http.post(
-        Uri.parse('https://generatezipfiles-amxcplfi6q-uc.a.run.app'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'originalCsv': originalContent,
-          'fileName': baseName,
-          'transactionType': _transactionType,
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        if (responseData['success'] == true) {
-          final files = responseData['files'];
-          
-          print('=== DOWNLOAD DEBUG ===');
-          print('File 1 (Approved): ${files['approved']['name']} - All payout status = APPROVED');
-          print('File 2 (Original): ${files['original']['name']} - User\'s selected payout status');
-          print('Number of edited rows exported: ${_editedRowIndices.length}');
-          print('Edited row indices: $_editedRowIndices');
-          print('======================');
-          
-          // Download both ZIP files (approved first, then original)
-          _downloadZipFile(files['approved']['content'], files['approved']['name']);
-          
-          // Delay the second download slightly
-          Future.delayed(const Duration(milliseconds: 500), () {
-            _downloadZipFile(files['original']['content'], files['original']['name']);
-          });
-          
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Generated password-protected ZIP files:\n'
-                '• ${files['approved']['name']} (${_editedRowIndices.length} edited rows - ALL payout status = APPROVED)\n'
-                '• ${files['original']['name']} (${_editedRowIndices.length} edited rows - YOUR selected payout status)\n'
-                'Password: P@ssw0rd'
-              ),
-              duration: const Duration(seconds: 8),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          throw Exception('Backend returned error: ${responseData['error']}');
-        }
-      } else {
-        throw Exception('HTTP ${response.statusCode}: ${response.body}');
-      }
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error generating ZIP files: $error'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-        ),
-      );
-    }
-  }
 
 
 
@@ -1573,121 +1720,255 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: const Text('Payout Internal Tool'),
+        backgroundColor: Colors.white,
+        elevation: 0,
         centerTitle: true,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.account_balance_wallet,
+                color: Colors.white,
+                size: 24,
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Payout Internal Tool',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1F2937),
+              ),
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            color: Colors.grey.shade200,
+          ),
+        ),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
-          child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.upload_file,
-                  size: 80,
-                  color: Colors.blue,
-                ),
-                const SizedBox(height: 32),
-                const Text(
-                  'File Upload & Processing',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Upload CSV or ZIP files for processing',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 32),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.grey.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+          child: SingleChildScrollView(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Compact Hero Section
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              Icons.upload_file,
+                              size: 48,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Payout Internal Tool',
+                            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: const Color(0xFF1F2937),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Upload and process CSV/ZIP files for transaction editing',
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
                 
-                // File Upload Section
+                // Compact File Upload Section
                 Container(
-                  width: 400,
-                  padding: const EdgeInsets.all(24),
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Step 1: File Selection',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.file_upload,
+                              size: 20,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'File Upload',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 16),
-                      SizedBox(
-                        width: 200,
-                        height: 50,
-                        child: ElevatedButton.icon(
-                          onPressed: _handleFileUpload,
-                          icon: const Icon(Icons.upload),
-                          label: const Text('Choose File'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
+                      Center(
+                        child: Container(
+                          width: 300,
+                          height: 120,
+                          decoration: BoxDecoration(
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              style: BorderStyle.solid,
+                              width: 2,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            color: Colors.grey.shade50,
+                          ),
+                          child: InkWell(
+                            onTap: _handleFileUpload,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.cloud_upload_outlined,
+                                  size: 32,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Click to upload CSV or ZIP file',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.grey.shade600,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Supports password-protected ZIP files',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 16),
-                      if (_selectedFileName != null)
+                      if (_selectedFileName != null) ...[
+                        const SizedBox(height: 16),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.green.shade50,
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green),
+                            border: Border.all(color: Colors.green.shade200),
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.file_present, color: Colors.green),
+                              Icon(Icons.file_present, color: Colors.green.shade600, size: 20),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Selected: $_selectedFileName',
-                                  style: const TextStyle(color: Colors.green),
+                                  _selectedFileName!,
+                                  style: TextStyle(
+                                    color: Colors.green.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
+                      ],
                       if (_processingStatus.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           decoration: BoxDecoration(
                             color: _isFileProcessed ? Colors.green.shade50 : Colors.orange.shade50,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: _isFileProcessed ? Colors.green : Colors.orange,
+                              color: _isFileProcessed ? Colors.green.shade200 : Colors.orange.shade200,
                             ),
                           ),
                           child: Row(
                             children: [
                               Icon(
                                 _isFileProcessed ? Icons.check_circle : Icons.hourglass_empty,
-                                color: _isFileProcessed ? Colors.green : Colors.orange,
+                                color: _isFileProcessed ? Colors.green.shade600 : Colors.orange.shade600,
+                                size: 20,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   _processingStatus,
                                   style: TextStyle(
-                                    color: _isFileProcessed ? Colors.green.shade800 : Colors.orange.shade800,
+                                    color: _isFileProcessed ? Colors.green.shade700 : Colors.orange.shade700,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
@@ -1699,58 +1980,98 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                   ),
                 ),
                 
-                // File Content Display
+                // Compact Data Table Section
                 if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
                   const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: Colors.grey.shade300,
-                        width: 1,
-                      ),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.table_chart, size: 20, color: Colors.grey),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'CSV Data Table:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        
-                        // Filter Section
+                        // Header
                         Container(
-                          padding: const EdgeInsets.all(12),
+                          padding: const EdgeInsets.all(16),
                           decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.grey.shade300),
+                            color: Colors.grey.shade50,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(12),
+                              topRight: Radius.circular(12),
+                            ),
                           ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(
+                                  Icons.table_chart,
+                                  size: 18,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Transaction Data',
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF1F2937),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  '${_csvData!.length} rows',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        
+                        // Compact Filter Section
+                        Container(
+                          padding: const EdgeInsets.all(16),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.filter_list, size: 16, color: Colors.blue),
-                                  const SizedBox(width: 6),
-                                  const Text(
-                                    'Filter by Transaction ID:',
+                                  Icon(
+                                    Icons.filter_list,
+                                    size: 16,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    'Filter Transactions',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w600,
                                       fontSize: 14,
+                                      color: const Color(0xFF1F2937),
                                     ),
                                   ),
                                 ],
@@ -2130,158 +2451,207 @@ class _EmailSenderPageState extends State<EmailSenderPage> {
                 
                 const SizedBox(height: 32),
                 
-                // Email Section
+                // Compact Action Buttons
                 if (_editedRowIndices.isNotEmpty) ...[
+                  const SizedBox(height: 20),
                   Container(
-                    width: 400,
-                    padding: const EdgeInsets.all(24),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      border: Border.all(color: Colors.blue.shade300),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
                     ),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Step 2: Send Email',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Send ${_editedRowIndices.length} modified transaction(s) via email to wkarweng98@gmail.com',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.blue.shade200),
-                          ),
-                          child: const Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'This will send 2 separate emails with:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              SizedBox(height: 4),
-                              Text('• Email 1: ZIP file with ALL payout status = APPROVED', style: TextStyle(fontSize: 11)),
-                              Text('• Email 2: ZIP file with YOUR selected payout status', style: TextStyle(fontSize: 11)),
-                              Text('• Password: P@ssw0rd for both files', style: TextStyle(fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: 200,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _showEmailTransactionTypeDialog,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.shade100,
                                 borderRadius: BorderRadius.circular(8),
                               ),
+                              child: Icon(
+                                Icons.edit_note,
+                                size: 20,
+                                color: Colors.orange.shade600,
+                              ),
                             ),
-                            child: const Text(
-                              'Send Email',
-                              style: TextStyle(fontSize: 16),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Actions',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: const Color(0xFF1F2937),
+                              ),
                             ),
-                          ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_editedRowIndices.length} edited',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.blue.shade700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Action Buttons Row
+                        Row(
+                          children: [
+                            // Email Button
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.blue.shade200),
+                                ),
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: InkWell(
+                                    onTap: _showEmailTransactionTypeDialog,
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.email,
+                                                size: 20,
+                                                color: Colors.blue.shade600,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Send Email',
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.blue.shade700,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'Send 2 ZIP files via email to payout-qa-internal@codapayments.com',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.blue.shade600,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Password: P@ssw0rd',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.blue.shade500,
+                                              fontStyle: FontStyle.italic,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 32),
-                ],
-                
-                // Export Section
-                if (_editedRowIndices.isNotEmpty) ...[
-                  Container(
-                    width: 400,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.green.shade300),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        const Text(
-                          'Step 3: Export Modified Data',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Export ${_editedRowIndices.length} modified transaction(s) to CSV files',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.green.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'This will generate:',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                              ),
-                              const SizedBox(height: 4),
-                              const Text('• Original CSV with your edits', style: TextStyle(fontSize: 11)),
-                              const Text('• Approved CSV (all status = SUCCESS)', style: TextStyle(fontSize: 11)),
-                              const Text('• Files contain only modified rows', style: TextStyle(fontSize: 11)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: 200,
-                          height: 50,
-                          child: ElevatedButton(
-                            onPressed: _showTransactionTypeDialog,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: const Text(
-                              'Export CSV Files',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 20),
                 ],
 
               ],
             ),
           ),
         ),
+      ),
+      ),
+      )
+    );
+  }
+
+  // Build a progress step indicator
+  Widget _buildProgressStep(int step, String text, bool isActive, {bool isDone = false}) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: isDone 
+                ? Colors.green.shade100 
+                : isActive 
+                  ? Colors.blue.shade100 
+                  : Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Center(
+              child: isDone
+                ? Icon(Icons.check, size: 16, color: Colors.green.shade600)
+                : Text(
+                    step.toString(),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: isActive ? Colors.blue.shade600 : Colors.grey.shade600,
+                    ),
+                  ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                fontSize: 13,
+                color: isDone 
+                  ? Colors.green.shade700
+                  : isActive 
+                    ? const Color(0xFF1F2937)
+                    : Colors.grey.shade600,
+                fontWeight: isDone || isActive ? FontWeight.w500 : FontWeight.normal,
+              ),
+            ),
+          ),
+          if (isActive && !isDone)
+            Container(
+              width: 16,
+              height: 16,
+              margin: const EdgeInsets.only(left: 8),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade400),
+              ),
+            ),
+        ],
       ),
     );
   }
