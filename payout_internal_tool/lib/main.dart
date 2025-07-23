@@ -2200,22 +2200,13 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       focusNode: _focusNode,
       onKey: _handleKeyEvent,
       child: Scaffold(
+        backgroundColor: Colors.black,
         body: Stack(
           children: [
-            // Animated Background
+            // Sophisticated Black Background with Subtle Patterns
             Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    const Color(0xFF667eea),
-                    const Color(0xFF764ba2),
-                    const Color(0xFFf093fb),
-                    const Color(0xFF667eea),
-                  ],
-                  stops: const [0.0, 0.3, 0.7, 1.0],
-                ),
+              decoration: const BoxDecoration(
+                color: Colors.black,
               ),
               child: AnimatedBuilder(
                 animation: _floatingAnimation,
@@ -2245,51 +2236,45 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                           // Admin Section
                           _buildAdminSection(),
                           
-                          // Enhanced Hero Section
+                          // Premium Hero Section
                           FadeTransition(
                             opacity: _fadeAnimation,
                             child: SlideTransition(
                               position: _slideAnimation,
                               child: Container(
-                                padding: const EdgeInsets.all(32),
+                                padding: const EdgeInsets.all(48),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
-                                      blurRadius: 24,
-                                      offset: const Offset(0, 8),
+                                      color: Colors.white.withOpacity(0.1),
+                                      blurRadius: 40,
+                                      spreadRadius: 10,
+                                    ),
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
                                     ),
                                   ],
                                 ),
                                 child: Column(
                                   children: [
-                                    // Animated Icon with Glow Effect
+                                    // Premium Icon with Glow Effect
                                     AnimatedBuilder(
                                       animation: Listenable.merge([_pulseAnimation, _glowAnimation]),
                                       builder: (context, child) {
                                         return Transform.scale(
                                           scale: _pulseAnimation.value,
                                           child: Container(
-                                            padding: const EdgeInsets.all(24),
+                                            padding: const EdgeInsets.all(32),
                                             decoration: BoxDecoration(
-                                              gradient: LinearGradient(
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
-                                                colors: [
-                                                  const Color(0xFF667eea).withOpacity(0.1),
-                                                  const Color(0xFF764ba2).withOpacity(0.1),
-                                                ],
-                                              ),
+                                              color: Colors.black,
                                               borderRadius: BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: const Color(0xFF667eea).withOpacity(0.2),
-                                                width: 2,
-                                              ),
                                               boxShadow: [
                                                 BoxShadow(
-                                                  color: const Color(0xFF667eea).withOpacity(0.3 * _glowAnimation.value),
+                                                  color: Colors.white.withOpacity(0.1 * _glowAnimation.value),
                                                   blurRadius: 20 * _glowAnimation.value,
                                                   spreadRadius: 2 * _glowAnimation.value,
                                                 ),
@@ -2298,28 +2283,31 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             child: Icon(
                                               Icons.upload_file,
                                               size: 64,
-                                              color: const Color(0xFF667eea),
+                                              color: Colors.white,
                                             ),
                                           ),
                                         );
                                       },
                                     ),
-                                    const SizedBox(height: 24),
+                                    const SizedBox(height: 32),
                                     Text(
-                                      'Payout Internal Tool',
+                                      'PAYOUT INTERNAL TOOL',
                                       style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                        color: const Color(0xFF1F2937),
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: -0.5,
+                                        color: Colors.black,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 2.0,
+                                        fontSize: 24,
                                       ),
                                     ),
-                                    const SizedBox(height: 12),
+                                    const SizedBox(height: 16),
                                     Text(
-                                      'Upload and process CSV/ZIP files for transaction editing',
+                                      'UPLOAD AND PROCESS CSV/ZIP FILES FOR TRANSACTION EDITING',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        color: Colors.grey.shade600,
-                                        fontWeight: FontWeight.w500,
+                                        color: Colors.black.withOpacity(0.7),
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 1.0,
+                                        fontSize: 14,
                                       ),
                                     ),
                                   ],
@@ -2327,748 +2315,95 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ),
                             ),
                           ),
-                      const SizedBox(height: 20),
+                          const SizedBox(height: 32),
                   
-                  // Compact File Upload Section
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.file_upload,
-                                size: 20,
-                                color: Theme.of(context).colorScheme.primary,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'File Upload',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1F2937),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: Container(
-                            width: 300,
-                            height: 120,
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: Colors.grey.shade300,
-                                style: BorderStyle.solid,
-                                width: 2,
-                              ),
-                              borderRadius: BorderRadius.circular(12),
-                              color: Colors.grey.shade50,
-                            ),
-                            child: InkWell(
-                              onTap: _handleFileUpload,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.cloud_upload_outlined,
-                                    size: 32,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Click to upload CSV or ZIP file',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.grey.shade600,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Supports password-protected ZIP files',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_selectedFileName != null) ...[
-                          const SizedBox(height: 16),
+                          // Premium File Upload Section
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(32),
                             decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.green.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.file_present, color: Colors.green.shade600, size: 20),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _selectedFileName!,
-                                    style: TextStyle(
-                                      color: Colors.green.shade700,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.black.withOpacity(0.1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                        if (_processingStatus.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: _isFileProcessed ? Colors.green.shade50 : Colors.orange.shade50,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: _isFileProcessed ? Colors.green.shade200 : Colors.orange.shade200,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  _isFileProcessed ? Icons.check_circle : Icons.hourglass_empty,
-                                  color: _isFileProcessed ? Colors.green.shade600 : Colors.orange.shade600,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    _processingStatus,
-                                    style: TextStyle(
-                                      color: _isFileProcessed ? Colors.green.shade700 : Colors.orange.shade700,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  // Compact Data Table Section
-                  if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: Colors.grey.shade200),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Header
-                          Container(
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade50,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(12),
-                                topRight: Radius.circular(12),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(6),
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Icon(
-                                    Icons.table_chart,
-                                    size: 18,
-                                    color: Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Text(
-                                  'Transaction Data',
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF1F2937),
-                                  ),
-                                ),
-                                const Spacer(),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.green.shade100,
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    '${_csvData!.length} rows',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.green.shade700,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          
-                          // Compact Filter Section
-                          Container(
-                            padding: const EdgeInsets.all(16),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
                                   children: [
-                                    Icon(
-                                      Icons.filter_list,
-                                      size: 16,
-                                      color: Theme.of(context).colorScheme.primary,
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        Icons.file_upload,
+                                        size: 24,
+                                        color: Colors.black,
+                                      ),
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: 16),
                                     Text(
-                                      'Filter Transactions',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        color: const Color(0xFF1F2937),
+                                      'FILE UPLOAD',
+                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                        letterSpacing: 1.5,
+                                        fontSize: 18,
                                       ),
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
-                                TextField(
-                                  decoration: InputDecoration(
-                                    hintText: 'Enter Transaction ID or Publisher Transaction ID',
-                                    prefixIcon: const Icon(Icons.search, size: 20),
-                                    suffixIcon: _filterText.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(Icons.clear, size: 20),
-                                            onPressed: () {
-                                              setState(() {
-                                                _filterText = '';
-                                                _filterData();
-                                              });
-                                            },
-                                          )
-                                        : null,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(4),
-                                      borderSide: BorderSide(color: Colors.grey.shade300),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(4),
-                                      borderSide: const BorderSide(color: Colors.blue),
-                                    ),
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                    isDense: true,
-                                  ),
-                                  style: const TextStyle(fontSize: 13),
-                                  onChanged: (value) {
-                                    setState(() {
-                                      _filterText = value;
-                                      _filterData();
-                                    });
-                                  },
-                                ),
-                                if (_filteredData != null && _filterText.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-            Text(
-                                  'Found ${_filteredData!.length} matching transactions',
-                                  style: TextStyle(
-                                    color: Colors.green.shade700,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-          ],
-        ),
-      ),
-                        
-                        const SizedBox(height: 12),
-                        ConstrainedBox(
-                          constraints: BoxConstraints(
-                            maxHeight: MediaQuery.of(context).size.height * 0.4,
-                          ),
-                          child: Container(
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.grey.shade300),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.grey.shade200,
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: InteractiveViewer(
-                              constrained: false,
-                              scaleEnabled: false,
-                              panEnabled: true,
-                              minScale: 1.0,
-                              maxScale: 1.0,
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.vertical,
-                                child: Container(
-                                  width: (_reorderedHeaders ?? _csvHeaders!).length * 150.0,
-                                  child: Column(
-                                    children: [
-                                      // Header row
-                                      Container(
-                                        height: 40,
-                                        color: Colors.blue.shade600,
-                                        child: Row(
-                                          children: (_reorderedHeaders ?? _csvHeaders!).asMap().entries.map((entry) {
-                                            final reorderedIndex = entry.key;
-                                            final header = entry.value;
-                                            final originalIndex = _getOriginalColumnIndex(reorderedIndex);
-                                            final isEditable = _isColumnEditable(originalIndex);
-                                            final isInput = _isInputColumn(originalIndex);
-                                            final isAutoSynced = _isAutoSyncedColumn(originalIndex);
-                                            
-                                            Color headerColor;
-                                            if (isInput) {
-                                              headerColor = Colors.green.shade600; // Green for input columns
-                                            } else if (isAutoSynced) {
-                                              headerColor = Colors.orange.shade600; // Orange for auto-synced columns
-                                            } else if (isEditable) {
-                                              headerColor = Colors.blue.shade700; // Dark blue for editable
-                                            } else {
-                                              headerColor = Colors.blue.shade600; // Regular blue for read-only
-                                            }
-                                            
-                                            return Container(
-                                              width: 150,
-                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                                              decoration: BoxDecoration(
-                                                border: Border(
-                                                  right: BorderSide(color: Colors.grey.shade300),
-                                                ),
-                                                color: headerColor,
-                                              ),
-                                              child: Row(
-                                                children: [
-                                                  if (isInput) ...[
-                                                    Icon(
-                                                      Icons.input,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                  ] else if (isAutoSynced) ...[
-                                                    Icon(
-                                                      Icons.sync,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                  ] else if (isEditable) ...[
-                                                    Icon(
-                                                      _isDropdownColumn(originalIndex) ? Icons.arrow_drop_down : Icons.edit,
-                                                      size: 14,
-                                                      color: Colors.white,
-                                                    ),
-                                                    const SizedBox(width: 4),
-                                                  ],
-                                                  Expanded(
-                                                    child: Text(
-                                                      header,
-                                                      style: TextStyle(
-                                                        fontWeight: FontWeight.bold,
-                                                        fontSize: 12,
-                                                        color: Colors.white,
-                                                      ),
-                                                      overflow: TextOverflow.ellipsis,
-                                                      maxLines: 1,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            );
-                                          }).toList(),
-                                        ),
+                                const SizedBox(height: 24),
+                                Center(
+                                  child: Container(
+                                    width: 400,
+                                    height: 160,
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.black.withOpacity(0.2),
+                                        style: BorderStyle.solid,
+                                        width: 2,
                                       ),
-                                      // Data rows
-                                      ..._filteredData!.asMap().entries.map((rowEntry) {
-                                        final rowIndex = _csvData!.indexOf(rowEntry.value);
-                                        final originalRow = rowEntry.value;
-                                        final reorderedRow = _getReorderedRow(originalRow);
-                                        
-                                        return Container(
-                                          height: 36,
-                                          decoration: BoxDecoration(
-                                            border: Border(
-                                              bottom: BorderSide(color: Colors.grey.shade200),
-                                            ),
-                                          ),
-                                          child: Row(
-                                            children: reorderedRow.asMap().entries.map((entry) {
-                                              final reorderedCellIndex = entry.key;
-                                              final cell = entry.value;
-                                              final originalCellIndex = _getOriginalColumnIndex(reorderedCellIndex);
-                                              final cellKey = '${rowIndex}_$originalCellIndex';
-                                              final isEditable = _isColumnEditable(originalCellIndex);
-                                              final isInput = _isInputColumn(originalCellIndex);
-                                              final isAutoSynced = _isAutoSyncedColumn(originalCellIndex);
-                                              final isCurrentlyEditing = _isEditing[cellKey] ?? false;
-                                              
-                                              Color? cellBackgroundColor;
-                                              if (isInput) {
-                                                cellBackgroundColor = Colors.green.shade50; // Light green for input columns
-                                              } else if (isAutoSynced) {
-                                                cellBackgroundColor = Colors.orange.shade50; // Light orange for auto-synced columns
-                                              } else if (isEditable) {
-                                                cellBackgroundColor = Colors.blue.shade50; // Light blue for editable columns
-                                              }
-                                              
-                                              return Container(
-                                                width: 150,
-                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                                                decoration: BoxDecoration(
-                                                  border: Border(
-                                                    right: BorderSide(color: Colors.grey.shade200),
-                                                  ),
-                                                  color: cellBackgroundColor,
-                                                ),
-                                                child: isCurrentlyEditing ? 
-                                                  // Editing mode
-                                                  Row(
-                                                    children: [
-                                                      Expanded(
-                                                        child: _isDropdownColumn(originalCellIndex) ?
-                                                          // Dropdown for Payout Status
-                                                          DropdownButton<String>(
-                                                            value: _dropdownValues[cellKey] ?? '1',
-                                                            isExpanded: true,
-                                                            style: const TextStyle(fontSize: 11, color: Colors.black),
-                                                            underline: Container(),
-                                                            items: _payoutStatusOptions.entries.map((entry) {
-                                                              return DropdownMenuItem<String>(
-                                                                value: entry.key,
-                                                                child: Text('${entry.key} - ${entry.value}', style: const TextStyle(fontSize: 11)),
-                                                              );
-                                                            }).toList(),
-                                                            onChanged: (String? newValue) {
-                                                              if (newValue != null) {
-                                                                setState(() {
-                                                                  _dropdownValues[cellKey] = newValue;
-                                                                });
-                                                              }
-                                                            },
-                                                          ) :
-                                                          // Text field for other columns
-                                                          TextField(
-                                                            controller: _editControllers[cellKey],
-                                                            style: const TextStyle(fontSize: 11),
-                                                            decoration: const InputDecoration(
-                                                              border: InputBorder.none,
-                                                              contentPadding: EdgeInsets.zero,
-                                                              isDense: true,
-                                                            ),
-                                                            inputFormatters: _isTargetCurrencyColumn(originalCellIndex) 
-                                                                ? [UppercaseAlphabeticInputFormatter()]
-                                                                : null,
-                                                            onSubmitted: (_) => _saveEdit(rowIndex, originalCellIndex),
-                                                            autofocus: true,
-                                                          ),
-                                                      ),
-                                                      Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                          InkWell(
-                                                            onTap: () => _saveEdit(rowIndex, originalCellIndex),
-                                                            child: Icon(Icons.check, size: 14, color: Colors.green),
-                                                          ),
-                                                          const SizedBox(width: 2),
-                                                          InkWell(
-                                                            onTap: () => _cancelEdit(rowIndex, originalCellIndex),
-                                                            child: Icon(Icons.close, size: 14, color: Colors.red),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ],
-                                                  ) :
-                                                  // Display mode
-                                                  InkWell(
-                                                    onTap: (isEditable && !isAutoSynced) ? () {
-                                                      print('UI CLICK: Reordered cell $reorderedCellIndex -> Original cell $originalCellIndex');
-                                                      print('  Reordered header: ${(_reorderedHeaders ?? _csvHeaders!)[reorderedCellIndex]}');
-                                                      print('  Original header: ${_csvHeaders![originalCellIndex]}');
-                                                      print('  Cell value: "$cell"');
-                                                      _startEditing(rowIndex, originalCellIndex, cell);
-                                                    } : null,
-                                                    child: Container(
-                                                      width: double.infinity,
-                                                      child: Row(
-                                                        children: [
-                                                          Expanded(
-                                                            child: Tooltip(
-                                                              message: cell,
-                                                              child: Text(
-                                                                cell,
-                                                                style: TextStyle(
-                                                                  fontSize: 11,
-                                                                  color: _isNumeric(cell) ? Colors.green.shade700 : Colors.black87,
-                                                                  fontWeight: _isNumeric(cell) ? FontWeight.w500 : FontWeight.normal,
-                                                                ),
-                                                                overflow: TextOverflow.ellipsis,
-                                                                maxLines: 1,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                          if (isAutoSynced)
-                                                            Icon(
-                                                              Icons.sync,
-                                                              size: 12,
-                                                              color: Colors.orange.shade600
-                                                            )
-                                                          else if (isEditable) 
-                                                            Icon(
-                                                              _isDropdownColumn(originalCellIndex) ? Icons.arrow_drop_down : Icons.edit, 
-                                                              size: 12, 
-                                                              color: Colors.blue.shade600
-                                                            ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                              );
-                                            }).toList(),
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        if (_csvData!.length > 15) ...[
-                          const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  size: 14,
-                                  color: Colors.blue.shade700,
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    _filterText.isNotEmpty 
-                                        ? 'Showing ${_filteredData!.length} filtered results'
-                                        : 'Showing first 15 rows of ${_csvData!.length} total rows',
-                                    style: TextStyle(
-                                      color: Colors.blue.shade700,
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w500,
+                                      borderRadius: BorderRadius.circular(16),
+                                      color: Colors.black.withOpacity(0.02),
                                     ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                        if (_csvData!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.analytics_outlined,
-                                size: 14,
-                                color: Colors.grey.shade600,
-                              ),
-                              const SizedBox(width: 6),
-            Text(
-                                _filterText.isNotEmpty
-                                    ? 'Filter Results: ${_filteredData!.length} of ${_csvData!.length} rows'
-                                    : 'Data Summary: ${_csvHeaders!.length} columns, ${_csvData!.length} rows',
-                                style: TextStyle(
-                                  color: Colors.grey.shade600,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ],
-                
-                const SizedBox(height: 32),
-                
-                // Compact Action Buttons
-                if (_editedRowIndices.isNotEmpty) ...[
-                  const SizedBox(height: 20),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.shade100,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                Icons.edit_note,
-                                size: 20,
-                                color: Colors.orange.shade600,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              'Actions',
-                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF1F2937),
-                              ),
-                            ),
-                            const Spacer(),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue.shade100,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                '${_editedRowIndices.length} edited',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.blue.shade700,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        
-                        // Action Buttons Row
-                        Row(
-                          children: [
-                            // Email Button
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(color: Colors.blue.shade200),
-                                ),
-                                child: Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _showEmailTransactionTypeDialog,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
+                                    child: InkWell(
+                                      onTap: _handleFileUpload,
+                                      borderRadius: BorderRadius.circular(16),
                                       child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
-                                          Row(
-                                            children: [
-                                              Icon(
-                                                Icons.email,
-                                                size: 20,
-                                                color: Colors.blue.shade600,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Send Email',
-                                                style: TextStyle(
-                                                  fontSize: 16,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.blue.shade700,
-                                                ),
-                                              ),
-                                            ],
+                                          Icon(
+                                            Icons.cloud_upload_outlined,
+                                            size: 48,
+                                            color: Colors.black.withOpacity(0.6),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            'CLICK TO UPLOAD CSV OR ZIP FILE',
+                                            style: TextStyle(
+                                              fontSize: 16,
+                                              color: Colors.black.withOpacity(0.7),
+                                              fontWeight: FontWeight.w600,
+                                              letterSpacing: 1.0,
+                                            ),
                                           ),
                                           const SizedBox(height: 8),
                                           Text(
-                                            'Send 2 ZIP files via email to payout-qa-internal@codapayments.com',
+                                            'SUPPORTS PASSWORD-PROTECTED ZIP FILES',
                                             style: TextStyle(
                                               fontSize: 12,
-                                              color: Colors.blue.shade600,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            'Password: P@ssw0rd',
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              color: Colors.blue.shade500,
-                                              fontStyle: FontStyle.italic,
+                                              color: Colors.black.withOpacity(0.5),
+                                              letterSpacing: 0.5,
                                             ),
                                           ),
                                         ],
@@ -3076,184 +2411,863 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ),
                                 ),
+                                if (_selectedFileName != null) ...[
+                                  const SizedBox(height: 20),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.file_present, color: Colors.black.withOpacity(0.7), size: 24),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            _selectedFileName!,
+                                            style: TextStyle(
+                                              color: Colors.black.withOpacity(0.8),
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                                if (_processingStatus.isNotEmpty) ...[
+                                  const SizedBox(height: 16),
+                                  Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: _isFileProcessed ? Colors.black.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: _isFileProcessed ? Colors.black.withOpacity(0.2) : Colors.black.withOpacity(0.2),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          _isFileProcessed ? Icons.check_circle : Icons.hourglass_empty,
+                                          color: _isFileProcessed ? Colors.black.withOpacity(0.8) : Colors.black.withOpacity(0.6),
+                                          size: 24,
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Text(
+                                            _processingStatus,
+                                            style: TextStyle(
+                                              color: _isFileProcessed ? Colors.black.withOpacity(0.8) : Colors.black.withOpacity(0.6),
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          
+                          // Premium Data Table Section
+                          if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
+                            const SizedBox(height: 24),
+                            Container(
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Premium Header
+                                  Container(
+                                    padding: const EdgeInsets.all(24),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black,
+                                      borderRadius: const BorderRadius.only(
+                                        topLeft: Radius.circular(16),
+                                        topRight: Radius.circular(16),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                          child: Icon(
+                                            Icons.table_chart,
+                                            size: 20,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 16),
+                                        Text(
+                                          'TRANSACTION DATA',
+                                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                            fontWeight: FontWeight.w700,
+                                            color: Colors.white,
+                                            letterSpacing: 1.5,
+                                            fontSize: 18,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(12),
+                                            border: Border.all(color: Colors.white.withOpacity(0.2)),
+                                          ),
+                                          child: Text(
+                                            '${_csvData!.length} ROWS',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white,
+                                              letterSpacing: 1.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  
+                                  // Premium Filter Section
+                                  Container(
+                                    padding: const EdgeInsets.all(24),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Icon(
+                                              Icons.filter_list,
+                                              size: 18,
+                                              color: Colors.black,
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Text(
+                                              'FILTER TRANSACTIONS',
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w700,
+                                                fontSize: 16,
+                                                color: Colors.black,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextField(
+                                          decoration: InputDecoration(
+                                            hintText: 'Enter Transaction ID or Publisher Transaction ID',
+                                            prefixIcon: const Icon(Icons.search, size: 20),
+                                            suffixIcon: _filterText.isNotEmpty
+                                                ? IconButton(
+                                                    icon: const Icon(Icons.clear, size: 20),
+                                                    onPressed: () {
+                                                      setState(() {
+                                                        _filterText = '';
+                                                        _filterData();
+                                                      });
+                                                    },
+                                                  )
+                                                : null,
+                                            border: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.black.withOpacity(0.2)),
+                                            ),
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: BorderSide(color: Colors.black.withOpacity(0.2)),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(12),
+                                              borderSide: const BorderSide(color: Colors.black, width: 2),
+                                            ),
+                                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                            filled: true,
+                                            fillColor: Colors.black.withOpacity(0.02),
+                                          ),
+                                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                                          onChanged: (value) {
+                                            setState(() {
+                                              _filterText = value;
+                                              _filterData();
+                                            });
+                                          },
+                                        ),
+                                        if (_filteredData != null && _filterText.isNotEmpty) ...[
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'Found ${_filteredData!.length} matching transactions',
+                                            style: TextStyle(
+                                              color: Colors.black.withOpacity(0.7),
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                  
+                                  const SizedBox(height: 16),
+                                  ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxHeight: MediaQuery.of(context).size.height * 0.4,
+                                    ),
+                                    child: Container(
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        color: Colors.white,
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(0.05),
+                                            blurRadius: 8,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: InteractiveViewer(
+                                        constrained: false,
+                                        scaleEnabled: false,
+                                        panEnabled: true,
+                                        minScale: 1.0,
+                                        maxScale: 1.0,
+                                        child: SingleChildScrollView(
+                                          scrollDirection: Axis.vertical,
+                                          child: Container(
+                                            width: (_reorderedHeaders ?? _csvHeaders!).length * 150.0,
+                                            child: Column(
+                                              children: [
+                                                // Premium Header row
+                                                Container(
+                                                  height: 48,
+                                                  color: Colors.black,
+                                                  child: Row(
+                                                    children: (_reorderedHeaders ?? _csvHeaders!).asMap().entries.map((entry) {
+                                                      final reorderedIndex = entry.key;
+                                                      final header = entry.value;
+                                                      final originalIndex = _getOriginalColumnIndex(reorderedIndex);
+                                                      final isEditable = _isColumnEditable(originalIndex);
+                                                      final isInput = _isInputColumn(originalIndex);
+                                                      final isAutoSynced = _isAutoSyncedColumn(originalIndex);
+                                                      
+                                                      Color headerColor = Colors.black;
+                                                      
+                                                      return Container(
+                                                        width: 150,
+                                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                                                        decoration: BoxDecoration(
+                                                          border: Border(
+                                                            right: BorderSide(color: Colors.white.withOpacity(0.1)),
+                                                          ),
+                                                          color: headerColor,
+                                                        ),
+                                                        child: Row(
+                                                          children: [
+                                                            if (isInput) ...[
+                                                              Icon(
+                                                                Icons.input,
+                                                                size: 16,
+                                                                color: Colors.white,
+                                                              ),
+                                                              const SizedBox(width: 6),
+                                                            ] else if (isAutoSynced) ...[
+                                                              Icon(
+                                                                Icons.sync,
+                                                                size: 16,
+                                                                color: Colors.white,
+                                                              ),
+                                                              const SizedBox(width: 6),
+                                                            ] else if (isEditable) ...[
+                                                              Icon(
+                                                                _isDropdownColumn(originalIndex) ? Icons.arrow_drop_down : Icons.edit,
+                                                                size: 16,
+                                                                color: Colors.white,
+                                                              ),
+                                                              const SizedBox(width: 6),
+                                                            ],
+                                                            Expanded(
+                                                              child: Text(
+                                                                header,
+                                                                style: TextStyle(
+                                                                  fontWeight: FontWeight.w700,
+                                                                  fontSize: 12,
+                                                                  color: Colors.white,
+                                                                  letterSpacing: 0.5,
+                                                                ),
+                                                                overflow: TextOverflow.ellipsis,
+                                                                maxLines: 1,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
+                                                      );
+                                                    }).toList(),
+                                                  ),
+                                                ),
+                                                // Premium Data rows
+                                                ..._filteredData!.asMap().entries.map((rowEntry) {
+                                                  final rowIndex = _csvData!.indexOf(rowEntry.value);
+                                                  final originalRow = rowEntry.value;
+                                                  final reorderedRow = _getReorderedRow(originalRow);
+                                                  
+                                                  return Container(
+                                                    height: 44,
+                                                    decoration: BoxDecoration(
+                                                      border: Border(
+                                                        bottom: BorderSide(color: Colors.black.withOpacity(0.05)),
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      children: reorderedRow.asMap().entries.map((entry) {
+                                                        final reorderedCellIndex = entry.key;
+                                                        final cell = entry.value;
+                                                        final originalCellIndex = _getOriginalColumnIndex(reorderedCellIndex);
+                                                        final cellKey = '${rowIndex}_$originalCellIndex';
+                                                        final isEditable = _isColumnEditable(originalCellIndex);
+                                                        final isInput = _isInputColumn(originalCellIndex);
+                                                        final isAutoSynced = _isAutoSyncedColumn(originalCellIndex);
+                                                        final isCurrentlyEditing = _isEditing[cellKey] ?? false;
+                                                        
+                                                        Color? cellBackgroundColor;
+                                                        if (isInput) {
+                                                          cellBackgroundColor = Colors.black.withOpacity(0.02);
+                                                        } else if (isAutoSynced) {
+                                                          cellBackgroundColor = Colors.black.withOpacity(0.03);
+                                                        } else if (isEditable) {
+                                                          cellBackgroundColor = Colors.black.withOpacity(0.04);
+                                                        }
+                                                        
+                                                        return Container(
+                                                          width: 150,
+                                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                                                          decoration: BoxDecoration(
+                                                            border: Border(
+                                                              right: BorderSide(color: Colors.black.withOpacity(0.05)),
+                                                            ),
+                                                            color: cellBackgroundColor,
+                                                          ),
+                                                          child: isCurrentlyEditing ? 
+                                                            // Premium Editing mode
+                                                            Row(
+                                                              children: [
+                                                                Expanded(
+                                                                  child: _isDropdownColumn(originalCellIndex) ?
+                                                                    // Premium Dropdown for Payout Status
+                                                                    DropdownButton<String>(
+                                                                      value: _dropdownValues[cellKey] ?? '1',
+                                                                      isExpanded: true,
+                                                                      style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w500),
+                                                                      underline: Container(),
+                                                                      items: _payoutStatusOptions.entries.map((entry) {
+                                                                        return DropdownMenuItem<String>(
+                                                                          value: entry.key,
+                                                                          child: Text('${entry.key} - ${entry.value}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+                                                                        );
+                                                                      }).toList(),
+                                                                      onChanged: (String? newValue) {
+                                                                        if (newValue != null) {
+                                                                          setState(() {
+                                                                            _dropdownValues[cellKey] = newValue;
+                                                                          });
+                                                                        }
+                                                                      },
+                                                                    ) :
+                                                                    // Premium Text field for other columns
+                                                                    TextField(
+                                                                      controller: _editControllers[cellKey],
+                                                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                                                      decoration: const InputDecoration(
+                                                                        border: InputBorder.none,
+                                                                        contentPadding: EdgeInsets.zero,
+                                                                        isDense: true,
+                                                                      ),
+                                                                      inputFormatters: _isTargetCurrencyColumn(originalCellIndex) 
+                                                                          ? [UppercaseAlphabeticInputFormatter()]
+                                                                          : null,
+                                                                      onSubmitted: (_) => _saveEdit(rowIndex, originalCellIndex),
+                                                                      autofocus: true,
+                                                                    ),
+                                                                ),
+                                                                Row(
+                                                                  mainAxisSize: MainAxisSize.min,
+                                                                  children: [
+                                                                    InkWell(
+                                                                      onTap: () => _saveEdit(rowIndex, originalCellIndex),
+                                                                      child: Icon(Icons.check, size: 16, color: Colors.black),
+                                                                    ),
+                                                                    const SizedBox(width: 4),
+                                                                    InkWell(
+                                                                      onTap: () => _cancelEdit(rowIndex, originalCellIndex),
+                                                                      child: Icon(Icons.close, size: 16, color: Colors.black),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ],
+                                                            ) :
+                                                            // Premium Display mode
+                                                            InkWell(
+                                                              onTap: (isEditable && !isAutoSynced) ? () {
+                                                                print('UI CLICK: Reordered cell $reorderedCellIndex -> Original cell $originalCellIndex');
+                                                                print('  Reordered header: ${(_reorderedHeaders ?? _csvHeaders!)[reorderedCellIndex]}');
+                                                                print('  Original header: ${_csvHeaders![originalCellIndex]}');
+                                                                print('  Cell value: "$cell"');
+                                                                _startEditing(rowIndex, originalCellIndex, cell);
+                                                              } : null,
+                                                              child: Container(
+                                                                width: double.infinity,
+                                                                child: Row(
+                                                                  children: [
+                                                                    Expanded(
+                                                                      child: Tooltip(
+                                                                        message: cell,
+                                                                        child: Text(
+                                                                          cell,
+                                                                          style: TextStyle(
+                                                                            fontSize: 12,
+                                                                            color: _isNumeric(cell) ? Colors.black : Colors.black.withOpacity(0.8),
+                                                                            fontWeight: _isNumeric(cell) ? FontWeight.w600 : FontWeight.w500,
+                                                                          ),
+                                                                          overflow: TextOverflow.ellipsis,
+                                                                          maxLines: 1,
+                                                                        ),
+                                                                      ),
+                                                                    ),
+                                                                    if (isAutoSynced)
+                                                                      Icon(
+                                                                        Icons.sync,
+                                                                        size: 14,
+                                                                        color: Colors.black.withOpacity(0.6)
+                                                                      )
+                                                                    else if (isEditable) 
+                                                                      Icon(
+                                                                        _isDropdownColumn(originalCellIndex) ? Icons.arrow_drop_down : Icons.edit, 
+                                                                        size: 14, 
+                                                                        color: Colors.black.withOpacity(0.6)
+                                                                      ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                            ),
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  );
+                                                }).toList(),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  if (_csvData!.length > 15) ...[
+                                    const SizedBox(height: 12),
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.05),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(
+                                            Icons.info_outline,
+                                            size: 16,
+                                            color: Colors.black.withOpacity(0.7),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              _filterText.isNotEmpty 
+                                                  ? 'Showing ${_filteredData!.length} filtered results'
+                                                  : 'Showing first 15 rows of ${_csvData!.length} total rows',
+                                              style: TextStyle(
+                                                color: Colors.black.withOpacity(0.7),
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                  if (_csvData!.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.analytics_outlined,
+                                          size: 16,
+                                          color: Colors.black.withOpacity(0.6),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          _filterText.isNotEmpty
+                                              ? 'Filter Results: ${_filteredData!.length} of ${_csvData!.length} rows'
+                                              : 'Data Summary: ${_csvHeaders!.length} columns, ${_csvData!.length} rows',
+                                          style: TextStyle(
+                                            color: Colors.black.withOpacity(0.6),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
                               ),
                             ),
-
                           ],
-                        ),
-                      ],
+                          
+                          const SizedBox(height: 32),
+                          
+                          // Premium Action Buttons
+                          if (_editedRowIndices.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(32),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Icon(
+                                          Icons.edit_note,
+                                          size: 24,
+                                          color: Colors.black,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Text(
+                                        'ACTIONS',
+                                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.black,
+                                          letterSpacing: 1.5,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                      const Spacer(),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.black.withOpacity(0.2)),
+                                        ),
+                                        child: Text(
+                                          '${_editedRowIndices.length} EDITED',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black,
+                                            letterSpacing: 1.0,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 24),
+                                  
+                                  // Premium Action Buttons Row
+                                  Row(
+                                    children: [
+                                      // Premium Email Button
+                                      Expanded(
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Colors.black,
+                                            borderRadius: BorderRadius.circular(12),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.2),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Material(
+                                            color: Colors.transparent,
+                                            child: InkWell(
+                                              onTap: _showEmailTransactionTypeDialog,
+                                              borderRadius: BorderRadius.circular(12),
+                                              child: Padding(
+                                                padding: const EdgeInsets.all(24),
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Icon(
+                                                          Icons.email,
+                                                          size: 24,
+                                                          color: Colors.white,
+                                                        ),
+                                                        const SizedBox(width: 12),
+                                                        Text(
+                                                          'SEND EMAIL',
+                                                          style: TextStyle(
+                                                            fontSize: 18,
+                                                            fontWeight: FontWeight.w700,
+                                                            color: Colors.white,
+                                                            letterSpacing: 1.0,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Text(
+                                                      'Send 2 ZIP files via email to payout-qa-internal@codapayments.com',
+                                                      style: TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.white.withOpacity(0.8),
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 8),
+                                                    Text(
+                                                      'Password: P@ssw0rd',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        color: Colors.white.withOpacity(0.6),
+                                                        fontStyle: FontStyle.italic,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+
+                          // Premium Additional API Actions Section
+                          const SizedBox(height: 32),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(32),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.black.withOpacity(0.1)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Icon(
+                                        Icons.email_outlined,
+                                        size: 24,
+                                        color: Colors.black,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Text(
+                                      'ADDITIONAL REPORTS',
+                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.black,
+                                        letterSpacing: 1.5,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 24),
+                                Row(
+                                  children: [
+                                    // Premium Wallet Report Button
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: _callWalletUnfinishedReportApi,
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(24),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.account_balance_wallet,
+                                                        size: 24,
+                                                        color: Colors.black,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        'WALLET REPORT',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: Colors.black,
+                                                          letterSpacing: 1.0,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Text(
+                                                    'Send unfinished wallet transactions report',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.black.withOpacity(0.7),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    
+                                    // Premium Bank Transfer Report Button
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                        ),
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          child: InkWell(
+                                            onTap: _callBankTransferUnfinishedReportApi,
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Padding(
+                                              padding: const EdgeInsets.all(24),
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Row(
+                                                    children: [
+                                                      Icon(
+                                                        Icons.account_balance,
+                                                        size: 24,
+                                                        color: Colors.black,
+                                                      ),
+                                                      const SizedBox(width: 12),
+                                                      Text(
+                                                        'BANK TRANSFER REPORT',
+                                                        style: TextStyle(
+                                                          fontSize: 16,
+                                                          fontWeight: FontWeight.w700,
+                                                          color: Colors.black,
+                                                          letterSpacing: 1.0,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  const SizedBox(height: 12),
+                                                  Text(
+                                                    'Send unfinished bank transfer report',
+                                                    style: TextStyle(
+                                                      fontSize: 14,
+                                                      color: Colors.black.withOpacity(0.7),
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 32),
+
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                ],
-
-                // Additional API Actions Section
-                const SizedBox(height: 32),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.purple.shade100,
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: Icon(
-                              Icons.email_outlined,
-                              size: 20,
-                              color: Colors.purple.shade600,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Additional Reports',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF1F2937),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          // Wallet Report Button
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.indigo.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.indigo.shade200),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _callWalletUnfinishedReportApi,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.account_balance_wallet,
-                                              size: 20,
-                                              color: Colors.indigo.shade600,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Wallet Report',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.indigo.shade700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Send unfinished wallet transactions report',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.indigo.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          
-                          // Bank Transfer Report Button
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.teal.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.teal.shade200),
-                              ),
-                              child: Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: _callBankTransferUnfinishedReportApi,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(
-                                              Icons.account_balance,
-                                              size: 20,
-                                              color: Colors.teal.shade600,
-                                            ),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'Bank Transfer Report',
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.teal.shade700,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'Send unfinished bank transfer report',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.teal.shade600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
                 ),
-                const SizedBox(height: 32),
-
-              ],
+              ),
             ),
-          ),
-        ),
-      ),
-      ),
-      ),
           ],
-      ),
+        ),
       ),
     );
   }
