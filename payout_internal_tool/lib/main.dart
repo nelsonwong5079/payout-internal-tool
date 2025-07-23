@@ -2301,7 +2301,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                     const SizedBox(height: 16),
                                     Text(
-                                      'UPLOAD AND PROCESS CSV/ZIP FILES FOR TRANSACTION EDITING',
+                                      'UPLOAD AND PROCESS ZIP FILES FOR TRANSACTION EDITING',
                                       textAlign: TextAlign.center,
                                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                                         color: Colors.black.withOpacity(0.7),
@@ -2389,7 +2389,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                           ),
                                           const SizedBox(height: 16),
                                           Text(
-                                            'CLICK TO UPLOAD CSV OR ZIP FILE',
+                                            'CLICK TO UPLOAD ZIP FILE',
                                             style: TextStyle(
                                               fontSize: 16,
                                               color: Colors.black.withOpacity(0.7),
@@ -3131,7 +3131,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                     const SizedBox(width: 16),
                                     Text(
-                                      'ADDITIONAL REPORTS',
+                                      'TRIGGER REPORTS',
                                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                         fontWeight: FontWeight.w700,
                                         color: Colors.black,
