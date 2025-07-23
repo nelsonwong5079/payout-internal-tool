@@ -205,12 +205,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
 
   @override
   void dispose() {
-    // Clean up all text editing controllers
-    for (var controller in _editControllers.values) {
-      controller.dispose();
-    }
-    _dropdownValues.clear();
+    // Clean up focus node
     _focusNode.dispose();
+    
+    // Clean up batch edit controllers
+    _batchEditControllers.values.forEach((controller) => controller.dispose());
+    _batchEditControllers.clear();
     
     // Dispose animation controllers
     _fadeController.dispose();
@@ -445,9 +445,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
   
   // Editing variables
   Map<String, int> _editableColumns = {};
-  Map<String, bool> _isEditing = {};
-  Map<String, TextEditingController> _editControllers = {};
-  Map<String, String> _dropdownValues = {};
+  bool _isBatchEditing = false;
+  Map<String, String> _batchEditValues = {};
+  Map<String, TextEditingController> _batchEditControllers = {};
   
   // Column reordering
   List<int>? _columnOrder;
@@ -652,71 +652,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     return _columnOrder![reorderedIndex];
   }
   
-  // Start editing a cell
-  void _startEditing(int rowIndex, int columnIndex, String currentValue) {
-    final key = '${rowIndex}_$columnIndex';
-    
-    print('START EDITING: Row $rowIndex, Column $columnIndex');
-    print('  Header: ${_csvHeaders![columnIndex]}');
-    print('  Current value: "$currentValue"');
-    print('  Column index is ALREADY the original index from UI click mapping');
-    
-    setState(() {
-      _isEditing[key] = true;
-      if (_isDropdownColumn(columnIndex)) {
-        // For dropdown columns, map the current value to a valid dropdown option
-        _dropdownValues[key] = _mapStatusToDropdownValue(currentValue);
-      } else {
-        // For text columns, create text controller
-        _editControllers[key] = TextEditingController(text: currentValue);
-      }
-    });
-  }
-  
-  // Save cell edit
-  void _saveEdit(int rowIndex, int columnIndex) {
-    final key = '${rowIndex}_$columnIndex';
-    if (_csvData != null) {
-      setState(() {
-        final oldValue = _csvData![rowIndex][columnIndex];
-        
-        if (_isDropdownColumn(columnIndex)) {
-          // Save dropdown value
-          final dropdownValue = _dropdownValues[key] ?? '';
-          _csvData![rowIndex][columnIndex] = dropdownValue;
-          _dropdownValues.remove(key);
-          print('DROPDOWN SAVE: Payout Status');
-          print('  Dropdown value selected: "$dropdownValue"');
-          print('  Mapping: ${_payoutStatusOptions[dropdownValue] ?? "NOT FOUND"}');
-        } else {
-          // Save text field value
-          if (_editControllers[key] != null) {
-            _csvData![rowIndex][columnIndex] = _editControllers[key]!.text;
-            _editControllers[key]?.dispose();
-            _editControllers.remove(key);
-          }
-        }
-        
-        final newValue = _csvData![rowIndex][columnIndex];
-        print('SAVE EDIT: Row $rowIndex, Column $columnIndex (${_csvHeaders![columnIndex]})');
-        print('  Old value: "$oldValue"');
-        print('  New value: "$newValue"');
-        print('  Full row after edit: ${_csvData![rowIndex].join(" | ")}');
-        
-        _isEditing[key] = false;
-        
-        // Track that this row has been edited
-        _editedRowIndices.add(rowIndex);
-        print('  Edited row indices now: $_editedRowIndices');
-        
-        // Auto-sync processed values with target values
-        _syncProcessedWithTarget(rowIndex, columnIndex);
-        
-        // Update filtered data
-        _filterData();
-      });
-    }
-  }
+
   
   // Sync processed amount/currency with target amount/currency
   void _syncProcessedWithTarget(int rowIndex, int columnIndex) {
@@ -875,18 +811,104 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
      print('Initial sync completed for ${_csvData!.length} rows');
    }
    
-   // Cancel cell edit
-  void _cancelEdit(int rowIndex, int columnIndex) {
+ 
+
+  // Start batch editing mode
+  void _startBatchEditing() {
+    setState(() {
+      _isBatchEditing = true;
+      _batchEditValues.clear();
+      // Clear any existing controllers
+      _batchEditControllers.values.forEach((controller) => controller.dispose());
+      _batchEditControllers.clear();
+    });
+  }
+
+  // Cancel batch editing mode
+  void _cancelBatchEditing() {
+    setState(() {
+      _isBatchEditing = false;
+      _batchEditValues.clear();
+      // Dispose all controllers
+      _batchEditControllers.values.forEach((controller) => controller.dispose());
+      _batchEditControllers.clear();
+    });
+  }
+
+  // Save all batch edits
+  void _saveBatchEdits() {
+    if (_csvData == null) return;
+    
+    setState(() {
+      // Save all batch edit values
+      _batchEditValues.forEach((key, value) {
+        final parts = key.split('_');
+        if (parts.length == 2) {
+          final rowIndex = int.tryParse(parts[0]);
+          final columnIndex = int.tryParse(parts[1]);
+          
+          if (rowIndex != null && columnIndex != null && 
+              rowIndex < _csvData!.length && columnIndex < _csvData![rowIndex].length) {
+            final oldValue = _csvData![rowIndex][columnIndex];
+            
+            // For dropdown columns, map the key back to display text
+            String newValue = value;
+            if (_isDropdownColumn(columnIndex)) {
+              newValue = _payoutStatusOptions[value] ?? value;
+            }
+            
+            _csvData![rowIndex][columnIndex] = newValue;
+            
+            print('BATCH SAVE: Row $rowIndex, Column $columnIndex (${_csvHeaders![columnIndex]})');
+            print('  Old value: "$oldValue"');
+            print('  New value: "$newValue"');
+            
+            // Track that this row has been edited
+            _editedRowIndices.add(rowIndex);
+            
+            // Auto-sync processed values with target values
+            _syncProcessedWithTarget(rowIndex, columnIndex);
+          }
+        }
+      });
+      
+      // Exit batch editing mode
+      _isBatchEditing = false;
+      _batchEditValues.clear();
+      
+      // Dispose all controllers
+      _batchEditControllers.values.forEach((controller) => controller.dispose());
+      _batchEditControllers.clear();
+      
+      // Update filtered data
+      _filterData();
+    });
+  }
+
+  // Update batch edit value
+  void _updateBatchEditValue(int rowIndex, int columnIndex, String value) {
     final key = '${rowIndex}_$columnIndex';
     setState(() {
-      _isEditing[key] = false;
-      if (_isDropdownColumn(columnIndex)) {
-        _dropdownValues.remove(key);
-      } else {
-        _editControllers[key]?.dispose();
-        _editControllers.remove(key);
-      }
+      _batchEditValues[key] = value;
     });
+  }
+
+  // Get batch edit value for display
+  String _getBatchEditValue(int rowIndex, int columnIndex, String defaultValue) {
+    final key = '${rowIndex}_$columnIndex';
+    return _batchEditValues[key] ?? defaultValue;
+  }
+
+  // Get or create batch edit controller
+  TextEditingController _getBatchEditController(int rowIndex, int columnIndex, String defaultValue) {
+    final key = '${rowIndex}_$columnIndex';
+    
+    if (!_batchEditControllers.containsKey(key)) {
+      final value = _getBatchEditValue(rowIndex, columnIndex, defaultValue);
+      _batchEditControllers[key] = TextEditingController(text: value);
+    }
+    
+    return _batchEditControllers[key]!;
   }
 
   // Filter data based on Transaction ID or Publisher Transaction ID
@@ -2631,6 +2653,119 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ),
                                   
+                                  // Batch Editing Controls - Near the table
+                                  if (_csvData != null && _csvData!.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    if (!_isBatchEditing) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.blue.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.edit_note,
+                                              size: 18,
+                                              color: Colors.blue.shade600,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Batch Edit Mode',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.blue.shade600,
+                                                ),
+                                              ),
+                                            ),
+                                            ElevatedButton.icon(
+                                              onPressed: _startBatchEditing,
+                                              icon: const Icon(Icons.edit, size: 14),
+                                              label: const Text('START BATCH EDIT'),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.blue.shade600,
+                                                foregroundColor: Colors.white,
+                                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius: BorderRadius.circular(6),
+                                                ),
+                                                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.orange.withOpacity(0.05),
+                                          borderRadius: BorderRadius.circular(8),
+                                          border: Border.all(color: Colors.orange.withOpacity(0.2)),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              Icons.edit_note,
+                                              size: 18,
+                                              color: Colors.orange.shade600,
+                                            ),
+                                            const SizedBox(width: 8),
+                                            Expanded(
+                                              child: Text(
+                                                'Batch Editing Mode - Click cells to edit',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.orange.shade600,
+                                                ),
+                                              ),
+                                            ),
+                                            Row(
+                                              children: [
+                                                ElevatedButton.icon(
+                                                  onPressed: _saveBatchEdits,
+                                                  icon: const Icon(Icons.check, size: 14),
+                                                  label: const Text('DONE EDIT'),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.green.shade600,
+                                                    foregroundColor: Colors.white,
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                ElevatedButton.icon(
+                                                  onPressed: _cancelBatchEditing,
+                                                  icon: const Icon(Icons.close, size: 14),
+                                                  label: const Text('CANCEL'),
+                                                  style: ElevatedButton.styleFrom(
+                                                    backgroundColor: Colors.red.shade600,
+                                                    foregroundColor: Colors.white,
+                                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                    shape: RoundedRectangleBorder(
+                                                      borderRadius: BorderRadius.circular(6),
+                                                    ),
+                                                    textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                  
                                   const SizedBox(height: 16),
                                   ConstrainedBox(
                                     constraints: BoxConstraints(
@@ -2751,7 +2886,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                         final isEditable = _isColumnEditable(originalCellIndex);
                                                         final isInput = _isInputColumn(originalCellIndex);
                                                         final isAutoSynced = _isAutoSyncedColumn(originalCellIndex);
-                                                        final isCurrentlyEditing = _isEditing[cellKey] ?? false;
+
                                                         
                                                         Color? cellBackgroundColor;
                                                         if (isInput) {
@@ -2759,7 +2894,11 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                         } else if (isAutoSynced) {
                                                           cellBackgroundColor = Colors.black.withOpacity(0.03);
                                                         } else if (isEditable) {
-                                                          cellBackgroundColor = Colors.black.withOpacity(0.04);
+                                                          if (_isBatchEditing && _batchEditValues[cellKey] != null) {
+                                                            cellBackgroundColor = Colors.orange.withOpacity(0.1);
+                                                          } else {
+                                                            cellBackgroundColor = Colors.black.withOpacity(0.04);
+                                                          }
                                                         }
                                                         
                                                         return Container(
@@ -2771,15 +2910,15 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                             ),
                                                             color: cellBackgroundColor,
                                                           ),
-                                                          child: isCurrentlyEditing ? 
-                                                            // Premium Editing mode
+                                                          child: (_isBatchEditing && isEditable && !isAutoSynced) ? 
+                                                            // Premium Batch Editing mode
                                                             Row(
                                                               children: [
                                                                 Expanded(
                                                                   child: _isDropdownColumn(originalCellIndex) ?
                                                                     // Premium Dropdown for Payout Status
                                                                     DropdownButton<String>(
-                                                                      value: _dropdownValues[cellKey] ?? '1',
+                                                                      value: _getBatchEditValue(rowIndex, originalCellIndex, _mapStatusToDropdownValue(cell)),
                                                                       isExpanded: true,
                                                                       style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w500),
                                                                       underline: Container(),
@@ -2789,17 +2928,15 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                           child: Text('${entry.key} - ${entry.value}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
                                                                         );
                                                                       }).toList(),
-                                                                      onChanged: (String? newValue) {
-                                                                        if (newValue != null) {
-                                                                          setState(() {
-                                                                            _dropdownValues[cellKey] = newValue;
-                                                                          });
-                                                                        }
-                                                                      },
+                                                                                                                                              onChanged: (String? newValue) {
+                                                                          if (newValue != null) {
+                                                                            _updateBatchEditValue(rowIndex, originalCellIndex, newValue);
+                                                                          }
+                                                                        },
                                                                     ) :
                                                                     // Premium Text field for other columns
                                                                     TextField(
-                                                                      controller: _editControllers[cellKey],
+                                                                      controller: _getBatchEditController(rowIndex, originalCellIndex, cell),
                                                                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                                                                       decoration: const InputDecoration(
                                                                         border: InputBorder.none,
@@ -2809,34 +2946,20 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                       inputFormatters: _isTargetCurrencyColumn(originalCellIndex) 
                                                                           ? [UppercaseAlphabeticInputFormatter()]
                                                                           : null,
-                                                                      onSubmitted: (_) => _saveEdit(rowIndex, originalCellIndex),
-                                                                      autofocus: true,
+                                                                      onChanged: (value) => _updateBatchEditValue(rowIndex, originalCellIndex, value),
                                                                     ),
-                                                                ),
-                                                                Row(
-                                                                  mainAxisSize: MainAxisSize.min,
-                                                                  children: [
-                                                                    InkWell(
-                                                                      onTap: () => _saveEdit(rowIndex, originalCellIndex),
-                                                                      child: Icon(Icons.check, size: 16, color: Colors.black),
-                                                                    ),
-                                                                    const SizedBox(width: 4),
-                                                                    InkWell(
-                                                                      onTap: () => _cancelEdit(rowIndex, originalCellIndex),
-                                                                      child: Icon(Icons.close, size: 16, color: Colors.black),
-                                                                    ),
-                                                                  ],
-                                                                ),
+                                                                                                                                  ),
                                                               ],
                                                             ) :
                                                             // Premium Display mode
                                                             InkWell(
-                                                              onTap: (isEditable && !isAutoSynced) ? () {
+                                                              onTap: (isEditable && !isAutoSynced && _isBatchEditing) ? () {
                                                                 print('UI CLICK: Reordered cell $reorderedCellIndex -> Original cell $originalCellIndex');
                                                                 print('  Reordered header: ${(_reorderedHeaders ?? _csvHeaders!)[reorderedCellIndex]}');
                                                                 print('  Original header: ${_csvHeaders![originalCellIndex]}');
                                                                 print('  Cell value: "$cell"');
-                                                                _startEditing(rowIndex, originalCellIndex, cell);
+                                                                // In batch mode, just initialize the edit value
+                                                                _updateBatchEditValue(rowIndex, originalCellIndex, cell);
                                                               } : null,
                                                               child: Container(
                                                                 width: double.infinity,
@@ -2844,9 +2967,17 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                   children: [
                                                                     Expanded(
                                                                       child: Tooltip(
-                                                                        message: cell,
+                                                                        message: _isBatchEditing && _batchEditValues[cellKey] != null 
+                                                                            ? (_isDropdownColumn(originalCellIndex) 
+                                                                                ? _payoutStatusOptions[_batchEditValues[cellKey]!] ?? _batchEditValues[cellKey]!
+                                                                                : _batchEditValues[cellKey]!)
+                                                                            : cell,
                                                                         child: Text(
-                                                                          cell,
+                                                                          _isBatchEditing && _batchEditValues[cellKey] != null 
+                                                                              ? (_isDropdownColumn(originalCellIndex) 
+                                                                                  ? _payoutStatusOptions[_batchEditValues[cellKey]!] ?? _batchEditValues[cellKey]!
+                                                                                  : _batchEditValues[cellKey]!)
+                                                                              : cell,
                                                                           style: TextStyle(
                                                                             fontSize: 12,
                                                                             color: _isNumeric(cell) ? Colors.black : Colors.black.withOpacity(0.8),
@@ -2863,12 +2994,20 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                         size: 14,
                                                                         color: Colors.black.withOpacity(0.6)
                                                                       )
-                                                                    else if (isEditable) 
-                                                                      Icon(
-                                                                        _isDropdownColumn(originalCellIndex) ? Icons.arrow_drop_down : Icons.edit, 
-                                                                        size: 14, 
-                                                                        color: Colors.black.withOpacity(0.6)
-                                                                      ),
+                                                                    else if (isEditable && _isBatchEditing) ...[
+                                                                      if (_batchEditValues[cellKey] != null)
+                                                                        Icon(
+                                                                          Icons.edit,
+                                                                          size: 14,
+                                                                          color: Colors.orange.shade600,
+                                                                        )
+                                                                      else
+                                                                        Icon(
+                                                                          Icons.edit, 
+                                                                          size: 14, 
+                                                                          color: Colors.blue.shade600
+                                                                        ),
+                                                                    ],
                                                                   ],
                                                                 ),
                                                               ),
@@ -2949,7 +3088,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                           const SizedBox(height: 32),
                           
                           // Premium Action Buttons
-                          if (_editedRowIndices.isNotEmpty) ...[
+                          if (_csvData != null && _csvData!.isNotEmpty) ...[
                             const SizedBox(height: 24),
                             Container(
                               width: double.infinity,
