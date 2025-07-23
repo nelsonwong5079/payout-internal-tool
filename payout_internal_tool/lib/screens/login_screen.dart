@@ -176,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         });
       }
     } catch (e) {
-      print('Error loading saved credentials: $e');
+      // Error handling without print statements
     }
   }
 
@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         html.window.localStorage['savedPassword'] = '';
       }
     } catch (e) {
-      print('Error saving credentials: $e');
+      // Error handling without print statements
     }
   }
 

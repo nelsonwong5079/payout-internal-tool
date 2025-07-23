@@ -3,8 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:html' as html;
-import 'dart:js' as js;
-import 'dart:typed_data';
+
 import 'package:archive/archive.dart';
 import 'dart:math' as math;
 import 'dart:async';
@@ -431,7 +430,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
 
   // File processing variables
   String? _selectedFileName;
-  String? _fileContent;
+
   bool _isFileProcessed = false;
   String _processingStatus = '';
   List<List<String>>? _csvData;
@@ -452,6 +451,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
   // Column reordering
   List<int>? _columnOrder;
   List<String>? _reorderedHeaders;
+  
+  // Help guide visibility
+  bool _showHelpGuide = false;
   
   // Track edited rows
   Set<int> _editedRowIndices = {};
@@ -491,22 +493,16 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       'payout status'
     ];
     
-    print('Initializing editable columns from headers: ${_csvHeaders!.join(", ")}');
-    
     for (int i = 0; i < _csvHeaders!.length; i++) {
       final headerLower = _csvHeaders![i].toLowerCase().trim();
-      print('  Checking header $i: "$headerLower"');
       
       for (String editableColumn in editableColumnNames) {
         if (headerLower.contains(editableColumn)) {
           _editableColumns[editableColumn] = i;
-          print('    Found $editableColumn at index $i');
           break;
         }
       }
     }
-    
-    print('Final editable columns mapping: $_editableColumns');
     
     // Create column order with editable columns first
     _createColumnOrder();
@@ -661,15 +657,11 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     final headerLower = _csvHeaders![columnIndex].toLowerCase().trim();
     final editedValue = _csvData![rowIndex][columnIndex];
     
-    print('Syncing row $rowIndex, column $columnIndex (${_csvHeaders![columnIndex]}) with value: "$editedValue"');
-    
     // If target amount was edited, copy to processed amount
     if (headerLower.contains('target') && headerLower.contains('amount')) {
       final processedAmountIndex = _editableColumns['processed amount'];
       if (processedAmountIndex != null && processedAmountIndex < _csvData![rowIndex].length) {
-        final oldProcessedValue = _csvData![rowIndex][processedAmountIndex];
         _csvData![rowIndex][processedAmountIndex] = editedValue;
-        print('  Target amount sync: "$oldProcessedValue" -> "$editedValue" (processed amount index: $processedAmountIndex)');
       }
     }
     
@@ -677,10 +669,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     if (headerLower.contains('target') && headerLower.contains('currency')) {
       final processedCurrencyIndex = _editableColumns['processed currency'];
       if (processedCurrencyIndex != null && processedCurrencyIndex < _csvData![rowIndex].length) {
-        final oldProcessedValue = _csvData![rowIndex][processedCurrencyIndex];
         final newValue = editedValue.toUpperCase();
         _csvData![rowIndex][processedCurrencyIndex] = newValue;
-        print('  Target currency sync: "$oldProcessedValue" -> "$newValue" (processed currency index: $processedCurrencyIndex)');
       }
     }
   }
@@ -694,49 +684,10 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
      final targetAmountIndex = _editableColumns['target amount'];
      final targetCurrencyIndex = _editableColumns['target currency'];
      
-     // Also find input amount and currency indices to copy from
-     int? inputAmountIndex;
-     int? inputCurrencyIndex;
-     
-     for (int i = 0; i < _csvHeaders!.length; i++) {
-       final headerLower = _csvHeaders![i].toLowerCase().trim();
-       if (headerLower.contains('input') && headerLower.contains('amount')) {
-         inputAmountIndex = i;
-       } else if (headerLower.contains('input') && headerLower.contains('currency')) {
-         inputCurrencyIndex = i;
-       }
-     }
-     
-     print('Initial sync - Column indices:');
-     print('  Input Amount: $inputAmountIndex');
-     print('  Input Currency: $inputCurrencyIndex');
-     print('  Processed Amount: $processedAmountIndex');
-     print('  Processed Currency: $processedCurrencyIndex');
-     print('  Target Amount: $targetAmountIndex');
-     print('  Target Currency: $targetCurrencyIndex');
+
      
      for (int rowIndex = 0; rowIndex < _csvData!.length; rowIndex++) {
        final row = _csvData![rowIndex];
-       
-       print('  Row $rowIndex original values:');
-       if (inputAmountIndex != null && inputAmountIndex < row.length) {
-         print('    Original Input Amount: "${row[inputAmountIndex]}"');
-       }
-       if (inputCurrencyIndex != null && inputCurrencyIndex < row.length) {
-         print('    Original Input Currency: "${row[inputCurrencyIndex]}"');
-       }
-       if (processedAmountIndex != null && processedAmountIndex < row.length) {
-         print('    Original Processed Amount: "${row[processedAmountIndex]}"');
-       }
-       if (targetAmountIndex != null && targetAmountIndex < row.length) {
-         print('    Original Target Amount: "${row[targetAmountIndex]}"');
-       }
-       if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
-         print('    Original Processed Currency: "${row[processedCurrencyIndex]}"');
-       }
-       if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
-         print('    Original Target Currency: "${row[targetCurrencyIndex]}"');
-       }
        
        // First, copy from Input fields to Target fields if Target fields are empty
        // DO NOT copy Input Amount to Target Amount - let users enter manually
@@ -753,15 +704,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
          if (targetValue.isNotEmpty && processedValue.isEmpty) {
            // Target has value, processed is empty - copy to processed
            row[processedAmountIndex] = targetValue;
-           print('    Amount sync: Target "$targetValue" -> Processed (was empty)');
          } else if (processedValue.isNotEmpty && targetValue.isEmpty) {
            // Processed has value, target is empty - copy to target
            row[targetAmountIndex] = processedValue;
-           print('    Amount sync: Processed "$processedValue" -> Target (was empty)');
          } else if (targetValue.isNotEmpty && processedValue.isNotEmpty) {
            // Both have values - keep target as the source of truth
            row[processedAmountIndex] = targetValue;
-           print('    Amount sync: Both had values, keeping Target "$targetValue" in both');
          }
          // If both are empty, do nothing
        }
@@ -776,39 +724,21 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
          if (targetValue.isNotEmpty && processedValue.isEmpty) {
            // Target has value, processed is empty - copy to processed (ensure uppercase)
            row[processedCurrencyIndex] = targetValue.toUpperCase();
-           print('    Currency sync: Target "$targetValue" -> Processed "${targetValue.toUpperCase()}" (was empty)');
          } else if (processedValue.isNotEmpty && targetValue.isEmpty) {
            // Processed has value, target is empty - copy to target (ensure uppercase)
            final upperValue = processedValue.toUpperCase();
            row[targetCurrencyIndex] = upperValue;
            row[processedCurrencyIndex] = upperValue; // Ensure both are uppercase
-           print('    Currency sync: Processed "$processedValue" -> Target "$upperValue" (was empty)');
          } else if (targetValue.isNotEmpty && processedValue.isNotEmpty) {
            // Both have values - ensure both are uppercase and synchronized
            final upperValue = targetValue.toUpperCase();
            row[targetCurrencyIndex] = upperValue;
            row[processedCurrencyIndex] = upperValue;
-           print('    Currency sync: Both had values, standardized to "$upperValue"');
          }
          // If both are empty, do nothing
        }
        
-       print('  Row $rowIndex final values:');
-       if (processedAmountIndex != null && processedAmountIndex < row.length) {
-         print('    Final Processed Amount: "${row[processedAmountIndex]}"');
-       }
-       if (targetAmountIndex != null && targetAmountIndex < row.length) {
-         print('    Final Target Amount: "${row[targetAmountIndex]}"');
-       }
-       if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
-         print('    Final Processed Currency: "${row[processedCurrencyIndex]}"');
-       }
-       if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
-         print('    Final Target Currency: "${row[targetCurrencyIndex]}"');
-       }
      }
-     
-     print('Initial sync completed for ${_csvData!.length} rows');
    }
    
  
@@ -849,8 +779,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           
           if (rowIndex != null && columnIndex != null && 
               rowIndex < _csvData!.length && columnIndex < _csvData![rowIndex].length) {
-            final oldValue = _csvData![rowIndex][columnIndex];
-            
             // For dropdown columns, map the key back to display text
             String newValue = value;
             if (_isDropdownColumn(columnIndex)) {
@@ -858,10 +786,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
             }
             
             _csvData![rowIndex][columnIndex] = newValue;
-            
-            print('BATCH SAVE: Row $rowIndex, Column $columnIndex (${_csvHeaders![columnIndex]})');
-            print('  Old value: "$oldValue"');
-            print('  New value: "$newValue"');
             
             // Track that this row has been edited
             _editedRowIndices.add(rowIndex);
@@ -909,6 +833,44 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     }
     
     return _batchEditControllers[key]!;
+  }
+
+  // Build help step widget
+  Widget _buildHelpStep(int stepNumber, String description) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: Colors.blue.shade600,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Center(
+            child: Text(
+              stepNumber.toString(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Text(
+            description,
+            style: TextStyle(
+              fontSize: 15,
+              color: Colors.black.withOpacity(0.8),
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // Filter data based on Transaction ID or Publisher Transaction ID
@@ -982,7 +944,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
 
       // Parse headers (first line)
       _csvHeaders = _parseCsvLine(lines[0]);
-      print('Parsed CSV headers: ${_csvHeaders!.join(", ")}');
       
       // Reset filter indices when new data is loaded
       _transactionIdIndex = null;
@@ -996,16 +957,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           final row = _parseCsvLine(lines[i]);
           if (row.isNotEmpty) {
             _csvData!.add(row);
-            
-            // Debug first few rows to see if amounts are preserved
-            if (i <= 3) {
-              print('Row $i parsed: ${row.join(" | ")}');
-            }
           }
         }
       }
-      
-      print('Parsed ${_csvData!.length} data rows');
       
       // Initialize filtered data with all data
       _filteredData = _csvData;
@@ -1013,31 +967,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       // Initialize editable columns
       _initializeEditableColumns();
       
-      // Show sample data for amount columns after column detection
-      if (_csvData!.isNotEmpty) {
-        final processedAmountIndex = _editableColumns['processed amount'];
-        final targetAmountIndex = _editableColumns['target amount'];
-        final payoutStatusIndex = _editableColumns['payout status'];
-        
-        print('Sample data for amount columns:');
-        for (int rowIndex = 0; rowIndex < math.min(3, _csvData!.length); rowIndex++) {
-          final row = _csvData![rowIndex];
-          if (processedAmountIndex != null && processedAmountIndex < row.length) {
-            print('  Row $rowIndex - Processed Amount (index $processedAmountIndex): "${row[processedAmountIndex]}"');
-          }
-          if (targetAmountIndex != null && targetAmountIndex < row.length) {
-            print('  Row $rowIndex - Target Amount (index $targetAmountIndex): "${row[targetAmountIndex]}"');
-          }
-          if (payoutStatusIndex != null && payoutStatusIndex < row.length) {
-            print('  Row $rowIndex - Original Payout Status (index $payoutStatusIndex): "${row[payoutStatusIndex]}"');
-          }
-        }
-      }
+
       
       // Initial sync of processed values with target values
       _performInitialSync();
     } catch (e) {
-      print('Error parsing CSV: $e');
+      // Error handling without print statements
     }
   }
 
@@ -1063,28 +998,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     // Add the last field
     result.add(current.trim());
     
-    // Debug the first few lines parsed
-    if (result.length > 15) { // Only debug if it looks like a data row (not header)
-      bool hasAmountData = false;
-      for (String field in result) {
-        if (field.contains('.') && double.tryParse(field) != null) {
-          hasAmountData = true;
-          break;
-        }
-      }
-      
-      if (hasAmountData) {
-        print('CSV line parsing debug:');
-        print('  Input: ${line.length > 100 ? line.substring(0, 100) + "..." : line}');
-        print('  Parsed into ${result.length} fields');
-        for (int i = 0; i < result.length; i++) {
-          if (result[i].isNotEmpty && double.tryParse(result[i]) != null) {
-            print('    Field $i (numeric): "${result[i]}"');
-          }
-        }
-      }
-    }
-    
     return result;
   }
 
@@ -1092,7 +1005,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
   Future<bool> _checkVpnConnection() async {
     try {
       // Use JavaScript fetch with no-cors mode to bypass CORS restrictions
-      final result = await html.window.fetch(
+      await html.window.fetch(
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email',
         {
           'method': 'POST',
@@ -1103,10 +1016,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       // In no-cors mode, we can't read the status code directly
       // But if the request completes without error, it means the endpoint is reachable
       // and likely the VPN is connected (since this is an internal endpoint)
-      print('VPN check fetch completed - assuming VPN is connected');
       return true;
     } catch (e) {
-      print('VPN check failed: $e');
       return false;
     }
   }
@@ -1114,7 +1025,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
   // Call check-new-email API client-side with no-cors
   Future<void> _callCheckNewEmailApi() async {
     try {
-      print('Calling check-new-email API...');
       await html.window.fetch(
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email',
         {
@@ -1122,9 +1032,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           'mode': 'no-cors',
         }
       );
-      print('API call completed successfully');
     } catch (e) {
-      print('API call failed: $e');
+      // Error handling without print statements
     }
   }
 
@@ -1148,7 +1057,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-wallet-unfinished-report',
         createHttpOptions(method: 'POST', mode: 'no-cors'),
       );
-      print('Wallet Report API called successfully');
       
       // Always show success since no-cors mode doesn't return status
       {
@@ -1186,7 +1094,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         );
       }
     } catch (error) {
-      print('Error calling Wallet Report API: $error');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Container(
@@ -1231,7 +1138,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-bank-transfer-unfinished-report',
         createHttpOptions(method: 'POST', mode: 'no-cors'),
       );
-      print('Bank Transfer Report API called successfully');
       
       // Always show success since no-cors mode doesn't return status
       {
@@ -1269,7 +1175,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         );
       }
     } catch (error) {
-      print('Error calling Bank Transfer Report API: $error');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Container(
@@ -1509,7 +1414,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       final csvContent = String.fromCharCodes(csvFile.content as List<int>);
       
       setState(() {
-        _fileContent = csvContent;
         _processingStatus = 'ZIP file extracted successfully! Found CSV: ${csvFile.name}';
         _isFileProcessed = true;
       });
@@ -1532,7 +1436,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     try {
       final content = String.fromCharCodes(bytes);
       setState(() {
-        _fileContent = content;
         _processingStatus = 'CSV file loaded successfully!';
         _isFileProcessed = true;
       });
@@ -1551,7 +1454,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
   // Convert payout status number to text
   String _convertPayoutStatusToText(String status) {
     final trimmedStatus = status.trim();
-    print('Converting payout status: "$trimmedStatus" -> "${_payoutStatusOptions[trimmedStatus] ?? trimmedStatus}"');
     return _payoutStatusOptions[trimmedStatus] ?? trimmedStatus;
   }
   
@@ -1573,34 +1475,11 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     final processedCurrencyIndex = _editableColumns['processed currency'];
     final targetCurrencyIndex = _editableColumns['target currency'];
     
-    print('Generating edited CSV content:');
-    print('  Headers: ${_csvHeaders!.join(", ")}');
-    print('  Edited row indices: $_editedRowIndices');
-    print('  Payout status index: $payoutStatusIndex');
-    print('  Editable columns: $_editableColumns');
-    print('  Current _csvData state check:');
-    
     // Add only edited rows
     for (int rowIndex in _editedRowIndices) {
       if (rowIndex < _csvData!.length) {
         // Get the CURRENT state of the row from _csvData (this should include all edits)
         final row = List<String>.from(_csvData![rowIndex]);
-        
-        print('  Row $rowIndex CURRENT state: ${row.join(" | ")}');
-        
-        // Show specific currency and amount values from current state
-        if (processedCurrencyIndex != null && processedCurrencyIndex < row.length) {
-          print('    CURRENT Processed Currency (index $processedCurrencyIndex): "${row[processedCurrencyIndex]}"');
-        }
-        if (targetCurrencyIndex != null && targetCurrencyIndex < row.length) {
-          print('    CURRENT Target Currency (index $targetCurrencyIndex): "${row[targetCurrencyIndex]}"');
-        }
-        if (processedAmountIndex != null && processedAmountIndex < row.length) {
-          print('    CURRENT Processed Amount (index $processedAmountIndex): "${row[processedAmountIndex]}"');
-        }
-        if (targetAmountIndex != null && targetAmountIndex < row.length) {
-          print('    CURRENT Target Amount (index $targetAmountIndex): "${row[targetAmountIndex]}"');
-        }
         
         // IMPORTANT: Override Processed Amount/Currency with Target Amount/Currency for export
         // This ensures user's Target edits take precedence in the exported file
@@ -1609,7 +1488,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           final targetAmount = row[targetAmountIndex].trim();
           if (targetAmount.isNotEmpty) {
             row[processedAmountIndex] = targetAmount;
-            print('    EXPORT OVERRIDE: Using Target Amount "$targetAmount" for Processed Amount');
           }
         }
         
@@ -1618,18 +1496,13 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           final targetCurrency = row[targetCurrencyIndex].trim();
           if (targetCurrency.isNotEmpty) {
             row[processedCurrencyIndex] = targetCurrency.toUpperCase();
-            print('    EXPORT OVERRIDE: Using Target Currency "$targetCurrency" for Processed Currency');
           }
         }
         
         // Convert payout status from number to text
         if (payoutStatusIndex != null && payoutStatusIndex < row.length) {
-          final originalStatus = row[payoutStatusIndex];
           row[payoutStatusIndex] = _convertPayoutStatusToText(row[payoutStatusIndex]);
-          print('    Converted payout status: $originalStatus -> ${row[payoutStatusIndex]}');
         }
-        
-        print('  Row $rowIndex FINAL for CSV (after export overrides): ${row.join(" | ")}');
         
         final csvRow = row.map((cell) => '"$cell"').join(',');
         csvLines.add(csvRow);
@@ -1637,10 +1510,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     }
     
     final result = csvLines.join('\n');
-    print('Generated CSV content (${csvLines.length} lines):');
-    print('--- CSV START ---');
-    print(result);
-    print('--- CSV END ---');
     return result;
   }
   
@@ -1652,7 +1521,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     final blob = html.Blob([bytes]);
     final url = html.Url.createObjectUrlFromBlob(blob);
     
-    final anchor = html.AnchorElement(href: url)
+    html.AnchorElement(href: url)
       ..setAttribute('download', fileName)
       ..click();
     
@@ -1767,11 +1636,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       // Generate CSV content with user's selected payout status
       final originalContent = _generateEditedCsvContent();
       
-      print('=== EMAIL STEP-BY-STEP PROCESS ===');
-      print('To: payout-qa-internal@codapayments.com');
-      print('Subject: Sandbox Txn Status Update');
-      print('Password: P@ssw0rd');
-      print('===================================');
+      
       
       // Show full-screen progress overlay
       showDialog(
@@ -1848,7 +1713,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         },
       );
 
-      print('Step 1: Sending approved ZIP file...');
+      
       final approvedResponse = await http.post(
         Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
         headers: {'Content-Type': 'application/json'},
@@ -1870,7 +1735,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       if (approvedData['zipContent'] != null) {
         _downloadZipFile(approvedData['zipContent'], approvedData['fileName']);
       }
-      print('✅ Approved email sent successfully');
+      
 
       // Update progress dialog
       if (mounted) {
@@ -1950,9 +1815,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
         );
       }
 
-      print('Step 2: Waiting 10 seconds...');
-      await Future.delayed(const Duration(seconds: 10));
-      print('Step 2: Calling check-new-email API...');
+              await Future.delayed(const Duration(seconds: 10));
       await _callCheckNewEmailApi();
 
       // Update progress dialog
@@ -2034,9 +1897,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       }
 
       // Step 3: Send original ZIP
-      print('Step 3: Waiting 10 seconds...');
-      await Future.delayed(const Duration(seconds: 10));
-      print('Step 3: Sending original ZIP file...');
+              await Future.delayed(const Duration(seconds: 10));
       final originalResponse = await http.post(
         Uri.parse('https://sendemail-amxcplfi6q-uc.a.run.app'),
         headers: {'Content-Type': 'application/json'},
@@ -2058,7 +1919,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       if (originalData['zipContent'] != null) {
         _downloadZipFile(originalData['zipContent'], originalData['fileName']);
       }
-      print('✅ Original email sent successfully');
+      
 
       // Update progress dialog for final step
       if (mounted) {
@@ -2139,9 +2000,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       }
 
       // Step 4: Final API call
-      print('Step 4: Waiting 10 seconds...');
-      await Future.delayed(const Duration(seconds: 10));
-      print('Step 4: Final API call...');
+              await Future.delayed(const Duration(seconds: 10));
       await _callCheckNewEmailApi();
 
       // Close progress dialog
@@ -2198,7 +2057,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           margin: const EdgeInsets.all(16),
         ),
       );
-      print('=== PROCESS COMPLETED SUCCESSFULLY ===');
+      
 
     } catch (error) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2208,7 +2067,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
           duration: const Duration(seconds: 5),
         ),
       );
-      print('❌ Error in email process: $error');
     }
   }
 
@@ -2251,85 +2109,87 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                 child: SingleChildScrollView(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
+                      constraints: BoxConstraints(
+                        maxWidth: _showHelpGuide ? 800 : 1200,
+                      ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           // Admin Section
                           _buildAdminSection(),
                           
-                          // Premium Hero Section
+                          // Compact Hero Section
                           FadeTransition(
                             opacity: _fadeAnimation,
                             child: SlideTransition(
                               position: _slideAnimation,
                               child: Container(
-                                padding: const EdgeInsets.all(48),
+                                padding: const EdgeInsets.all(24),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
-                                  borderRadius: BorderRadius.circular(24),
+                                  borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.white.withOpacity(0.1),
-                                      blurRadius: 40,
-                                      spreadRadius: 10,
-                                    ),
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 20,
-                                      offset: const Offset(0, 10),
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 4),
                                     ),
                                   ],
                                 ),
-                                child: Column(
+                                child: Row(
                                   children: [
-                                    // Premium Icon with Glow Effect
+                                    // Compact Icon
                                     AnimatedBuilder(
                                       animation: Listenable.merge([_pulseAnimation, _glowAnimation]),
                                       builder: (context, child) {
                                         return Transform.scale(
                                           scale: _pulseAnimation.value,
                                           child: Container(
-                                            padding: const EdgeInsets.all(32),
+                                            padding: const EdgeInsets.all(16),
                                             decoration: BoxDecoration(
                                               color: Colors.black,
-                                              borderRadius: BorderRadius.circular(20),
+                                              borderRadius: BorderRadius.circular(12),
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.white.withOpacity(0.1 * _glowAnimation.value),
-                                                  blurRadius: 20 * _glowAnimation.value,
-                                                  spreadRadius: 2 * _glowAnimation.value,
+                                                  blurRadius: 10 * _glowAnimation.value,
+                                                  spreadRadius: 1 * _glowAnimation.value,
                                                 ),
                                               ],
                                             ),
                                             child: Icon(
                                               Icons.upload_file,
-                                              size: 64,
+                                              size: 32,
                                               color: Colors.white,
                                             ),
                                           ),
                                         );
                                       },
                                     ),
-                                    const SizedBox(height: 32),
-                                    Text(
-                                      'PAYOUT INTERNAL TOOL',
-                                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                        color: Colors.black,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: 2.0,
-                                        fontSize: 24,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      'UPLOAD AND PROCESS ZIP FILES FOR TRANSACTION EDITING',
-                                      textAlign: TextAlign.center,
-                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                        color: Colors.black.withOpacity(0.7),
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 1.0,
-                                        fontSize: 14,
+                                    const SizedBox(width: 20),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'PAYOUT INTERNAL TOOL',
+                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                              color: Colors.black,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 1.5,
+                                              fontSize: 20,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            'Upload and process ZIP files for transaction editing',
+                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                              color: Colors.black.withOpacity(0.7),
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ],
@@ -2337,21 +2197,50 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ),
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 16),
+                          
+                          // Compact Help Button
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              ElevatedButton.icon(
+                                onPressed: () {
+                                  setState(() {
+                                    _showHelpGuide = !_showHelpGuide;
+                                  });
+                                },
+                                icon: Icon(_showHelpGuide ? Icons.help : Icons.help_outline, size: 16),
+                                label: Text(_showHelpGuide ? 'HIDE GUIDE' : 'HOW TO USE THIS TOOL'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue.shade600,
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  textStyle: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
                   
-                          // Premium File Upload Section
+                          // Compact File Upload Section
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(32),
+                            padding: const EdgeInsets.all(24),
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
+                              borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.black.withOpacity(0.1)),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
@@ -2388,7 +2277,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                 Center(
                                   child: Container(
                                     width: 400,
-                                    height: 160,
+                                    height: 120,
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         color: Colors.black.withOpacity(0.2),
@@ -2400,32 +2289,32 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                     child: InkWell(
                                       onTap: _handleFileUpload,
-                                      borderRadius: BorderRadius.circular(16),
+                                      borderRadius: BorderRadius.circular(12),
                                       child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             Icons.cloud_upload_outlined,
-                                            size: 48,
+                                            size: 32,
                                             color: Colors.black.withOpacity(0.6),
                                           ),
-                                          const SizedBox(height: 16),
+                                          const SizedBox(height: 12),
                                           Text(
                                             'CLICK TO UPLOAD ZIP FILE',
                                             style: TextStyle(
-                                              fontSize: 16,
+                                              fontSize: 14,
                                               color: Colors.black.withOpacity(0.7),
                                               fontWeight: FontWeight.w600,
-                                              letterSpacing: 1.0,
+                                              letterSpacing: 0.5,
                                             ),
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 4),
                                           Text(
                                             'SUPPORTS PASSWORD-PROTECTED ZIP FILES',
                                             style: TextStyle(
-                                              fontSize: 12,
+                                              fontSize: 11,
                                               color: Colors.black.withOpacity(0.5),
-                                              letterSpacing: 0.5,
+                                              letterSpacing: 0.3,
                                             ),
                                           ),
                                         ],
@@ -2496,6 +2385,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ],
                             ),
                           ),
+                          
+
                           
                           // Premium Data Table Section
                           if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
@@ -2954,10 +2845,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                             // Premium Display mode
                                                             InkWell(
                                                               onTap: (isEditable && !isAutoSynced && _isBatchEditing) ? () {
-                                                                print('UI CLICK: Reordered cell $reorderedCellIndex -> Original cell $originalCellIndex');
-                                                                print('  Reordered header: ${(_reorderedHeaders ?? _csvHeaders!)[reorderedCellIndex]}');
-                                                                print('  Original header: ${_csvHeaders![originalCellIndex]}');
-                                                                print('  Cell value: "$cell"');
+                                                                
                                                                 // In batch mode, just initialize the edit value
                                                                 _updateBatchEditValue(rowIndex, originalCellIndex, cell);
                                                               } : null,
@@ -3280,7 +3168,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
                                 Row(
                                   children: [
                                     // Premium Wallet Report Button
@@ -3297,7 +3185,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             onTap: _callWalletUnfinishedReportApi,
                                             borderRadius: BorderRadius.circular(12),
                                             child: Padding(
-                                              padding: const EdgeInsets.all(24),
+                                              padding: const EdgeInsets.all(16),
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
@@ -3305,22 +3193,22 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                     children: [
                                                       Icon(
                                                         Icons.account_balance_wallet,
-                                                        size: 24,
+                                                        size: 20,
                                                         color: Colors.black,
                                                       ),
-                                                      const SizedBox(width: 12),
+                                                      const SizedBox(width: 10),
                                                       Text(
                                                         'WALLET REPORT',
                                                         style: TextStyle(
-                                                          fontSize: 16,
+                                                          fontSize: 14,
                                                           fontWeight: FontWeight.w700,
                                                           color: Colors.black,
-                                                          letterSpacing: 1.0,
+                                                          letterSpacing: 0.8,
                                                         ),
                                                       ),
                                                     ],
                                                   ),
-                                                  const SizedBox(height: 12),
+                                                  const SizedBox(height: 8),
                                                   Text(
                                                     'Send unfinished wallet transactions report',
                                                     style: TextStyle(
@@ -3352,7 +3240,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             onTap: _callBankTransferUnfinishedReportApi,
                                             borderRadius: BorderRadius.circular(12),
                                             child: Padding(
-                                              padding: const EdgeInsets.all(24),
+                                              padding: const EdgeInsets.all(16),
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
@@ -3360,22 +3248,22 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                     children: [
                                                       Icon(
                                                         Icons.account_balance,
-                                                        size: 24,
+                                                        size: 20,
                                                         color: Colors.black,
                                                       ),
-                                                      const SizedBox(width: 12),
+                                                      const SizedBox(width: 10),
                                                       Text(
                                                         'BANK TRANSFER REPORT',
                                                         style: TextStyle(
-                                                          fontSize: 16,
+                                                          fontSize: 14,
                                                           fontWeight: FontWeight.w700,
                                                           color: Colors.black,
-                                                          letterSpacing: 1.0,
+                                                          letterSpacing: 0.8,
                                                         ),
                                                       ),
                                                     ],
                                                   ),
-                                                  const SizedBox(height: 12),
+                                                  const SizedBox(height: 8),
                                                   Text(
                                                     'Send unfinished bank transfer report',
                                                     style: TextStyle(
@@ -3405,6 +3293,100 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                 ),
               ),
             ),
+            
+            // Help Guide Sidebar
+            if (_showHelpGuide) ...[
+              Positioned(
+                right: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 400,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        offset: const Offset(-2, 0),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      // Help Guide Header
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade600,
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(
+                                Icons.help_outline,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Expanded(
+                              child: Text(
+                                'HOW TO USE THIS TOOL',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 1.5,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () {
+                                setState(() {
+                                  _showHelpGuide = false;
+                                });
+                              },
+                              icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Help Guide Content
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildHelpStep(1, 'Generate the required transaction report and download the ZIP file from the email sent by payout-qa-internal@codapayments.com'),
+                                const SizedBox(height: 16),
+                                _buildHelpStep(2, 'Upload the downloaded ZIP file using the file upload interface'),
+                                const SizedBox(height: 16),
+                                _buildHelpStep(3, 'Click the "START BATCH EDIT" button to enable editing mode'),
+                                const SizedBox(height: 16),
+                                _buildHelpStep(4, 'Modify the target amount, target currency, and payout status fields as needed'),
+                                const SizedBox(height: 16),
+                                _buildHelpStep(5, 'Click "DONE EDIT" to save all changes'),
+                                const SizedBox(height: 16),
+                                _buildHelpStep(6, 'Proceed with email sending, wait for completion, then verify the transaction status changes in the CRM system'),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
