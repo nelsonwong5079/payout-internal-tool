@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
+import 'dart:html' as html;
 import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
   String? _errorMessage;
   
   // Animation controllers
@@ -148,11 +150,50 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     
     // Initialize floating particles
     _initializeParticles();
+    
+    // Load saved credentials if "Remember Me" was checked
+    _loadSavedCredentials();
   }
 
   void _initializeParticles() {
     for (int i = 0; i < 15; i++) {
       _particles.add(_FloatingParticle());
+    }
+  }
+
+  // Load saved credentials from localStorage
+  void _loadSavedCredentials() {
+    try {
+      final savedRememberMe = html.window.localStorage['rememberMe'] == 'true';
+      if (savedRememberMe) {
+        final savedEmail = html.window.localStorage['savedEmail'] ?? '';
+        final savedPassword = html.window.localStorage['savedPassword'] ?? '';
+        
+        setState(() {
+          _rememberMe = true;
+          _emailController.text = savedEmail;
+          _passwordController.text = savedPassword;
+        });
+      }
+    } catch (e) {
+      print('Error loading saved credentials: $e');
+    }
+  }
+
+  // Save credentials to localStorage
+  void _saveCredentials() {
+    try {
+      if (_rememberMe) {
+        html.window.localStorage['rememberMe'] = 'true';
+        html.window.localStorage['savedEmail'] = _emailController.text.trim();
+        html.window.localStorage['savedPassword'] = _passwordController.text;
+      } else {
+        html.window.localStorage['rememberMe'] = '';
+        html.window.localStorage['savedEmail'] = '';
+        html.window.localStorage['savedPassword'] = '';
+      }
+    } catch (e) {
+      print('Error saving credentials: $e');
     }
   }
 
@@ -183,6 +224,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         _emailController.text.trim(),
         _passwordController.text,
       );
+      
+      // Save credentials if "Remember Me" is checked
+      _saveCredentials();
     } on AuthException catch (e) {
       setState(() {
         _errorMessage = e.message;
@@ -581,10 +625,73 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                       return null;
                                     },
                                   ),
-                                ),
-                                const SizedBox(height: 40),
+                                                                  ),
+                                  const SizedBox(height: 24),
 
-                                // Premium Sign In Button
+                                  // Remember Me Checkbox
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(12),
+                                      color: Colors.black.withOpacity(0.02),
+                                      border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                    ),
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () {
+                                          setState(() {
+                                            _rememberMe = !_rememberMe;
+                                          });
+                                        },
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16),
+                                          child: Row(
+                                            children: [
+                                              Container(
+                                                width: 20,
+                                                height: 20,
+                                                decoration: BoxDecoration(
+                                                  color: _rememberMe ? Colors.black : Colors.transparent,
+                                                  borderRadius: BorderRadius.circular(4),
+                                                  border: Border.all(
+                                                    color: Colors.black.withOpacity(0.3),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                child: _rememberMe
+                                                    ? const Icon(
+                                                        Icons.check,
+                                                        size: 14,
+                                                        color: Colors.white,
+                                                      )
+                                                    : null,
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Text(
+                                                'REMEMBER ME',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black.withOpacity(0.8),
+                                                  letterSpacing: 0.5,
+                                                ),
+                                              ),
+                                              const Spacer(),
+                                              Icon(
+                                                Icons.security,
+                                                size: 16,
+                                                color: Colors.black.withOpacity(0.5),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 32),
+
+                                  // Premium Sign In Button
                                 Container(
                                   height: 56,
                                   decoration: BoxDecoration(
@@ -667,7 +774,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                                       const SizedBox(width: 12),
                                       Expanded(
                                         child: Text(
-                                          'Contact your administrator for login credentials',
+                                          'Contact nelson.wong@codapayments.com for login credentials',
                                           style: TextStyle(
                                             fontSize: 13,
                                             color: Colors.black.withOpacity(0.6),
