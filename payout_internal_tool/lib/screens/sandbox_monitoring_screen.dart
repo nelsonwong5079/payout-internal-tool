@@ -172,7 +172,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   }
 
   // Open sandbox URL with transaction ID
-  void _openSandboxUrl(int txnId) {
+  void _openSandboxUrl(dynamic txnId) {
     final url = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$txnId';
     html.window.open(url, '_blank');
   }
@@ -365,7 +365,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                           ),
                         ),
                         ElevatedButton.icon(
-                          onPressed: () => _openSandboxUrl(txnId),
+                          onPressed: () => _openSandboxUrl(txnId.toString()),
                           icon: const Icon(Icons.open_in_new, size: 14),
                           label: const Text('Open Sandbox'),
                           style: ElevatedButton.styleFrom(

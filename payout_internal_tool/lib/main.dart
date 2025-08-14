@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:html' as html;
+import 'dart:ui' as ui;
 
 import 'package:archive/archive.dart';
 import 'dart:math' as math;
@@ -217,6 +219,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     _pulseController.dispose();
     _floatingController.dispose();
     _glowController.dispose();
+    
+
     
     super.dispose();
   }
@@ -468,6 +472,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     '3': 'PROCESSING',
     '4': 'REJECTED'
   };
+
+
 
   // Check if a string is numeric
   bool _isNumeric(String str) {
@@ -3452,4 +3458,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       ),
     );
   }
+
+
+
+
 }
