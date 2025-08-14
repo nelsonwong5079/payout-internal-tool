@@ -339,6 +339,149 @@ export const sendEmail = onRequest({secrets: [emailAppPassword]}, async (request
 // Note: VPN check is done client-side using JavaScript fetch with no-cors mode
 // Firebase Functions cannot access internal company VPN endpoints
 
+/**
+ * Sandbox Monitoring API
+ * Checks the status of sandbox environment for both LCY and USD currencies
+ */
+export const checkSandboxStatus = onRequest(async (request, response) => {
+  // CORS headers
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST" && request.method !== "GET") {
+    response.status(405).json({error: "Method not allowed. Use POST or GET."});
+    return;
+  }
+
+  try {
+    const results = {
+      timestamp: new Date().toISOString(), // This will be converted to GMT+8 on frontend
+      lcy: await checkCurrencyStatus(414),
+      usd: await checkCurrencyStatus(840),
+    };
+
+    response.status(200).json({
+      success: true,
+      data: results,
+    });
+  } catch (error) {
+    logger.error("Error checking sandbox status", error);
+    response.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+/**
+ * Helper function to check a specific currency status
+ * @param {number} currency - Currency code (414 for LCY, 840 for USD)
+ * @return {Promise<Object>} Status object
+ */
+async function checkCurrencyStatus(currency: number): Promise<{
+  status: "UP" | "DOWN";
+  resultCode?: number;
+  errorMessage?: string;
+  responseTime?: number;
+  txnId?: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    const requestBody = {
+      initRequest: {
+        apiKey: "d2cf91e6b28efa6243d7a4c4ac49305c6",
+        orderId: `O${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        country: 414,
+        currency: currency,
+        payType: 475,
+        items: [
+          {
+            code: "com.diamond_mt_id_25",
+            name: "25+3",
+            price: "1",
+            type: 1,
+          },
+        ],
+        profile: {
+          entry: [
+            {
+              key: "user_id",
+              value: "12345",
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await fetch("https://sandbox.codapayments.com/airtime/api/restful/v1.0/Payment/init.json", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      return {
+        status: "DOWN",
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        responseTime,
+      };
+    }
+
+    // Get raw response text first
+    const rawResponseText = await response.text();
+
+    // Manually parse the JSON to preserve large number precision
+    // First, let's extract the txnId as a string before parsing
+    const txnIdMatch = rawResponseText.match(/"txnId":(\d+)/);
+    let txnIdString = null;
+    if (txnIdMatch) {
+      txnIdString = txnIdMatch[1];
+    }
+
+    // Parse the raw response as JSON
+    const data = JSON.parse(rawResponseText);
+
+    // If we found a txnId in the raw text, use that exact string value
+    if (txnIdString && data.initResult && data.initResult.txnId) {
+      data.initResult.txnId = txnIdString;
+    }
+
+    if (data.initResult && data.initResult.resultCode === 0) {
+      return {
+        status: "UP",
+        resultCode: 0,
+        responseTime,
+        txnId: data.initResult.txnId,
+      };
+    } else {
+      return {
+        status: "DOWN",
+        resultCode: data.initResult?.resultCode,
+        errorMessage: data.initResult?.resultMessage || "Unknown error",
+        responseTime,
+      };
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    return {
+      status: "DOWN",
+      errorMessage: (error as Error).message || "No response from sandbox environment",
+      responseTime,
+    };
+  }
+}
+
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});
 //   response.send("Hello from Firebase!");

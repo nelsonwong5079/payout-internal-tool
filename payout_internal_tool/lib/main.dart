@@ -2079,9 +2079,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     return RawKeyboardListener(
       focusNode: _focusNode,
       onKey: _handleKeyEvent,
-      child: Scaffold(
-        backgroundColor: Colors.black,
-        body: Stack(
+      child: Container(
+        color: Colors.black,
+        child: Stack(
           children: [
             // Sophisticated Black Background with Subtle Patterns
             Container(

@@ -2,15 +2,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Attach",
-      "port": 9229,
-      "request": "attach",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
-      "type": "node"
-    },
-    {
       "name": "Attach to Firebase Emulator",
       "type": "node",
       "request": "attach",
@@ -20,17 +11,11 @@
       "remoteRoot": null,
       "skipFiles": ["<node_internals>/**"],
       "outFiles": ["${workspaceFolder}/functions/lib/**/*.js"],
-      "sourceMaps": true
-    },
-    {
-      "name": "Launch Functions Directly",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/functions/lib/index.js",
-      "cwd": "${workspaceFolder}/functions",
-      "outFiles": ["${workspaceFolder}/functions/lib/**/*.js"],
       "sourceMaps": true,
-      "skipFiles": ["<node_internals>/**"]
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/functions/lib/**",
+        "!**/node_modules/**"
+      ]
     }
   ]
 } 

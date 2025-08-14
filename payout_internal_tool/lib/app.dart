@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
+import 'screens/sandbox_monitoring_screen.dart';
 import 'main.dart' as main_app;
 
 void main() async {
@@ -117,13 +118,30 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
-class AuthenticatedApp extends StatelessWidget {
+class AuthenticatedApp extends StatefulWidget {
   const AuthenticatedApp({super.key});
+
+  @override
+  State<AuthenticatedApp> createState() => _AuthenticatedAppState();
+}
+
+class _AuthenticatedAppState extends State<AuthenticatedApp> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = [
+    const main_app.EmailSenderPage(),
+    const SandboxMonitoringScreen(),
+  ];
+
+  final List<String> _pageTitles = [
+    'Payout Internal Tool',
+    'Sandbox Monitoring',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: const main_app.EmailSenderPage(),
+      body: _pages[_currentIndex],
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -137,16 +155,16 @@ class AuthenticatedApp extends StatelessWidget {
                 color: Theme.of(context).colorScheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(
-                Icons.account_balance_wallet,
+              child: Icon(
+                _currentIndex == 0 ? Icons.account_balance_wallet : Icons.monitor_heart,
                 color: Colors.white,
                 size: 24,
               ),
             ),
             const SizedBox(width: 12),
-            const Text(
-              'Payout Internal Tool',
-              style: TextStyle(
+            Text(
+              _pageTitles[_currentIndex],
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
                 color: Color(0xFF1F2937),
@@ -208,6 +226,79 @@ class AuthenticatedApp extends StatelessWidget {
             height: 1,
             color: Colors.grey.shade200,
           ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildNavItem(
+                    0,
+                    'Payout Tool',
+                    Icons.account_balance_wallet,
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavItem(
+                    1,
+                    'Monitoring',
+                    Icons.monitor_heart,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, String label, IconData icon) {
+    final isSelected = _currentIndex == index;
+    
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600,
+              size: 24,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade600,
+              ),
+            ),
+          ],
         ),
       ),
     );
