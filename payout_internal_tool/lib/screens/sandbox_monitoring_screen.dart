@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
 import 'dart:html' as html;
+import 'dart:ui_web' as ui_web;
 
 class SandboxMonitoringScreen extends StatefulWidget {
   const SandboxMonitoringScreen({super.key});
@@ -36,6 +37,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   
   // Auto-refresh timer
   Timer? _autoRefreshTimer;
+
+  // Iframe view registration - for embedding sandbox content
+  bool _isIframeRegistered = false;
 
   @override
   void initState() {
@@ -132,6 +136,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
           
           // Add to historical data
           _addToHistoricalData(data['data']);
+          
+          // Register iframe views when data is loaded and transaction IDs are available
+          _registerIframeViews();
         } else {
           setState(() {
             _errorMessage = data['error'] ?? 'Unknown error occurred';
@@ -171,10 +178,56 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     });
   }
 
-  // Open sandbox URL with transaction ID
-  void _openSandboxUrl(dynamic txnId) {
-    final url = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$txnId';
-    html.window.open(url, '_blank');
+  // Register iframe views for embedding sandbox content with security restrictions
+  void _registerIframeViews() {
+    if (_isIframeRegistered || _monitoringData == null) return;
+    
+    final lcyTxnId = _monitoringData!['lcy']['txnId'];
+    final usdTxnId = _monitoringData!['usd']['txnId'];
+    
+    if (lcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$lcyTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        'lcy-sandbox-iframe',
+        (int viewId) => html.IFrameElement()
+          ..src = lcyUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    if (usdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$usdTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        'usd-sandbox-iframe',
+        (int viewId) => html.IFrameElement()
+          ..src = usdUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    setState(() {
+      _isIframeRegistered = true;
+    });
   }
 
   // Add current data to historical records
@@ -213,7 +266,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   }
 
   // Build status card for a currency
-  Widget _buildStatusCard(String currency, String title, Map<String, dynamic> statusData) {
+  Widget _buildStatusCard(String currency, String title, Map<String, dynamic> statusData, String iframeKey) {
     final isUp = statusData['status'] == 'UP';
     final resultCode = statusData['resultCode'];
     final errorMessage = statusData['errorMessage'];
@@ -319,7 +372,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
               ],
             ),
             
-            // Transaction ID and Error message
+            // Transaction ID and embedded sandbox content
             if (isUp && txnId != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -352,37 +405,69 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            txnId.toString(),
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.green.shade700,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () => _openSandboxUrl(txnId.toString()),
-                          icon: const Icon(Icons.open_in_new, size: 14),
-                          label: const Text('Open Sandbox'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green.shade600,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      txnId.toString(),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.green.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                   ],
                 ),
               ),
+              const SizedBox(height: 16),
+              
+              // Embedded Sandbox Content
+              if (_isIframeRegistered) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.web,
+                            size: 16,
+                            color: Colors.blue.shade600,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Live Sandbox Environment',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.blue.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 400,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: HtmlElementView(
+                            viewType: iframeKey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ] else if (!isUp && errorMessage != null) ...[
               const SizedBox(height: 16),
               Container(
@@ -866,11 +951,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: _buildStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy']),
+                        child: _buildStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], 'lcy-sandbox-iframe'),
                       ),
                       const SizedBox(width: 16),
                       Expanded(
-                        child: _buildStatusCard('840', 'USD Currency Check', _monitoringData!['usd']),
+                        child: _buildStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], 'usd-sandbox-iframe'),
                       ),
                     ],
                   ),

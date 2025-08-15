@@ -362,7 +362,7 @@ export const checkSandboxStatus = onRequest(async (request, response) => {
   try {
     const results = {
       timestamp: new Date().toISOString(), // This will be converted to GMT+8 on frontend
-      lcy: await checkCurrencyStatus(414),
+      lcy: await checkCurrencyStatus(458),
       usd: await checkCurrencyStatus(840),
     };
 
@@ -396,11 +396,11 @@ async function checkCurrencyStatus(currency: number): Promise<{
   try {
     const requestBody = {
       initRequest: {
-        apiKey: "d2cf91e6b28efa6243d7a4c4ac49305c6",
+        apiKey: "49005d8dd448ed1029c79615c44c2a792",
         orderId: `O${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        country: 414,
+        country: 458,
         currency: currency,
-        payType: 475,
+        payType: 237,
         items: [
           {
             code: "com.diamond_mt_id_25",
