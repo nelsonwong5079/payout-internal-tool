@@ -1367,6 +1367,50 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 );
                               },
                             ),
+                            const SizedBox(height: 12),
+                            
+                            // Scheduled Check Information
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                                ),
+                              ),
+                              child: Column(
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.schedule,
+                                        size: 14,
+                                        color: const Color(0xFF8B5CF6),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        'Next Check: ${_getNextScheduledCheck()}',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: const Color(0xFF8B5CF6),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Scheduled: 9 AM & 1 PM GMT+8',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.white.withOpacity(0.7),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                       ],
