@@ -40,6 +40,8 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   // Iframe view registration - for embedding sandbox content
   bool _isIframeRegistered = false;
+  String? _currentLcyViewFactory;
+  String? _currentUsdViewFactory;
 
   @override
   void initState() {
@@ -93,8 +95,12 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     // Load initial data
     _loadMonitoringData();
     
-    // Set up scheduled checks at 9 AM and 1 PM GMT+8
-    _setupScheduledChecks();
+    // Set up auto-refresh every 5 minutes
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
+      if (mounted) {
+        _loadMonitoringData();
+      }
+    });
   }
 
   @override
@@ -106,52 +112,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     super.dispose();
   }
 
-  // Set up scheduled checks at 9 AM and 1 PM GMT+8
-  void _setupScheduledChecks() {
-    // Cancel any existing timer
-    _autoRefreshTimer?.cancel();
-    
-    // Check every minute to see if it's time for scheduled checks
-    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      if (!mounted) return;
-      
-      final now = DateTime.now();
-      // Convert to GMT+8
-      final gmt8Time = now.toUtc().add(const Duration(hours: 8));
-      
-      // Check if it's 9 AM or 1 PM GMT+8
-      if ((gmt8Time.hour == 9 && gmt8Time.minute == 0) || 
-          (gmt8Time.hour == 13 && gmt8Time.minute == 0)) {
-        _loadMonitoringData();
-      }
-    });
-  }
 
-  // Get next scheduled check time
-  String _getNextScheduledCheck() {
-    final now = DateTime.now();
-    final gmt8Time = now.toUtc().add(const Duration(hours: 8));
-    
-    // Today's check times: 9 AM and 1 PM GMT+8
-    final today9AM = DateTime(gmt8Time.year, gmt8Time.month, gmt8Time.day, 9, 0);
-    final today1PM = DateTime(gmt8Time.year, gmt8Time.month, gmt8Time.day, 13, 0);
-    
-    // Tomorrow's 9 AM
-    final tomorrow9AM = today9AM.add(const Duration(days: 1));
-    
-    DateTime nextCheck;
-    if (gmt8Time.isBefore(today9AM)) {
-      nextCheck = today9AM;
-    } else if (gmt8Time.isBefore(today1PM)) {
-      nextCheck = today1PM;
-    } else {
-      nextCheck = tomorrow9AM;
-    }
-    
-    // Convert back to local time for display
-    final localTime = nextCheck.toUtc().subtract(const Duration(hours: 8));
-    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
-  }
 
   // Load monitoring data from Firebase function
   Future<void> _loadMonitoringData() async {
@@ -202,7 +163,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     }
   }
 
-  // Manual refresh with animation
+  // Manual refresh with animation and fresh transaction IDs
   Future<void> _manualRefresh() async {
     if (_isRefreshing) return;
     
@@ -211,6 +172,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     });
     
     _refreshController.forward();
+    
+    // Reset iframe registration to force fresh transaction IDs
+    setState(() {
+      _isIframeRegistered = false;
+    });
     
     await _loadMonitoringData();
     
@@ -228,10 +194,15 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     final lcyTxnId = _monitoringData!['lcy']['txnId'];
     final usdTxnId = _monitoringData!['usd']['txnId'];
     
+    // Generate unique view factory names with timestamp to ensure fresh content
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final lcyViewFactoryName = 'lcy-sandbox-iframe-$timestamp';
+    final usdViewFactoryName = 'usd-sandbox-iframe-$timestamp';
+    
     if (lcyTxnId != null) {
       final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$lcyTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        'lcy-sandbox-iframe',
+        lcyViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = lcyUrl
           ..style.border = 'none'
@@ -251,7 +222,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     if (usdTxnId != null) {
       final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$usdTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        'usd-sandbox-iframe',
+        usdViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = usdUrl
           ..style.border = 'none'
@@ -270,6 +241,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     
     setState(() {
       _isIframeRegistered = true;
+      // Store the current view factory names for use in the UI
+      _currentLcyViewFactory = lcyViewFactoryName;
+      _currentUsdViewFactory = usdViewFactoryName;
     });
   }
 
@@ -1367,50 +1341,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 );
                               },
                             ),
-                            const SizedBox(height: 12),
-                            
-                            // Scheduled Check Information
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                                ),
-                              ),
-                              child: Column(
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(
-                                        Icons.schedule,
-                                        size: 14,
-                                        color: const Color(0xFF8B5CF6),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Text(
-                                        'Next Check: ${_getNextScheduledCheck()}',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: const Color(0xFF8B5CF6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Scheduled: 9 AM & 1 PM GMT+8',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      color: Colors.white.withOpacity(0.7),
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
+
                           ],
                         ),
                       ],
@@ -1595,11 +1526,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   Row(
                     children: [
                       Expanded(
-                        child: _buildEnhancedStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], 'lcy-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], _currentLcyViewFactory ?? 'lcy-sandbox-iframe'),
                       ),
                       const SizedBox(width: 20),
                       Expanded(
-                        child: _buildEnhancedStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], 'usd-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], _currentUsdViewFactory ?? 'usd-sandbox-iframe'),
                       ),
                     ],
                   ),
