@@ -293,7 +293,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -345,15 +345,15 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           
-          // Metrics Grid
+          // Compact Metrics Grid
           Row(
             children: [
               // Uptime Percentage
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
@@ -584,7 +584,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -643,9 +643,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                 ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             
-            // Status details
+            // Compact Status details
             Row(
               children: [
                 Expanded(
@@ -655,7 +655,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     isUp ? Colors.green : Colors.red,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
                   child: _buildDetailItem(
                     'Response Time',
@@ -854,7 +854,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
@@ -926,9 +926,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           
-          // Enhanced Historical data table
+          // Compact Historical data table
           Container(
             decoration: BoxDecoration(
               border: Border.all(color: const Color(0xFF475569).withOpacity(0.3)),
@@ -1009,7 +1009,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   final usdStatus = record['usd']['status'];
                   
                   return Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
@@ -1156,16 +1156,16 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       backgroundColor: const Color(0xFF0F172A), // Dark dashboard background
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(12.0),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Enhanced Dashboard Header
+                // Compact Dashboard Header
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Container(
-                    padding: const EdgeInsets.all(28),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -1197,7 +1197,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             return Transform.scale(
                               scale: _pulseAnimation.value,
                               child: Container(
-                                padding: const EdgeInsets.all(20),
+                                padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
                                   gradient: LinearGradient(
                                     begin: Alignment.topLeft,
@@ -1218,14 +1218,14 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 ),
                                 child: const Icon(
                                   Icons.analytics_outlined,
-                                  size: 36,
+                                  size: 24,
                                   color: Colors.white,
                                 ),
                               ),
                             );
                           },
                         ),
-                        const SizedBox(width: 24),
+                        const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1235,17 +1235,17 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: 2.0,
-                                  fontSize: 24,
+                                  letterSpacing: 1.5,
+                                  fontSize: 18,
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 4),
                               Text(
                                 'Real-time system health monitoring and performance metrics',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                   color: Colors.white.withOpacity(0.8),
                                   fontWeight: FontWeight.w500,
-                                  fontSize: 16,
+                                  fontSize: 13,
                                 ),
                               ),
                             ],
@@ -1287,7 +1287,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 8),
                             
                             // Enhanced Refresh button
                             AnimatedBuilder(
@@ -1416,7 +1416,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   // Enhanced Error state
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
@@ -1453,11 +1453,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             color: const Color(0xFFFCA5A5),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 12),
                         Text(
                           'System Error Detected',
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: Colors.white,
                             letterSpacing: 1.0,
@@ -1473,7 +1473,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         Container(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
@@ -1518,29 +1518,29 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                   ),
                 ] else if (_monitoringData != null) ...[
-                  // Enhanced Metrics Dashboard
+                  // Compact Metrics Dashboard
                   _buildMetricsOverview(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   
-                  // Enhanced Status Cards
+                  // Compact Status Cards
                   Row(
                     children: [
                       Expanded(
                         child: _buildEnhancedStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], _currentLcyViewFactory ?? 'lcy-sandbox-iframe'),
                       ),
-                      const SizedBox(width: 20),
+                      const SizedBox(width: 12),
                       Expanded(
                         child: _buildEnhancedStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], _currentUsdViewFactory ?? 'usd-sandbox-iframe'),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   
-                  // Enhanced Historical data
+                  // Compact Historical data
                   _buildEnhancedHistoricalSection(),
                 ],
                 
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
               ],
             ),
           ),

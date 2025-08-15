@@ -135,7 +135,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
 
   final List<String> _pageTitles = [
     'Payout Internal Tool',
-    'Sandbox Monitoring',
+    'Payin - Sandbox Monitoring',
   ];
 
   @override
@@ -254,7 +254,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                 Expanded(
                   child: _buildNavItem(
                     1,
-                    'Monitoring',
+                    'Payin - Sandbox Monitoring',
                     Icons.monitor_heart,
                   ),
                 ),
