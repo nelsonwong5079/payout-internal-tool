@@ -93,12 +93,8 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     // Load initial data
     _loadMonitoringData();
     
-    // Set up auto-refresh every 5 minutes
-    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
-      if (mounted) {
-        _loadMonitoringData();
-      }
-    });
+    // Set up scheduled checks at 9 AM and 1 PM GMT+8
+    _setupScheduledChecks();
   }
 
   @override
@@ -108,6 +104,53 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     _refreshController.dispose();
     _autoRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  // Set up scheduled checks at 9 AM and 1 PM GMT+8
+  void _setupScheduledChecks() {
+    // Cancel any existing timer
+    _autoRefreshTimer?.cancel();
+    
+    // Check every minute to see if it's time for scheduled checks
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
+      if (!mounted) return;
+      
+      final now = DateTime.now();
+      // Convert to GMT+8
+      final gmt8Time = now.toUtc().add(const Duration(hours: 8));
+      
+      // Check if it's 9 AM or 1 PM GMT+8
+      if ((gmt8Time.hour == 9 && gmt8Time.minute == 0) || 
+          (gmt8Time.hour == 13 && gmt8Time.minute == 0)) {
+        _loadMonitoringData();
+      }
+    });
+  }
+
+  // Get next scheduled check time
+  String _getNextScheduledCheck() {
+    final now = DateTime.now();
+    final gmt8Time = now.toUtc().add(const Duration(hours: 8));
+    
+    // Today's check times: 9 AM and 1 PM GMT+8
+    final today9AM = DateTime(gmt8Time.year, gmt8Time.month, gmt8Time.day, 9, 0);
+    final today1PM = DateTime(gmt8Time.year, gmt8Time.month, gmt8Time.day, 13, 0);
+    
+    // Tomorrow's 9 AM
+    final tomorrow9AM = today9AM.add(const Duration(days: 1));
+    
+    DateTime nextCheck;
+    if (gmt8Time.isBefore(today9AM)) {
+      nextCheck = today9AM;
+    } else if (gmt8Time.isBefore(today1PM)) {
+      nextCheck = today1PM;
+    } else {
+      nextCheck = tomorrow9AM;
+    }
+    
+    // Convert back to local time for display
+    final localTime = nextCheck.toUtc().subtract(const Duration(hours: 8));
+    return '${localTime.hour.toString().padLeft(2, '0')}:${localTime.minute.toString().padLeft(2, '0')}';
   }
 
   // Load monitoring data from Firebase function
@@ -265,8 +308,285 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     }
   }
 
-  // Build status card for a currency
-  Widget _buildStatusCard(String currency, String title, Map<String, dynamic> statusData, String iframeKey) {
+  // Build enhanced metrics overview dashboard
+  Widget _buildMetricsOverview() {
+    final lcyStatus = _monitoringData!['lcy']['status'];
+    final usdStatus = _monitoringData!['usd']['status'];
+    final totalServices = 2;
+    final upServices = (lcyStatus == 'UP' ? 1 : 0) + (usdStatus == 'UP' ? 1 : 0);
+    final downServices = totalServices - upServices;
+    final uptimePercentage = (upServices / totalServices * 100).round();
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E293B),
+            const Color(0xFF334155),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF475569).withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.insights,
+                  size: 24,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                'SYSTEM METRICS OVERVIEW',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          // Metrics Grid
+          Row(
+            children: [
+              // Uptime Percentage
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF10B981).withOpacity(0.2),
+                        const Color(0xFF059669).withOpacity(0.2),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF10B981).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.trending_up,
+                            size: 20,
+                            color: const Color(0xFF10B981),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'UPTIME',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF10B981),
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '$uptimePercentage%',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'System Availability',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              
+              // Services Status
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF3B82F6).withOpacity(0.2),
+                        const Color(0xFF1D4ED8).withOpacity(0.2),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF3B82F6).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.dns,
+                            size: 20,
+                            color: const Color(0xFF3B82F6),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'SERVICES',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF3B82F6),
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Text(
+                            '$upServices',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900,
+                              color: const Color(0xFF10B981),
+                            ),
+                          ),
+                          Text(
+                            '/$totalServices',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white.withOpacity(0.7),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'Active Services',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              
+              // Response Time
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFFF59E0B).withOpacity(0.2),
+                        const Color(0xFFD97706).withOpacity(0.2),
+                      ],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFFF59E0B).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.speed,
+                            size: 20,
+                            color: const Color(0xFFF59E0B),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'RESPONSE',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFFF59E0B),
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        '${_monitoringData!['lcy']['responseTime'] ?? 'N/A'}ms',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      Text(
+                        'Avg Response Time',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.white.withOpacity(0.7),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build enhanced status card for a currency
+  Widget _buildEnhancedStatusCard(String currency, String title, Map<String, dynamic> statusData, String iframeKey) {
     final isUp = statusData['status'] == 'UP';
     final resultCode = statusData['resultCode'];
     final errorMessage = statusData['errorMessage'];
@@ -552,24 +872,34 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     );
   }
 
-  // Build historical data section
-  Widget _buildHistoricalSection() {
+  // Build enhanced historical data section
+  Widget _buildEnhancedHistoricalSection() {
     if (_historicalData.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withOpacity(0.1)),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E293B),
+            const Color(0xFF334155),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF475569).withOpacity(0.3),
+          width: 1,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
@@ -579,46 +909,81 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  Icons.history,
-                  size: 20,
-                  color: Colors.blue.shade600,
+                  Icons.timeline,
+                  size: 24,
+                  color: const Color(0xFF8B5CF6),
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 16),
               Text(
-                'Historical Data (Last 7 Days)',
+                'HISTORICAL PERFORMANCE DATA',
                 style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.black,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                  ),
+                ),
+                child: Text(
+                  'Last 7 Days',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF8B5CF6),
+                    letterSpacing: 0.5,
+                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           
-          // Historical data table
+          // Enhanced Historical data table
           Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade200),
-              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFF475569).withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF0F172A).withOpacity(0.5),
             ),
             child: Column(
               children: [
-                // Header
+                // Enhanced Header
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        const Color(0xFF475569).withOpacity(0.3),
+                        const Color(0xFF64748B).withOpacity(0.3),
+                      ],
+                    ),
                     borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(8),
-                      topRight: Radius.circular(8),
+                      topLeft: Radius.circular(12),
+                      topRight: Radius.circular(12),
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: const Color(0xFF475569).withOpacity(0.3),
+                        width: 1,
+                      ),
                     ),
                   ),
                   child: Row(
@@ -626,31 +991,34 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                       Expanded(
                         flex: 2,
                         child: Text(
-                          'Date/Time',
+                          'DATE / TIME',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                       Expanded(
                         child: Text(
-                          'LCY',
+                          'LCY STATUS',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
                       Expanded(
                         child: Text(
-                          'USD',
+                          'USD STATUS',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 0.5,
                           ),
                         ),
                       ),
@@ -659,17 +1027,25 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                 ),
                 
                 // Data rows
-                ..._historicalData.map((record) {
+                ..._historicalData.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final record = entry.value;
                   final timestamp = _formatTimestamp(record['timestamp']);
                   final lcyStatus = record['lcy']['status'];
                   final usdStatus = record['usd']['status'];
                   
                   return Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       border: Border(
-                        top: BorderSide(color: Colors.grey.shade200),
+                        top: BorderSide(
+                          color: const Color(0xFF475569).withOpacity(0.3),
+                          width: 1,
+                        ),
                       ),
+                      color: index % 2 == 0 
+                          ? const Color(0xFF1E293B).withOpacity(0.3)
+                          : const Color(0xFF334155).withOpacity(0.3),
                     ),
                     child: Row(
                       children: [
@@ -678,45 +1054,113 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                           child: Text(
                             timestamp,
                             style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: Colors.grey.shade800,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                         ),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: lcyStatus == 'UP' ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              lcyStatus,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: lcyStatus == 'UP' ? Colors.green : Colors.red,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: lcyStatus == 'UP' 
+                                    ? [
+                                        const Color(0xFF10B981).withOpacity(0.2),
+                                        const Color(0xFF059669).withOpacity(0.2),
+                                      ]
+                                    : [
+                                        const Color(0xFFDC2626).withOpacity(0.2),
+                                        const Color(0xFFB91C1C).withOpacity(0.2),
+                                      ],
                               ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: lcyStatus == 'UP' 
+                                    ? const Color(0xFF10B981).withOpacity(0.3)
+                                    : const Color(0xFFDC2626).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  lcyStatus == 'UP' ? Icons.check_circle : Icons.error,
+                                  size: 14,
+                                  color: lcyStatus == 'UP' 
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFDC2626),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  lcyStatus,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: lcyStatus == 'UP' 
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFDC2626),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                         Expanded(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: usdStatus == 'UP' ? Colors.green.withOpacity(0.1) : Colors.red.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              usdStatus,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: usdStatus == 'UP' ? Colors.green : Colors.red,
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: usdStatus == 'UP' 
+                                    ? [
+                                        const Color(0xFF10B981).withOpacity(0.2),
+                                        const Color(0xFF059669).withOpacity(0.2),
+                                      ]
+                                    : [
+                                        const Color(0xFFDC2626).withOpacity(0.2),
+                                        const Color(0xFFB91C1C).withOpacity(0.2),
+                                      ],
                               ),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: usdStatus == 'UP' 
+                                    ? const Color(0xFF10B981).withOpacity(0.3)
+                                    : const Color(0xFFDC2626).withOpacity(0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  usdStatus == 'UP' ? Icons.check_circle : Icons.error,
+                                  size: 14,
+                                  color: usdStatus == 'UP' 
+                                      ? const Color(0xFF10B981)
+                                      : const Color(0xFFDC2626),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  usdStatus,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: usdStatus == 'UP' 
+                                        ? const Color(0xFF10B981)
+                                        : const Color(0xFFDC2626),
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -735,73 +1179,99 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: const Color(0xFF0F172A), // Dark dashboard background
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16.0),
+          padding: const EdgeInsets.all(20.0),
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header
+                // Enhanced Dashboard Header
                 FadeTransition(
                   opacity: _fadeAnimation,
                   child: Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1E293B),
+                          const Color(0xFF334155),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF475569).withOpacity(0.3),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
                     child: Row(
                       children: [
+                        // Enhanced Icon with glow effect
                         AnimatedBuilder(
                           animation: _pulseAnimation,
                           builder: (context, child) {
                             return Transform.scale(
                               scale: _pulseAnimation.value,
                               child: Container(
-                                padding: const EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(20),
                                 decoration: BoxDecoration(
-                                  color: Colors.blue.shade600,
-                                  borderRadius: BorderRadius.circular(12),
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                    colors: [
+                                      const Color(0xFF3B82F6),
+                                      const Color(0xFF1D4ED8),
+                                    ],
+                                  ),
+                                  borderRadius: BorderRadius.circular(16),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(0xFF3B82F6).withOpacity(0.4),
+                                      blurRadius: 15,
+                                      spreadRadius: 2,
+                                    ),
+                                  ],
                                 ),
                                 child: const Icon(
-                                  Icons.monitor_heart,
-                                  size: 32,
+                                  Icons.analytics_outlined,
+                                  size: 36,
                                   color: Colors.white,
                                 ),
                               ),
                             );
                           },
                         ),
-                        const SizedBox(width: 20),
+                        const SizedBox(width: 24),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'SANDBOX MONITORING',
+                                'SANDBOX MONITORING DASHBOARD',
                                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.black,
+                                  color: Colors.white,
                                   fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  fontSize: 20,
+                                  letterSpacing: 2.0,
+                                  fontSize: 24,
                                 ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: 8),
                               Text(
-                                'Real-time status monitoring for sandbox environment',
+                                'Real-time system health monitoring and performance metrics',
                                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.black.withOpacity(0.7),
+                                  color: Colors.white.withOpacity(0.8),
                                   fontWeight: FontWeight.w500,
-                                  fontSize: 14,
+                                  fontSize: 16,
                                 ),
                               ),
                             ],
@@ -809,50 +1279,88 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                         ),
                         Column(
                           children: [
-                            // Last updated time
+                            // Enhanced Last updated time
                             if (_monitoringData != null) ...[
-                              Text(
-                                'Last Updated',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade600,
-                                  fontWeight: FontWeight.w500,
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF10B981).withOpacity(0.3),
+                                  ),
                                 ),
-                              ),
-                              Text(
-                                _formatTimestamp(_monitoringData!['timestamp']),
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade800,
-                                  fontWeight: FontWeight.w600,
+                                child: Column(
+                                  children: [
+                                    Text(
+                                      'Last Updated',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: const Color(0xFF10B981),
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      _formatTimestamp(_monitoringData!['timestamp']),
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
                             
-                            // Refresh button
+                            // Enhanced Refresh button
                             AnimatedBuilder(
                               animation: _refreshAnimation,
                               builder: (context, child) {
                                 return Transform.rotate(
                                   angle: _refreshAnimation.value * 2 * 3.14159,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isRefreshing ? null : _manualRefresh,
-                                    icon: Icon(
-                                      _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
-                                      size: 16,
-                                    ),
-                                    label: Text(_isRefreshing ? 'Checking...' : 'Refresh'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.blue.shade600,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                        colors: [
+                                          const Color(0xFF3B82F6),
+                                          const Color(0xFF1D4ED8),
+                                        ],
                                       ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
+                                      borderRadius: BorderRadius.circular(12),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: const Color(0xFF3B82F6).withOpacity(0.3),
+                                          blurRadius: 8,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: ElevatedButton.icon(
+                                      onPressed: _isRefreshing ? null : _manualRefresh,
+                                      icon: Icon(
+                                        _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
+                                        size: 18,
+                                      ),
+                                      label: Text(
+                                        _isRefreshing ? 'Checking...' : 'Refresh Data',
+                                        style: const TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        elevation: 0,
                                       ),
                                     ),
                                   ),
@@ -865,104 +1373,196 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
                 
-                // Loading state
+                // Enhanced Loading state
                 if (_isLoading) ...[
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.all(40),
                     decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1E293B),
+                          const Color(0xFF334155),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF475569).withOpacity(0.3),
+                        width: 1,
+                      ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
                         ),
                       ],
                     ),
                     child: Column(
                       children: [
-                        const CircularProgressIndicator(),
-                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3B82F6).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF3B82F6)),
+                            strokeWidth: 3,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         Text(
-                          'Checking sandbox status...',
+                          'Checking System Status...',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade700,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Analyzing sandbox environment health',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.7),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
                   ),
                 ] else if (_errorMessage != null) ...[
-                  // Error state
+                  // Enhanced Error state
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.red.shade200),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF7F1D1D),
+                          const Color(0xFF991B1B),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFFDC2626).withOpacity(0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFDC2626).withOpacity(0.2),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
                     ),
                     child: Column(
                       children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: Colors.red.shade600,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error Loading Data',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.red.shade700,
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDC2626).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(
+                            Icons.error_outline,
+                            size: 48,
+                            color: const Color(0xFFFCA5A5),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 20),
+                        Text(
+                          'System Error Detected',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            letterSpacing: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
                         Text(
                           _errorMessage!,
                           textAlign: TextAlign.center,
                           style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.red.shade600,
+                            fontSize: 15,
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: _loadMonitoringData,
-                          icon: const Icon(Icons.refresh),
-                          label: const Text('Retry'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
+                        const SizedBox(height: 24),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                const Color(0xFFDC2626),
+                                const Color(0xFFB91C1C),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFDC2626).withOpacity(0.3),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: _loadMonitoringData,
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text(
+                              'Retry Connection',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 0,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ] else if (_monitoringData != null) ...[
-                  // Status cards
+                  // Enhanced Metrics Dashboard
+                  _buildMetricsOverview(),
+                  const SizedBox(height: 24),
+                  
+                  // Enhanced Status Cards
                   Row(
                     children: [
                       Expanded(
-                        child: _buildStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], 'lcy-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], 'lcy-sandbox-iframe'),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 20),
                       Expanded(
-                        child: _buildStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], 'usd-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], 'usd-sandbox-iframe'),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
                   
-                  // Historical data
-                  _buildHistoricalSection(),
+                  // Enhanced Historical data
+                  _buildEnhancedHistoricalSection(),
                 ],
                 
                 const SizedBox(height: 32),
