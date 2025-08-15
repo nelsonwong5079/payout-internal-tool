@@ -26,6 +26,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   // Data state
   Map<String, dynamic>? _monitoringData;
+  Map<String, dynamic>? _monitoringDataV2;
   bool _isLoading = false;
   bool _isRefreshing = false;
   String? _errorMessage;
@@ -36,12 +37,15 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   List<Map<String, dynamic>> _historicalData = [];
   
   // Auto-refresh timer
-  Timer? _autoRefreshTimer;
+
 
   // Iframe view registration - for embedding sandbox content
   bool _isIframeRegistered = false;
+  bool _isIframeRegisteredV2 = false;
   String? _currentLcyViewFactory;
   String? _currentUsdViewFactory;
+  String? _currentLcyViewFactoryV2;
+  String? _currentUsdViewFactoryV2;
 
   @override
   void initState() {
@@ -95,12 +99,23 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     // Load initial data
     _loadMonitoringData();
     
-    // Set up auto-refresh every 5 minutes
-    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
-      if (mounted) {
+    // Load initial data only - scheduled checks are handled by backend
         _loadMonitoringData();
       }
-    });
+
+    // Get next scheduled backend check time
+  String _getNextScheduledCheck() {
+    final now = DateTime.now().toUtc().add(const Duration(hours: 8)); // Convert to GMT+8
+    final currentHour = now.hour;
+    
+    if (currentHour < 9) {
+      return '9:00 AM GMT+8';
+    } else if (currentHour < 13) {
+      return '1:00 PM GMT+8';
+    } else {
+      // If past 1 PM, next check is tomorrow at 9 AM
+      return '9:00 AM GMT+8 (Tomorrow)';
+    }
   }
 
   @override
@@ -108,7 +123,6 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     _fadeController.dispose();
     _pulseController.dispose();
     _refreshController.dispose();
-    _autoRefreshTimer?.cancel();
     super.dispose();
   }
 
@@ -124,37 +138,70 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     });
 
     try {
-      final response = await http.post(
+      // Load both v1 and v2 data in parallel
+      final responses = await Future.wait([
+        http.post(
         Uri.parse('https://checksandboxstatus-amxcplfi6q-uc.a.run.app'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({}),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
+        ),
+        http.post(
+          Uri.parse('https://us-central1-codapay-webhook.cloudfunctions.net/checkSandboxStatusV2'),
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({}),
+        ),
+      ]);
+      
+      bool hasError = false;
+      String errorMessage = '';
+      
+      // Process v1 response
+      if (responses[0].statusCode == 200) {
+        final data = json.decode(responses[0].body);
         if (data['success'] == true) {
           setState(() {
             _monitoringData = data['data'];
-            _isLoading = false;
           });
           
           // Add to historical data
-          _addToHistoricalData(data['data']);
+          _addToHistoricalData(_monitoringData!);
           
-          // Register iframe views when data is loaded and transaction IDs are available
+          // Register iframe views after data is loaded
           _registerIframeViews();
         } else {
-          setState(() {
-            _errorMessage = data['error'] ?? 'Unknown error occurred';
-            _isLoading = false;
-          });
+          hasError = true;
+          errorMessage = data['error'] ?? 'Unknown error occurred';
         }
       } else {
-        setState(() {
-          _errorMessage = 'HTTP ${response.statusCode}: ${response.reasonPhrase}';
-          _isLoading = false;
-        });
+        hasError = true;
+        errorMessage = 'HTTP ${responses[0].statusCode}: ${responses[0].reasonPhrase}';
       }
+      
+      // Process v2 response
+      if (responses[1].statusCode == 200) {
+        final data = json.decode(responses[1].body);
+        if (data['success'] == true) {
+          setState(() {
+            _monitoringDataV2 = data['data'];
+          });
+          
+          // Register v2 iframe views after data is loaded
+          _registerIframeViewsV2();
+        } else {
+          hasError = true;
+          errorMessage += ' | V2: ${data['error'] ?? 'Unknown error occurred'}';
+        }
+      } else {
+        hasError = true;
+        errorMessage += ' | V2: HTTP ${responses[1].statusCode}: ${responses[1].reasonPhrase}';
+      }
+      
+        setState(() {
+          _isLoading = false;
+        if (hasError) {
+          _errorMessage = errorMessage;
+      }
+      });
     } catch (error) {
       setState(() {
         _errorMessage = 'Network error: ${error.toString()}';
@@ -176,6 +223,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     // Reset iframe registration to force fresh transaction IDs
     setState(() {
       _isIframeRegistered = false;
+      _isIframeRegisteredV2 = false;
     });
     
     await _loadMonitoringData();
@@ -185,6 +233,32 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     setState(() {
       _isRefreshing = false;
     });
+  }
+
+  // Load v2.0 monitoring data from Firebase Functions
+  Future<void> _loadMonitoringDataV2() async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://us-central1-codapay-webhook.cloudfunctions.net/checkSandboxStatusV2'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          setState(() {
+            _monitoringDataV2 = data['data'];
+          });
+          
+          // Register v2 iframe views after data is loaded
+          _registerIframeViewsV2();
+        }
+      }
+    } catch (error) {
+      // Handle v2 errors silently to not affect v1 functionality
+      print('V2.0 API Error: ${error.toString()}');
+    }
   }
 
   // Register iframe views for embedding sandbox content with security restrictions
@@ -247,6 +321,66 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     });
   }
 
+  // Register v2.0 iframe views for embedding sandbox content with security restrictions
+  void _registerIframeViewsV2() {
+    if (_isIframeRegisteredV2 || _monitoringDataV2 == null) return;
+    
+    final lcyTxnId = _monitoringDataV2!['lcy']['txnId'];
+    final usdTxnId = _monitoringDataV2!['usd']['txnId'];
+    
+    // Generate unique view factory names with timestamp to ensure fresh content
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final lcyViewFactoryName = 'lcy-sandbox-iframe-v2-$timestamp';
+    final usdViewFactoryName = 'usd-sandbox-iframe-v2-$timestamp';
+    
+    if (lcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$lcyTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        lcyViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = lcyUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    if (usdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$usdTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        usdViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = usdUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    setState(() {
+      _isIframeRegisteredV2 = true;
+      // Store the current view factory names for use in the UI
+      _currentLcyViewFactoryV2 = lcyViewFactoryName;
+      _currentUsdViewFactoryV2 = usdViewFactoryName;
+    });
+  }
+
   // Add current data to historical records
   // Note: This data is stored in memory only and will be lost when the app is refreshed
   // For persistent storage across app sessions, we would need to implement:
@@ -280,6 +414,684 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     } catch (e) {
       return timestamp;
     }
+  }
+
+  // Build API status indicators
+  Widget _buildApiStatusIndicators() {
+    // Determine v1 and v2 status
+    bool v1Up = false;
+    bool v2Up = false;
+    
+    if (_monitoringData != null) {
+      final lcyStatus = _monitoringData!['lcy']['status'];
+      final usdStatus = _monitoringData!['usd']['status'];
+      v1Up = lcyStatus == 'UP' && usdStatus == 'UP';
+    }
+    
+    if (_monitoringDataV2 != null) {
+      final lcyStatusV2 = _monitoringDataV2!['lcy']['status'];
+      final usdStatusV2 = _monitoringDataV2!['usd']['status'];
+      v2Up = lcyStatusV2 == 'UP' && usdStatusV2 == 'UP';
+    }
+    
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E293B),
+            const Color(0xFF334155),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF475569).withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.api,
+                  size: 20,
+                  color: const Color(0xFF10B981),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'API STATUS OVERVIEW',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // V1 API Status
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: v1Up 
+                          ? [
+                              const Color(0xFF10B981).withOpacity(0.2),
+                              const Color(0xFF059669).withOpacity(0.2),
+                            ]
+                          : [
+                              const Color(0xFFDC2626).withOpacity(0.2),
+                              const Color(0xFFB91C1C).withOpacity(0.2),
+                            ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: v1Up 
+                          ? const Color(0xFF10B981).withOpacity(0.3)
+                          : const Color(0xFFDC2626).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        v1Up ? Icons.check_circle : Icons.error,
+                        size: 20,
+                        color: v1Up 
+                            ? const Color(0xFF10B981)
+                            : const Color(0xFFDC2626),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'v1.0 API',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              v1Up ? 'All Systems Operational' : 'Service Disrupted',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: v1Up 
+                              ? const Color(0xFF10B981).withOpacity(0.2)
+                              : const Color(0xFFDC2626).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          v1Up ? 'UP' : 'DOWN',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: v1Up 
+                                ? const Color(0xFF10B981)
+                                : const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // V2 API Status
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: v2Up 
+                          ? [
+                              const Color(0xFF8B5CF6).withOpacity(0.2),
+                              const Color(0xFF7C3AED).withOpacity(0.2),
+                            ]
+                          : [
+                              const Color(0xFFDC2626).withOpacity(0.2),
+                              const Color(0xFFB91C1C).withOpacity(0.2),
+                            ],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: v2Up 
+                          ? const Color(0xFF8B5CF6).withOpacity(0.3)
+                          : const Color(0xFFDC2626).withOpacity(0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        v2Up ? Icons.check_circle : Icons.error,
+                        size: 20,
+                        color: v2Up 
+                            ? const Color(0xFF8B5CF6)
+                            : const Color(0xFFDC2626),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'v2.0 API',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                            Text(
+                              v2Up ? 'All Systems Operational' : 'Service Disrupted',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.white.withOpacity(0.8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: v2Up 
+                              ? const Color(0xFF8B5CF6).withOpacity(0.2)
+                              : const Color(0xFFDC2626).withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          v2Up ? 'UP' : 'DOWN',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: v2Up 
+                                ? const Color(0xFF8B5CF6)
+                                : const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build detailed API status breakdown
+  Widget _buildDetailedApiStatus() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFF1E293B),
+            const Color(0xFF334155),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF475569).withOpacity(0.3),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF59E0B).withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  Icons.analytics,
+                  size: 20,
+                  color: const Color(0xFFF59E0B),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'DETAILED API STATUS',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              // V1 Detailed Status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'v1.0 API Status',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_monitoringData != null) ...[
+                      _buildCurrencyStatusItem('LCY', _monitoringData!['lcy']['status'], '458'),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('USD', _monitoringData!['usd']['status'], '840'),
+                    ] else ...[
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              // V2 Detailed Status
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'v2.0 API Status',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (_monitoringDataV2 != null) ...[
+                      _buildCurrencyStatusItem('LCY', _monitoringDataV2!['lcy']['status'], '458'),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('USD', _monitoringDataV2!['usd']['status'], '840'),
+                    ] else ...[
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Build individual currency status item
+  Widget _buildCurrencyStatusItem(String currency, String status, String code) {
+    final isUp = status == 'UP';
+    return Row(
+      children: [
+        Icon(
+          isUp ? Icons.check_circle : Icons.error,
+          size: 16,
+          color: isUp 
+              ? const Color(0xFF10B981)
+              : const Color(0xFFDC2626),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          '$currency ($code)',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Colors.white.withOpacity(0.9),
+          ),
+        ),
+        const Spacer(),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isUp 
+                ? const Color(0xFF10B981).withOpacity(0.2)
+                : const Color(0xFFDC2626).withOpacity(0.2),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            status,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: isUp 
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFFDC2626),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Build metrics grid only (without header)
+  Widget _buildMetricsGrid() {
+    final lcyStatus = _monitoringData!['lcy']['status'];
+    final usdStatus = _monitoringData!['usd']['status'];
+    final totalServices = 2;
+    final upServices = (lcyStatus == 'UP' ? 1 : 0) + (usdStatus == 'UP' ? 1 : 0);
+    final downServices = totalServices - upServices;
+    final uptimePercentage = (upServices / totalServices * 100).round();
+    
+    return Row(
+      children: [
+        // Uptime Percentage
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF10B981).withOpacity(0.2),
+                  const Color(0xFF059669).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF10B981).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.trending_up,
+                      size: 20,
+                      color: const Color(0xFF10B981),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'UPTIME',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF10B981),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$uptimePercentage%',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'System Availability',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Services Status
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF3B82F6).withOpacity(0.2),
+                  const Color(0xFF1D4ED8).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF3B82F6).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.dns,
+                      size: 20,
+                      color: const Color(0xFF3B82F6),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'SERVICES',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF3B82F6),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '$upServices/$totalServices',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'Active Services',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Response Time
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFF8B5CF6).withOpacity(0.2),
+                  const Color(0xFF7C3AED).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.speed,
+                      size: 20,
+                      color: const Color(0xFF8B5CF6),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'RESPONSE',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF8B5CF6),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '${_monitoringData!['lcy']['responseTime'] ?? 0}ms',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  'Avg Response Time',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        // Next Scheduled Check
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  const Color(0xFFF59E0B).withOpacity(0.2),
+                  const Color(0xFFD97706).withOpacity(0.2),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFF59E0B).withOpacity(0.3),
+                width: 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.schedule,
+                      size: 20,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'NEXT CHECK',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFFF59E0B),
+                        letterSpacing: 1.0,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  _getNextScheduledCheck().split(' ')[0] + '\n' + _getNextScheduledCheck().split(' ')[1],
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    height: 1.2,
+                  ),
+                ),
+                Text(
+                  'Backend Schedule',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
   }
 
   // Build enhanced metrics overview dashboard
@@ -700,13 +1512,13 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      txnId.toString(),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
+                            txnId.toString(),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
                   ],
                 ),
               ),
@@ -739,10 +1551,10 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Colors.blue.shade600,
-                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
+                    ),
                       const SizedBox(height: 12),
                       Container(
                         height: 400,
@@ -757,10 +1569,10 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             viewType: iframeKey,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
+              ),
               ],
             ] else if (!isUp && errorMessage != null) ...[
               const SizedBox(height: 16),
@@ -1015,7 +1827,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                         top: BorderSide(
                           color: const Color(0xFF475569).withOpacity(0.3),
                           width: 1,
-                        ),
+                      ),
                       ),
                       color: index % 2 == 0 
                           ? const Color(0xFF1E293B).withOpacity(0.3)
@@ -1071,9 +1883,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  lcyStatus,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
+                              lcyStatus,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                     color: lcyStatus == 'UP' 
@@ -1123,9 +1935,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 ),
                                 const SizedBox(width: 6),
                                 Text(
-                                  usdStatus,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
+                              usdStatus,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w700,
                                     color: usdStatus == 'UP' 
@@ -1266,24 +2078,24 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 ),
                                 child: Column(
                                   children: [
-                                    Text(
-                                      'Last Updated',
-                                      style: TextStyle(
+                              Text(
+                                'Last Updated',
+                                style: TextStyle(
                                         fontSize: 11,
                                         color: const Color(0xFF10B981),
                                         fontWeight: FontWeight.w600,
                                         letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                    Text(
-                                      _formatTimestamp(_monitoringData!['timestamp']),
-                                      style: TextStyle(
+                                ),
+                              ),
+                              Text(
+                                _formatTimestamp(_monitoringData!['timestamp']),
+                                style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.white,
                                         fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ],
+                                ),
+                              ),
+                            ],
                                 ),
                               ),
                             ],
@@ -1314,10 +2126,10 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                         ),
                                       ],
                                     ),
-                                    child: ElevatedButton.icon(
-                                      onPressed: _isRefreshing ? null : _manualRefresh,
-                                      icon: Icon(
-                                        _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
+                                  child: ElevatedButton.icon(
+                                    onPressed: _isRefreshing ? null : _manualRefresh,
+                                    icon: Icon(
+                                      _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
                                         size: 18,
                                       ),
                                       label: Text(
@@ -1327,13 +2139,13 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),
-                                      style: ElevatedButton.styleFrom(
+                                    style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.transparent,
-                                        foregroundColor: Colors.white,
+                                      foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                        shape: RoundedRectangleBorder(
+                                      shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(12),
-                                        ),
+                                      ),
                                         elevation: 0,
                                       ),
                                     ),
@@ -1448,10 +2260,10 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: Icon(
-                            Icons.error_outline,
-                            size: 48,
+                          Icons.error_outline,
+                          size: 48,
                             color: const Color(0xFFFCA5A5),
-                          ),
+                        ),
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -1494,7 +2306,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             ],
                           ),
                           child: ElevatedButton.icon(
-                            onPressed: _loadMonitoringData,
+                          onPressed: _loadMonitoringData,
                             icon: const Icon(Icons.refresh, size: 18),
                             label: const Text(
                               'Retry Connection',
@@ -1503,9 +2315,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
-                            style: ElevatedButton.styleFrom(
+                          style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
-                              foregroundColor: Colors.white,
+                            foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -1518,8 +2330,42 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                   ),
                 ] else if (_monitoringData != null) ...[
-                  // Compact Metrics Dashboard
-                  _buildMetricsOverview(),
+                  // Metrics Overview Only
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF1E293B),
+                          const Color(0xFF334155),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: const Color(0xFF475569).withOpacity(0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          blurRadius: 20,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: _buildMetricsGrid(),
+                  ),
+                  const SizedBox(height: 12),
+                  
+                  // API Status Indicators
+                  _buildApiStatusIndicators(),
+                  const SizedBox(height: 12),
+                  
+                  // Detailed API Status
+                  _buildDetailedApiStatus(),
                   const SizedBox(height: 12),
                   
                   // Compact Status Cards
@@ -1535,6 +2381,80 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ],
                   ),
                   const SizedBox(height: 12),
+                  
+                  // Compact v2.0 Status Cards
+                  if (_monitoringDataV2 != null) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            const Color(0xFF1E293B),
+                            const Color(0xFF334155),
+                          ],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF475569).withOpacity(0.3),
+                          width: 1,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(
+                                  Icons.token,
+                                  size: 20,
+                                  color: const Color(0xFF8B5CF6),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'PAYIN v2.0 MONITORING',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  letterSpacing: 1.5,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildEnhancedStatusCard('458', 'LCY v2.0 Check', _monitoringDataV2!['lcy'], _currentLcyViewFactoryV2 ?? 'lcy-sandbox-iframe-v2'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildEnhancedStatusCard('840', 'USD v2.0 Check', _monitoringDataV2!['usd'], _currentUsdViewFactoryV2 ?? 'usd-sandbox-iframe-v2'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   
                   // Compact Historical data
                   _buildEnhancedHistoricalSection(),

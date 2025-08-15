@@ -9,6 +9,7 @@
 
 import {setGlobalOptions} from "firebase-functions";
 import {onRequest} from "firebase-functions/https";
+import {onSchedule} from "firebase-functions/scheduler";
 import * as logger from "firebase-functions/logger";
 import nodemailer from "nodemailer";
 import * as archiver from "archiver";
@@ -379,6 +380,42 @@ export const checkSandboxStatus = onRequest(async (request, response) => {
   }
 });
 
+export const checkSandboxStatusV2 = onRequest(async (request, response) => {
+  // CORS headers
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST" && request.method !== "GET") {
+    response.status(405).json({error: "Method not allowed. Use POST or GET."});
+    return;
+  }
+
+  try {
+    const results = {
+      timestamp: new Date().toISOString(), // This will be converted to GMT+8 on frontend
+      lcy: await checkCurrencyStatusV2(458),
+      usd: await checkCurrencyStatusV2(840),
+    };
+
+    response.status(200).json({
+      success: true,
+      data: results,
+    });
+  } catch (error) {
+    logger.error("Error checking sandbox v2.0 status", error);
+    response.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
 /**
  * Helper function to check a specific currency status
  * @param {number} currency - Currency code (414 for LCY, 840 for USD)
@@ -481,6 +518,165 @@ async function checkCurrencyStatus(currency: number): Promise<{
     };
   }
 }
+
+/**
+ * Helper function to check v2.0 API status for a specific currency
+ * @param {number} currency - Currency code (458 for LCY/MYR, 840 for USD)
+ * @return {Promise<Object>} Status object with response details
+ */
+async function checkCurrencyStatusV2(currency: number): Promise<{
+  status: string;
+  resultCode?: number;
+  errorMessage?: string;
+  responseTime?: number;
+  txnId?: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    const requestBody = {
+      initRequest: {
+        country: 458,
+        payType: 237,
+        apiKey: "test_jCZnXkOIuiLsFm6uBkcjsyYUQQi",
+        projectId: 230,
+        orderId: "1321314",
+        currency: currency, // Use 458 for LCY/MYR, 840 for USD
+        items: [
+          {
+            code: "1",
+            price: 1.00,
+            name: "Test Item",
+          },
+        ],
+        profile: {
+          entry: [
+            {
+              key: "user_id",
+              value: "105",
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await fetch("https://sandbox.codapayments.com/airtime/api/restful/v2.0/Payment/init.json", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      return {
+        status: "DOWN",
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        responseTime,
+      };
+    }
+
+    // Get raw response text first
+    const rawResponseText = await response.text();
+
+    // Manually parse the JSON to preserve large number precision
+    // First, let's extract the txnId as a string before parsing
+    const txnIdMatch = rawResponseText.match(/"txnId":(\d+)/);
+    let txnIdString = null;
+    if (txnIdMatch) {
+      txnIdString = txnIdMatch[1];
+    }
+
+    // Parse the raw response as JSON
+    const data = JSON.parse(rawResponseText);
+
+    // If we found a txnId in the raw text, use that exact string value
+    if (txnIdString && data.initResult && data.initResult.txnId) {
+      data.initResult.txnId = txnIdString;
+    }
+
+    if (data.initResult && data.initResult.resultCode === 0) {
+      return {
+        status: "UP",
+        resultCode: 0,
+        responseTime,
+        txnId: data.initResult.txnId,
+      };
+    } else {
+      return {
+        status: "DOWN",
+        resultCode: data.initResult?.resultCode,
+        errorMessage: data.initResult?.resultMessage || "Unknown error",
+        responseTime,
+      };
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    return {
+      status: "DOWN",
+      errorMessage: (error as Error).message || "No response from sandbox environment",
+      responseTime,
+    };
+  }
+}
+
+// Scheduled function to check sandbox status at 9 AM and 1 PM GMT+8
+export const scheduledSandboxCheck = onSchedule({
+  schedule: "0 1,5 * * *", // 1 AM and 5 AM UTC = 9 AM and 1 PM GMT+8
+  timeZone: "UTC",
+}, async () => {
+  logger.info("Starting scheduled sandbox status check", {structuredData: true});
+
+  try {
+    // Check v1.0 API status
+    const v1Results = {
+      timestamp: new Date().toISOString(),
+      lcy: await checkCurrencyStatus(458),
+      usd: await checkCurrencyStatus(840),
+    };
+
+    logger.info("V1.0 API check completed", {
+      lcyStatus: v1Results.lcy.status,
+      usdStatus: v1Results.usd.status,
+      structuredData: true,
+    });
+
+    // Check v2.0 API status
+    const v2Results = {
+      timestamp: new Date().toISOString(),
+      lcy: await checkCurrencyStatusV2(458),
+      usd: await checkCurrencyStatusV2(840),
+    };
+
+    logger.info("V2.0 API check completed", {
+      lcyStatus: v2Results.lcy.status,
+      usdStatus: v2Results.usd.status,
+      structuredData: true,
+    });
+
+    // Log summary
+    const allServices = [
+      {name: "V1.0 LCY", status: v1Results.lcy.status},
+      {name: "V1.0 USD", status: v1Results.usd.status},
+      {name: "V2.0 LCY", status: v2Results.lcy.status},
+      {name: "V2.0 USD", status: v2Results.usd.status},
+    ];
+
+    const upServices = allServices.filter((service) => service.status === "UP").length;
+    const totalServices = allServices.length;
+
+    logger.info("Scheduled check summary", {
+      upServices,
+      totalServices,
+      uptimePercentage: Math.round((upServices / totalServices) * 100),
+      structuredData: true,
+    });
+  } catch (error) {
+    logger.error("Error in scheduled sandbox check", error);
+  }
+});
 
 // export const helloWorld = onRequest((request, response) => {
 //   logger.info("Hello logs!", {structuredData: true});

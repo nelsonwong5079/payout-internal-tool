@@ -2111,7 +2111,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
             // Main Content
             SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
                 child: SingleChildScrollView(
                   child: Center(
                     child: ConstrainedBox(
@@ -2130,7 +2130,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                             child: SlideTransition(
                               position: _slideAnimation,
                               child: Container(
-                                padding: const EdgeInsets.all(24),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(16),
@@ -2151,7 +2151,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                         return Transform.scale(
                                           scale: _pulseAnimation.value,
                                           child: Container(
-                                            padding: const EdgeInsets.all(16),
+                                            padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
                                               color: Colors.black,
                                               borderRadius: BorderRadius.circular(12),
@@ -2165,14 +2165,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             ),
                                             child: Icon(
                                               Icons.upload_file,
-                                              size: 32,
+                                              size: 24,
                                               color: Colors.white,
                                             ),
                                           ),
                                         );
                                       },
                                     ),
-                                    const SizedBox(width: 20),
+                                    const SizedBox(width: 16),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2183,16 +2183,16 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                               color: Colors.black,
                                               fontWeight: FontWeight.w800,
                                               letterSpacing: 1.5,
-                                              fontSize: 20,
+                                              fontSize: 18,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 2),
                                           Text(
                                             'Upload and process ZIP files for transaction editing',
                                             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                                               color: Colors.black.withOpacity(0.7),
                                               fontWeight: FontWeight.w500,
-                                              fontSize: 14,
+                                              fontSize: 13,
                                             ),
                                           ),
                                         ],
@@ -2203,7 +2203,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           
                           // Compact Help Button
                           Row(
@@ -2232,12 +2232,12 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                   
                           // Compact File Upload Section
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(12),
@@ -2279,11 +2279,11 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 24),
+                                const SizedBox(height: 16),
                                 Center(
                                   child: Container(
                                     width: 400,
-                                    height: 120,
+                                    height: 100,
                                     decoration: BoxDecoration(
                                       border: Border.all(
                                         color: Colors.black.withOpacity(0.2),
@@ -2301,10 +2301,10 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                         children: [
                                           Icon(
                                             Icons.cloud_upload_outlined,
-                                            size: 32,
+                                            size: 28,
                                             color: Colors.black.withOpacity(0.6),
                                           ),
-                                          const SizedBox(height: 12),
+                                          const SizedBox(height: 8),
                                           Text(
                                             'CLICK TO UPLOAD ZIP FILE',
                                             style: TextStyle(
@@ -2314,7 +2314,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                               letterSpacing: 0.5,
                                             ),
                                           ),
-                                          const SizedBox(height: 4),
+                                          const SizedBox(height: 2),
                                           Text(
                                             'SUPPORTS PASSWORD-PROTECTED ZIP FILES',
                                             style: TextStyle(
@@ -2329,7 +2329,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                   ),
                                 ),
                                 if (_selectedFileName != null) ...[
-                                  const SizedBox(height: 20),
+                                  const SizedBox(height: 12),
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -2356,7 +2356,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                   ),
                                 ],
                                 if (_processingStatus.isNotEmpty) ...[
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
@@ -2394,9 +2394,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                           
 
                           
-                          // Premium Data Table Section
+                          // Compact Data Table Section
                           if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
-                            const SizedBox(height: 24),
+                            const SizedBox(height: 12),
                             Container(
                               width: double.infinity,
                               decoration: BoxDecoration(
@@ -2414,9 +2414,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Premium Header
+                                  // Compact Header
                                   Container(
-                                    padding: const EdgeInsets.all(24),
+                                    padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
                                       color: Colors.black,
                                       borderRadius: const BorderRadius.only(
@@ -2470,9 +2470,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ),
                                   
-                                  // Premium Filter Section
+                                  // Compact Filter Section
                                   Container(
-                                    padding: const EdgeInsets.all(24),
+                                    padding: const EdgeInsets.all(16),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
@@ -2495,7 +2495,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             ),
                                           ],
                                         ),
-                                        const SizedBox(height: 16),
+                                        const SizedBox(height: 12),
                                         TextField(
                                           decoration: InputDecoration(
                                             hintText: 'Enter Transaction ID or Publisher Transaction ID',
@@ -2550,9 +2550,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ),
                                   
-                                  // Batch Editing Controls - Near the table
+                                  // Compact Batch Editing Controls - Near the table
                                   if (_csvData != null && _csvData!.isNotEmpty) ...[
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: 12),
                                     if (!_isBatchEditing) ...[
                                       Container(
                                         width: double.infinity,
@@ -2663,7 +2663,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ],
                                   ],
                                   
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   ConstrainedBox(
                                     constraints: BoxConstraints(
                                       maxHeight: MediaQuery.of(context).size.height * 0.4,
@@ -2694,9 +2694,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                             width: (_reorderedHeaders ?? _csvHeaders!).length * 150.0,
                                             child: Column(
                                               children: [
-                                                // Premium Header row
+                                                // Compact Header row
                                                 Container(
-                                                  height: 48,
+                                                  height: 40,
                                                   color: Colors.black,
                                                   child: Row(
                                                     children: (_reorderedHeaders ?? _csvHeaders!).asMap().entries.map((entry) {
@@ -2761,14 +2761,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                     }).toList(),
                                                   ),
                                                 ),
-                                                // Premium Data rows
+                                                // Compact Data rows
                                                 ..._filteredData!.asMap().entries.map((rowEntry) {
                                                   final rowIndex = _csvData!.indexOf(rowEntry.value);
                                                   final originalRow = rowEntry.value;
                                                   final reorderedRow = _getReorderedRow(originalRow);
                                                   
                                                   return Container(
-                                                    height: 44,
+                                                    height: 36,
                                                     decoration: BoxDecoration(
                                                       border: Border(
                                                         bottom: BorderSide(color: Colors.black.withOpacity(0.05)),
@@ -2979,14 +2979,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                             ),
                           ],
                           
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 16),
                           
-                          // Premium Action Buttons
-                          if (_csvData != null && _csvData!.isNotEmpty) ...[
-                            const SizedBox(height: 24),
+                          // Compact Action Buttons
+                                                      if (_csvData != null && _csvData!.isNotEmpty) ...[
+                              const SizedBox(height: 16),
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.all(32),
+                              padding: const EdgeInsets.all(20),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(16),
@@ -3046,7 +3046,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 24),
+                                  const SizedBox(height: 16),
                                   
                                   // Premium Action Buttons Row
                                   Row(
@@ -3128,11 +3128,11 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                             const SizedBox(height: 24),
                           ],
 
-                          // Premium Additional API Actions Section
-                          const SizedBox(height: 32),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(32),
+                          // Compact Additional API Actions Section
+                          const SizedBox(height: 16),
+                                                      Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(16),
@@ -3174,7 +3174,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 12),
                                 Row(
                                   children: [
                                     // Premium Wallet Report Button
@@ -3290,7 +3290,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                               ],
                             ),
                           ),
-                          const SizedBox(height: 32),
+                          const SizedBox(height: 16),
 
                         ],
                       ),
@@ -3300,14 +3300,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
               ),
             ),
             
-            // Help Guide Sidebar
+            // Compact Help Guide Sidebar
             if (_showHelpGuide) ...[
               Positioned(
                 right: 0,
                 top: 0,
                 bottom: 0,
                 child: Container(
-                  width: 400,
+                  width: 350,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
@@ -3320,9 +3320,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                   ),
                   child: Column(
                     children: [
-                      // Help Guide Header
+                      // Compact Help Guide Header
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.blue.shade600,
                         ),
@@ -3364,10 +3364,10 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                         ),
                       ),
                       
-                      // Help Guide Content
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(20),
+                                              // Compact Help Guide Content
+                        Expanded(
+                          child: Container(
+                            padding: const EdgeInsets.all(16),
                           child: SingleChildScrollView(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
