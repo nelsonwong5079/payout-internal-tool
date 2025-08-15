@@ -626,6 +626,7 @@ async function checkCurrencyStatusV2(currency: number): Promise<{
 export const scheduledSandboxCheck = onSchedule({
   schedule: "0 1,5 * * *", // 1 AM and 5 AM UTC = 9 AM and 1 PM GMT+8
   timeZone: "UTC",
+  secrets: [emailAppPassword],
 }, async () => {
   logger.info("Starting scheduled sandbox status check", {structuredData: true});
 
@@ -673,8 +674,241 @@ export const scheduledSandboxCheck = onSchedule({
       uptimePercentage: Math.round((upServices / totalServices) * 100),
       structuredData: true,
     });
+
+    // Check for failures and send notification email
+    const failedChecks = [];
+
+    if (v1Results.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: v1Results.lcy.errorMessage,
+      });
+    }
+
+    if (v1Results.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: v1Results.usd.errorMessage,
+      });
+    }
+
+    if (v2Results.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: v2Results.lcy.errorMessage,
+      });
+    }
+
+    if (v2Results.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: v2Results.usd.errorMessage,
+      });
+    }
+
+    // Send failure notification if any checks failed
+    if (failedChecks.length > 0) {
+      await sendFailureNotificationEmail(failedChecks);
+      logger.info("Failure notification sent", {
+        failedChecks: failedChecks.length,
+        structuredData: true,
+      });
+    }
   } catch (error) {
     logger.error("Error in scheduled sandbox check", error);
+  }
+});
+
+/**
+ * Send failure notification email for sandbox API failures
+ * @param {Array} failedChecks - Array of failed check objects
+ */
+async function sendFailureNotificationEmail(
+  failedChecks: Array<{version: string, currency: string, status: string, errorMessage?: string}>
+) {
+  try {
+    logger.info("Starting to send failure notification email", {
+      failedChecksCount: failedChecks.length,
+      structuredData: true,
+    });
+
+    // Configure nodemailer with Gmail SMTP
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "nelson.wong@codapayments.com",
+        pass: emailAppPassword.value(), // Use environment variable
+      },
+    });
+
+    logger.info("Nodemailer transporter configured", {
+      user: "nelson.wong@codapayments.com",
+      structuredData: true,
+    });
+
+    // Group failures by version
+    const v1Failures = failedChecks.filter((check) => check.version === "v1");
+    const v2Failures = failedChecks.filter((check) => check.version === "v2");
+
+    // Build email body
+    let emailBody = "One or more sandbox checks have failed:\n\n";
+
+    if (v1Failures.length > 0) {
+      emailBody += "Failed Version(s): v1\n";
+      emailBody += "Failed Currency: " + v1Failures.map((f) => f.currency).join(", ") + "\n";
+      if (v1Failures.some((f) => f.errorMessage)) {
+        emailBody += "Error Details: " + v1Failures.find((f) => f.errorMessage)?.errorMessage + "\n";
+      }
+      emailBody += "\n";
+    }
+
+    if (v2Failures.length > 0) {
+      emailBody += "Failed Version(s): v2\n";
+      emailBody += "Failed Currency: " + v2Failures.map((f) => f.currency).join(", ") + "\n";
+      if (v2Failures.some((f) => f.errorMessage)) {
+        emailBody += "Error Details: " + v2Failures.find((f) => f.errorMessage)?.errorMessage + "\n";
+      }
+      emailBody += "\n";
+    }
+
+    emailBody += "Please investigate the issue.\n\n";
+    emailBody += "This alert was sent automatically by the Sandbox Monitoring System.";
+
+    const mailOptions = {
+      from: "nelson.wong@codapayments.com",
+      to: "nelson.wong@codapayments.com, wkarweng@icloud.com",
+      cc: "codapay_integration@coda.co",
+      subject: "[ALERT] Sandbox Failure Detected",
+      text: emailBody,
+    };
+
+    logger.info("Mail options configured", {
+      to: mailOptions.to,
+      cc: mailOptions.cc,
+      subject: mailOptions.subject,
+      emailBodyLength: emailBody.length,
+      structuredData: true,
+    });
+
+    logger.info("Attempting to send email...", {structuredData: true});
+    const result = await transporter.sendMail(mailOptions);
+
+    logger.info("Email sent successfully", {
+      messageId: result.messageId,
+      failedChecks: failedChecks.length,
+      structuredData: true,
+    });
+  } catch (error) {
+    logger.error("Error sending failure notification email", error);
+  }
+}
+
+// HTTP function to trigger failure email notification
+export const triggerFailureEmail = onRequest({
+  secrets: [emailAppPassword],
+}, async (request, response) => {
+  // CORS headers
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  try {
+    const {failedChecks} = request.body;
+
+    if (!failedChecks || !Array.isArray(failedChecks)) {
+      response.status(400).json({
+        success: false,
+        error: "Invalid request body. Expected 'failedChecks' array.",
+      });
+      return;
+    }
+
+    // Send failure notification email
+    await sendFailureNotificationEmail(failedChecks);
+
+    logger.info("Failure email triggered from frontend", {
+      failedChecks: failedChecks.length,
+      structuredData: true,
+    });
+
+    response.status(200).json({
+      success: true,
+      message: "Failure notification email sent successfully",
+      failedChecks,
+    });
+  } catch (error) {
+    logger.error("Error in triggerFailureEmail", error);
+    response.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
+});
+
+// HTTP function to trigger mock fail scenario
+export const triggerMockFail = onRequest({
+  secrets: [emailAppPassword],
+}, async (request, response) => {
+  // CORS headers
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "POST, GET, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  try {
+    // Simulate a failure in v1 LCY check
+    const mockFailure = [
+      {
+        version: "v1",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: "Mock failure for testing purposes",
+      },
+    ];
+
+    // Send failure notification email
+    await sendFailureNotificationEmail(mockFailure);
+
+    logger.info("Mock fail scenario triggered successfully", {structuredData: true});
+
+    response.status(200).json({
+      success: true,
+      message: "Mock fail scenario triggered successfully",
+      mockFailure,
+    });
+  } catch (error) {
+    logger.error("Error in mock fail scenario", error);
+    response.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
   }
 });
 

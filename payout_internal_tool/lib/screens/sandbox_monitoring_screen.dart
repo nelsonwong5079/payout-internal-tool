@@ -118,6 +118,96 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     }
   }
 
+  // Trigger mock fail scenario for testing
+  Future<void> _triggerMockFail() async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://us-central1-codapay-webhook.cloudfunctions.net/triggerMockFail'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          // Show success snackbar
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.orange.shade600),
+                      const SizedBox(width: 12),
+                      Expanded(
+                                                  child: Text(
+                            'Mock fail triggered successfully! Check email: nelson.wong@codapayments.com',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          }
+        }
+      } else {
+        throw Exception('Failed to trigger mock fail: ${response.body}');
+      }
+    } catch (error) {
+      // Show error snackbar
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red.shade600),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Error triggering mock fail: $error',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            behavior: SnackBarBehavior.floating,
+            margin: const EdgeInsets.all(16),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _fadeController.dispose();
@@ -154,13 +244,16 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       
       bool hasError = false;
       String errorMessage = '';
+      Map<String, dynamic>? v1Data;
+      Map<String, dynamic>? v2Data;
       
       // Process v1 response
       if (responses[0].statusCode == 200) {
         final data = json.decode(responses[0].body);
         if (data['success'] == true) {
+          v1Data = data['data'];
           setState(() {
-            _monitoringData = data['data'];
+            _monitoringData = v1Data;
           });
           
           // Add to historical data
@@ -181,8 +274,9 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       if (responses[1].statusCode == 200) {
         final data = json.decode(responses[1].body);
         if (data['success'] == true) {
+          v2Data = data['data'];
           setState(() {
-            _monitoringDataV2 = data['data'];
+            _monitoringDataV2 = v2Data;
           });
           
           // Register v2 iframe views after data is loaded
@@ -196,17 +290,140 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
         errorMessage += ' | V2: HTTP ${responses[1].statusCode}: ${responses[1].reasonPhrase}';
       }
       
-        setState(() {
-          _isLoading = false;
+      setState(() {
+        _isLoading = false;
         if (hasError) {
           _errorMessage = errorMessage;
-      }
+        }
       });
+
+      // Check for failures and trigger email notification
+      if (v1Data != null || v2Data != null) {
+        _checkForFailuresAndNotify(v1Data, v2Data);
+      }
     } catch (error) {
       setState(() {
         _errorMessage = 'Network error: ${error.toString()}';
         _isLoading = false;
       });
+    }
+  }
+
+  // Check for failures and trigger email notification
+  Future<void> _checkForFailuresAndNotify(Map<String, dynamic>? v1Data, Map<String, dynamic>? v2Data) async {
+    try {
+      List<Map<String, dynamic>> failedChecks = [];
+      
+      // Check v1 data for failures
+      if (v1Data != null) {
+        final lcyStatus = v1Data['lcy']?['status'];
+        final usdStatus = v1Data['usd']?['status'];
+        
+        if (lcyStatus == 'DOWN') {
+          failedChecks.add({
+            'version': 'v1',
+            'currency': 'LCY (MYR)',
+            'status': 'DOWN',
+            'errorMessage': v1Data['lcy']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+        
+        if (usdStatus == 'DOWN') {
+          failedChecks.add({
+            'version': 'v1',
+            'currency': 'USD',
+            'status': 'DOWN',
+            'errorMessage': v1Data['usd']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+      }
+      
+      // Check v2 data for failures
+      if (v2Data != null) {
+        final lcyStatusV2 = v2Data['lcy']?['status'];
+        final usdStatusV2 = v2Data['usd']?['status'];
+        
+        if (lcyStatusV2 == 'DOWN') {
+          failedChecks.add({
+            'version': 'v2',
+            'currency': 'LCY (MYR)',
+            'status': 'DOWN',
+            'errorMessage': v2Data['lcy']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+        
+        if (usdStatusV2 == 'DOWN') {
+          failedChecks.add({
+            'version': 'v2',
+            'currency': 'USD',
+            'status': 'DOWN',
+            'errorMessage': v2Data['usd']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+      }
+      
+      // If there are failures, trigger email notification
+      if (failedChecks.isNotEmpty) {
+        await _triggerFailureEmail(failedChecks);
+      }
+    } catch (error) {
+      // Log error but don't show to user to avoid confusion
+      print('Error checking for failures: $error');
+    }
+  }
+
+  // Trigger failure email notification
+  Future<void> _triggerFailureEmail(List<Map<String, dynamic>> failedChecks) async {
+    try {
+      final response = await http.post(
+        Uri.parse('https://us-central1-codapay-webhook.cloudfunctions.net/triggerFailureEmail'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'failedChecks': failedChecks}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        if (data['success'] == true) {
+          // Show success notification
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.warning, color: Colors.orange.shade600),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Failure detected! Alert email sent to: nelson.wong@codapayments.com, wkarweng@icloud.com',
+                          style: TextStyle(
+                            color: Colors.orange.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                behavior: SnackBarBehavior.floating,
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 6),
+              ),
+            );
+          }
+        }
+      }
+    } catch (error) {
+      // Log error but don't show to user to avoid confusion
+      print('Error triggering failure email: $error');
     }
   }
 
@@ -2366,6 +2583,97 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   
                   // Detailed API Status
                   _buildDetailedApiStatus(),
+                  const SizedBox(height: 12),
+                  
+                  // Mock Fail Testing Section
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          const Color(0xFF7F1D1D),
+                          const Color(0xFF991B1B),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color(0xFFDC2626).withOpacity(0.3),
+                        width: 1,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFDC2626).withOpacity(0.2),
+                          blurRadius: 8,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFDC2626).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(
+                                Icons.bug_report,
+                                size: 20,
+                                color: const Color(0xFFFCA5A5),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              'TESTING & DEBUG',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                                letterSpacing: 1.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Trigger a mock failure to test the email notification system',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.white.withOpacity(0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: _triggerMockFail,
+                          icon: const Icon(Icons.warning, size: 18),
+                          label: const Text(
+                            'TRIGGER MOCK FAIL',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFDC2626),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   
                   // Compact Status Cards
