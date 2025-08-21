@@ -1,7 +1,4 @@
-Perfect ✅
-Here’s your updated README with a **sequence-style architecture diagram** added at the end, so stakeholders can instantly visualize the flow:
 
----
 
 # 🌐 Payout Internal Tool (Web Version)
 
