@@ -1,7 +1,14 @@
+Perfect ✅
+Here’s your updated README with a **sequence-style architecture diagram** added at the end, so stakeholders can instantly visualize the flow:
+
+---
+
 # 🌐 Payout Internal Tool (Web Version)
 
 A **web-based automation tool** that streamlines **payout sandbox integration testing**.
 It automates **transaction status updates** and **webhook notifications**, reducing the process from **\~2 hours to just 2 minutes**.
+
+🌍 **Live Hosting:** [https://payout-tool.web.app/](https://payout-tool.web.app/)
 
 ---
 
@@ -42,20 +49,43 @@ It automates **transaction status updates** and **webhook notifications**, reduc
 
 ---
 
-## 🧑‍💻 Tech Stack
+## 🧑‍💻 Tech Stack & Code Logic
 
-* **Frontend**: HTML / CSS / JavaScript
-* **Backend**: Python (Flask/FastAPI)
-* **Automation**: Webhook send, Report generation, Email dispatch
-* **Security**: JWT & HMAC signing for API calls
+### **Frontend**
+
+* Built with **HTML, CSS, JavaScript** for clean UI.
+* Provides **step-by-step form-based flow** to minimize user error.
+* Implements input validation before sending requests.
+
+### **Backend**
+
+* Developed with **Python (Flask/FastAPI)**.
+* Core responsibilities:
+
+  * Handle API requests from the frontend.
+  * Generate and sign **JWT/HMAC** for secure payout API calls.
+  * Automate **webhook notifications** to simulate provider responses.
+  * Create and **encrypt payout reports**.
+  * Dispatch reports via **SMTP email**.
+
+### **Automation Workflow**
+
+1. User submits **transaction details** via UI.
+2. Backend validates input → triggers **status update**.
+3. **Webhook notification** automatically fired to target endpoint.
+4. Report generated (CSV/ZIP) → **encrypted if needed**.
+5. Email with attached report sent to relevant stakeholders.
+
+This architecture ensures **minimal manual work**, **high consistency**, and **audit-ready documentation**.
 
 ---
 
 ## 📸 Screenshots
 
- <img width="1917" height="958" alt="image" src="https://github.com/user-attachments/assets/751eaa24-54ba-4d3b-a3f5-1e7724db614a" />
-<img width="358" height="575" alt="image" src="https://github.com/user-attachments/assets/0239dcf5-03d9-45be-9568-3a0bf8407efb" />
-
+<p float="left">
+  <img src="https://github.com/user-attachments/assets/751eaa24-54ba-4d3b-a3f5-1e7724db614a" width="48%" />
+  <img src="https://github.com/user-attachments/assets/0239dcf5-03d9-45be-9568-3a0bf8407efb" width="48%" />
+</p>
 
 ---
 
@@ -76,14 +106,33 @@ python app.py
 http://localhost:5000
 ```
 
+Or directly use the **hosted version**:
+👉 [https://payout-tool.web.app/](https://payout-tool.web.app/)
+
 Fill in the required input → the tool automates the rest.
 
 ---
 
-## 🔗 Repository
+## 🏗️ Architecture Diagram
 
-👉 [payout-internal-tool (Web Version)](https://github.com/nelsonwong5079/payout-internal-tool)
+```mermaid
+sequenceDiagram
+    participant U as User (Web UI)
+    participant F as Frontend (JS/HTML)
+    participant B as Backend (Flask/FastAPI)
+    participant P as Payout API
+    participant W as Webhook Receiver
+    participant E as Email/Report System
+
+    U->>F: Fill in required info
+    F->>B: Send request with txn details
+    B->>P: Update transaction status (JWT/HMAC signed)
+    P-->>B: Status response
+    B->>W: Send webhook notification
+    B->>E: Generate + encrypt report
+    E-->>U: Email report dispatched
+```
+
 
 ---
 
-Do you also want me to **add a “Future Enhancements” section** (e.g., dashboard for logs, multi-user support, cloud deploy), so the repo looks more like a growing project?
