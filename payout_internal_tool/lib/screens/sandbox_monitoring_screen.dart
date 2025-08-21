@@ -2585,7 +2585,8 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   _buildDetailedApiStatus(),
                   const SizedBox(height: 12),
                   
-                  // Mock Fail Testing Section
+                  // Mock Fail Testing Section - COMMENTED OUT
+                  /*
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -2675,6 +2676,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                   ),
                   const SizedBox(height: 12),
+                  */
                   
                   // Compact Status Cards
                   Row(
