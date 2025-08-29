@@ -829,6 +829,45 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     return _batchEditValues[key] ?? defaultValue;
   }
 
+  // Show dropdown dialog for payout status
+  void _showDropdownDialog(int rowIndex, int columnIndex, String currentValue) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Select Payout Status'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView(
+              shrinkWrap: true,
+              children: _payoutStatusOptions.entries.map((entry) {
+                return ListTile(
+                  title: Text('${entry.key} - ${entry.value}'),
+                  onTap: () {
+                    // Update the CSV data directly
+                    if (_csvData != null && rowIndex < _csvData!.length && columnIndex < _csvData![rowIndex].length) {
+                      setState(() {
+                        _csvData![rowIndex][columnIndex] = entry.value;
+                        _editedRowIndices.add(rowIndex);
+                      });
+                    }
+                    Navigator.of(context).pop();
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Get or create batch edit controller
   TextEditingController _getBatchEditController(int rowIndex, int columnIndex, String defaultValue) {
     final key = '${rowIndex}_$columnIndex';
@@ -2691,7 +2730,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                         child: SingleChildScrollView(
                                           scrollDirection: Axis.vertical,
                                           child: Container(
-                                            width: (_reorderedHeaders ?? _csvHeaders!).length * 150.0,
+                                            width: (_reorderedHeaders ?? _csvHeaders!).length * 180.0,
                                             child: Column(
                                               children: [
                                                 // Compact Header row
@@ -2710,7 +2749,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                       Color headerColor = Colors.black;
                                                       
                                                       return Container(
-                                                        width: 150,
+                                                        width: 180, // Match data cell width
                                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                                                         decoration: BoxDecoration(
                                                           border: Border(
@@ -2751,8 +2790,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                   color: Colors.white,
                                                                   letterSpacing: 0.5,
                                                                 ),
-                                                                overflow: TextOverflow.ellipsis,
-                                                                maxLines: 1,
+                                                                overflow: TextOverflow.visible,
+                                                                maxLines: 2,
+                                                                textAlign: TextAlign.left,
                                                               ),
                                                             ),
                                                           ],
@@ -2799,7 +2839,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                         }
                                                         
                                                         return Container(
-                                                          width: 150,
+                                                          width: 180, // Increased width to prevent text blocking
                                                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                                           decoration: BoxDecoration(
                                                             border: Border(
@@ -2819,6 +2859,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                       isExpanded: true,
                                                                       style: const TextStyle(fontSize: 12, color: Colors.black, fontWeight: FontWeight.w500),
                                                                       underline: Container(),
+                                                                      alignment: AlignmentDirectional.centerStart,
                                                                       items: _payoutStatusOptions.entries.map((entry) {
                                                                         return DropdownMenuItem<String>(
                                                                           value: entry.key,
@@ -2835,6 +2876,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                     TextField(
                                                                       controller: _getBatchEditController(rowIndex, originalCellIndex, cell),
                                                                       style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                                                      textAlign: TextAlign.left,
                                                                       decoration: const InputDecoration(
                                                                         border: InputBorder.none,
                                                                         contentPadding: EdgeInsets.zero,
@@ -2850,10 +2892,14 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                             ) :
                                                             // Premium Display mode
                                                             InkWell(
-                                                              onTap: (isEditable && !isAutoSynced && _isBatchEditing) ? () {
-                                                                
-                                                                // In batch mode, just initialize the edit value
-                                                                _updateBatchEditValue(rowIndex, originalCellIndex, cell);
+                                                              onTap: (isEditable && !isAutoSynced) ? () {
+                                                                if (_isDropdownColumn(originalCellIndex)) {
+                                                                  // For dropdown columns, show dropdown even outside batch mode
+                                                                  _showDropdownDialog(rowIndex, originalCellIndex, cell);
+                                                                } else if (_isBatchEditing) {
+                                                                  // In batch mode, just initialize the edit value
+                                                                  _updateBatchEditValue(rowIndex, originalCellIndex, cell);
+                                                                }
                                                               } : null,
                                                               child: Container(
                                                                 width: double.infinity,
@@ -2877,8 +2923,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                             color: _isNumeric(cell) ? Colors.black : Colors.black.withOpacity(0.8),
                                                                             fontWeight: _isNumeric(cell) ? FontWeight.w600 : FontWeight.w500,
                                                                           ),
-                                                                          overflow: TextOverflow.ellipsis,
-                                                                          maxLines: 1,
+                                                                          overflow: TextOverflow.visible,
+                                                                          maxLines: 2,
+                                                                          textAlign: TextAlign.left,
                                                                         ),
                                                                       ),
                                                                     ),
@@ -2888,19 +2935,27 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                         size: 14,
                                                                         color: Colors.black.withOpacity(0.6)
                                                                       )
-                                                                    else if (isEditable && _isBatchEditing) ...[
-                                                                      if (_batchEditValues[cellKey] != null)
+                                                                    else if (isEditable) ...[
+                                                                      if (_isDropdownColumn(originalCellIndex))
                                                                         Icon(
-                                                                          Icons.edit,
-                                                                          size: 14,
-                                                                          color: Colors.orange.shade600,
+                                                                          Icons.arrow_drop_down,
+                                                                          size: 16,
+                                                                          color: Colors.blue.shade600,
                                                                         )
-                                                                      else
-                                                                        Icon(
-                                                                          Icons.edit, 
-                                                                          size: 14, 
-                                                                          color: Colors.blue.shade600
-                                                                        ),
+                                                                      else if (_isBatchEditing) ...[
+                                                                        if (_batchEditValues[cellKey] != null)
+                                                                          Icon(
+                                                                            Icons.edit,
+                                                                            size: 14,
+                                                                            color: Colors.orange.shade600,
+                                                                          )
+                                                                        else
+                                                                          Icon(
+                                                                            Icons.edit, 
+                                                                            size: 14, 
+                                                                            color: Colors.blue.shade600
+                                                                          ),
+                                                                      ],
                                                                     ],
                                                                   ],
                                                                 ),
