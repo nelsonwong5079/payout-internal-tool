@@ -363,8 +363,14 @@ export const checkSandboxStatus = onRequest(async (request, response) => {
   try {
     const results = {
       timestamp: new Date().toISOString(), // This will be converted to GMT+8 on frontend
-      lcy: await checkCurrencyStatus(458),
-      usd: await checkCurrencyStatus(840),
+      paytype237: {
+        lcy: await checkCurrencyStatus(458),
+        usd: await checkCurrencyStatus(840),
+      },
+      paytype0: {
+        lcy: await checkCurrencyStatusPaytype0(458),
+        usd: await checkCurrencyStatusPaytype0(840),
+      },
     };
 
     response.status(200).json({
@@ -399,8 +405,14 @@ export const checkSandboxStatusV2 = onRequest(async (request, response) => {
   try {
     const results = {
       timestamp: new Date().toISOString(), // This will be converted to GMT+8 on frontend
-      lcy: await checkCurrencyStatusV2(458),
-      usd: await checkCurrencyStatusV2(840),
+      paytype237: {
+        lcy: await checkCurrencyStatusV2(458),
+        usd: await checkCurrencyStatusV2(840),
+      },
+      paytype0: {
+        lcy: await checkCurrencyStatusV2Paytype0(458),
+        usd: await checkCurrencyStatusV2Paytype0(840),
+      },
     };
 
     response.status(200).json({
@@ -417,8 +429,8 @@ export const checkSandboxStatusV2 = onRequest(async (request, response) => {
 });
 
 /**
- * Helper function to check a specific currency status
- * @param {number} currency - Currency code (414 for LCY, 840 for USD)
+ * Helper function to check a specific currency status with paytype 237
+ * @param {number} currency - Currency code (458 for LCY, 840 for USD)
  * @return {Promise<Object>} Status object
  */
 async function checkCurrencyStatus(currency: number): Promise<{
@@ -520,7 +532,110 @@ async function checkCurrencyStatus(currency: number): Promise<{
 }
 
 /**
- * Helper function to check v2.0 API status for a specific currency
+ * Helper function to check a specific currency status with paytype 0
+ * @param {number} currency - Currency code (458 for LCY, 840 for USD)
+ * @return {Promise<Object>} Status object
+ */
+async function checkCurrencyStatusPaytype0(currency: number): Promise<{
+  status: "UP" | "DOWN";
+  resultCode?: number;
+  errorMessage?: string;
+  responseTime?: number;
+  txnId?: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    const requestBody = {
+      initRequest: {
+        apiKey: "49005d8dd448ed1029c79615c44c2a792",
+        orderId: `O${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        country: 458,
+        currency: currency,
+        payType: 0,
+        items: [
+          {
+            code: "com.diamond_mt_id_25",
+            name: "25+3",
+            price: "1",
+            type: 1,
+          },
+        ],
+        profile: {
+          entry: [
+            {
+              key: "user_id",
+              value: "12345",
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await fetch("https://sandbox.codapayments.com/airtime/api/restful/v1.0/Payment/init.json", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      return {
+        status: "DOWN",
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        responseTime,
+      };
+    }
+
+    // Get raw response text first
+    const rawResponseText = await response.text();
+
+    // Manually parse the JSON to preserve large number precision
+    // First, let's extract the txnId as a string before parsing
+    const txnIdMatch = rawResponseText.match(/"txnId":(\d+)/);
+    let txnIdString = null;
+    if (txnIdMatch) {
+      txnIdString = txnIdMatch[1];
+    }
+
+    // Parse the raw response as JSON
+    const data = JSON.parse(rawResponseText);
+
+    // If we found a txnId in the raw text, use that exact string value
+    if (txnIdString && data.initResult && data.initResult.txnId) {
+      data.initResult.txnId = txnIdString;
+    }
+
+    if (data.initResult && data.initResult.resultCode === 0) {
+      return {
+        status: "UP",
+        resultCode: 0,
+        responseTime,
+        txnId: data.initResult.txnId,
+      };
+    } else {
+      return {
+        status: "DOWN",
+        resultCode: data.initResult?.resultCode,
+        errorMessage: data.initResult?.resultMessage || "Unknown error",
+        responseTime,
+      };
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    return {
+      status: "DOWN",
+      errorMessage: (error as Error).message || "No response from sandbox environment",
+      responseTime,
+    };
+  }
+}
+
+/**
+ * Helper function to check v2.0 API status for a specific currency with paytype 237
  * @param {number} currency - Currency code (458 for LCY/MYR, 840 for USD)
  * @return {Promise<Object>} Status object with response details
  */
@@ -622,6 +737,109 @@ async function checkCurrencyStatusV2(currency: number): Promise<{
   }
 }
 
+/**
+ * Helper function to check v2.0 API status for a specific currency with paytype 0
+ * @param {number} currency - Currency code (458 for LCY/MYR, 840 for USD)
+ * @return {Promise<Object>} Status object with response details
+ */
+async function checkCurrencyStatusV2Paytype0(currency: number): Promise<{
+  status: string;
+  resultCode?: number;
+  errorMessage?: string;
+  responseTime?: number;
+  txnId?: number;
+}> {
+  const startTime = Date.now();
+
+  try {
+    const requestBody = {
+      initRequest: {
+        country: 458,
+        payType: 0,
+        apiKey: "test_jCZnXkOIuiLsFm6uBkcjsyYUQQi",
+        projectId: 230,
+        orderId: "1321314",
+        currency: currency, // Use 458 for LCY/MYR, 840 for USD
+        items: [
+          {
+            code: "1",
+            price: 1.00,
+            name: "Test Item",
+          },
+        ],
+        profile: {
+          entry: [
+            {
+              key: "user_id",
+              value: "105",
+            },
+          ],
+        },
+      },
+    };
+
+    const response = await fetch("https://sandbox.codapayments.com/airtime/api/restful/v2.0/Payment/init.json", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    const responseTime = Date.now() - startTime;
+
+    if (!response.ok) {
+      return {
+        status: "DOWN",
+        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        responseTime,
+      };
+    }
+
+    // Get raw response text first
+    const rawResponseText = await response.text();
+
+    // Manually parse the JSON to preserve large number precision
+    // First, let's extract the txnId as a string before parsing
+    const txnIdMatch = rawResponseText.match(/"txnId":(\d+)/);
+    let txnIdString = null;
+    if (txnIdMatch) {
+      txnIdString = txnIdMatch[1];
+    }
+
+    // Parse the raw response as JSON
+    const data = JSON.parse(rawResponseText);
+
+    // If we found a txnId in the raw text, use that exact string value
+    if (txnIdString && data.initResult && data.initResult.txnId) {
+      data.initResult.txnId = txnIdString;
+    }
+
+    if (data.initResult && data.initResult.resultCode === 0) {
+      return {
+        status: "UP",
+        resultCode: 0,
+        responseTime,
+        txnId: data.initResult.txnId,
+      };
+    } else {
+      return {
+        status: "DOWN",
+        resultCode: data.initResult?.resultCode,
+        errorMessage: data.initResult?.resultMessage || "Unknown error",
+        responseTime,
+      };
+    }
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    return {
+      status: "DOWN",
+      errorMessage: (error as Error).message || "No response from sandbox environment",
+      responseTime,
+    };
+  }
+}
+
 // Scheduled function to check sandbox status at 9 AM and 1 PM GMT+8
 export const scheduledSandboxCheck = onSchedule({
   schedule: "0 1,5 * * *", // 1 AM and 5 AM UTC = 9 AM and 1 PM GMT+8
@@ -634,35 +852,55 @@ export const scheduledSandboxCheck = onSchedule({
     // Check v1.0 API status
     const v1Results = {
       timestamp: new Date().toISOString(),
-      lcy: await checkCurrencyStatus(458),
-      usd: await checkCurrencyStatus(840),
+      paytype237: {
+        lcy: await checkCurrencyStatus(458),
+        usd: await checkCurrencyStatus(840),
+      },
+      paytype0: {
+        lcy: await checkCurrencyStatusPaytype0(458),
+        usd: await checkCurrencyStatusPaytype0(840),
+      },
     };
 
     logger.info("V1.0 API check completed", {
-      lcyStatus: v1Results.lcy.status,
-      usdStatus: v1Results.usd.status,
+      paytype237LcyStatus: v1Results.paytype237.lcy.status,
+      paytype237UsdStatus: v1Results.paytype237.usd.status,
+      paytype0LcyStatus: v1Results.paytype0.lcy.status,
+      paytype0UsdStatus: v1Results.paytype0.usd.status,
       structuredData: true,
     });
 
     // Check v2.0 API status
     const v2Results = {
       timestamp: new Date().toISOString(),
-      lcy: await checkCurrencyStatusV2(458),
-      usd: await checkCurrencyStatusV2(840),
+      paytype237: {
+        lcy: await checkCurrencyStatusV2(458),
+        usd: await checkCurrencyStatusV2(840),
+      },
+      paytype0: {
+        lcy: await checkCurrencyStatusV2Paytype0(458),
+        usd: await checkCurrencyStatusV2Paytype0(840),
+      },
     };
 
     logger.info("V2.0 API check completed", {
-      lcyStatus: v2Results.lcy.status,
-      usdStatus: v2Results.usd.status,
+      paytype237LcyStatus: v2Results.paytype237.lcy.status,
+      paytype237UsdStatus: v2Results.paytype237.usd.status,
+      paytype0LcyStatus: v2Results.paytype0.lcy.status,
+      paytype0UsdStatus: v2Results.paytype0.usd.status,
       structuredData: true,
     });
 
     // Log summary
     const allServices = [
-      {name: "V1.0 LCY", status: v1Results.lcy.status},
-      {name: "V1.0 USD", status: v1Results.usd.status},
-      {name: "V2.0 LCY", status: v2Results.lcy.status},
-      {name: "V2.0 USD", status: v2Results.usd.status},
+      {name: "V1.0 Paytype237 LCY", status: v1Results.paytype237.lcy.status},
+      {name: "V1.0 Paytype237 USD", status: v1Results.paytype237.usd.status},
+      {name: "V1.0 Paytype0 LCY", status: v1Results.paytype0.lcy.status},
+      {name: "V1.0 Paytype0 USD", status: v1Results.paytype0.usd.status},
+      {name: "V2.0 Paytype237 LCY", status: v2Results.paytype237.lcy.status},
+      {name: "V2.0 Paytype237 USD", status: v2Results.paytype237.usd.status},
+      {name: "V2.0 Paytype0 LCY", status: v2Results.paytype0.lcy.status},
+      {name: "V2.0 Paytype0 USD", status: v2Results.paytype0.usd.status},
     ];
 
     const upServices = allServices.filter((service) => service.status === "UP").length;
@@ -678,39 +916,87 @@ export const scheduledSandboxCheck = onSchedule({
     // Check for failures and send notification email
     const failedChecks = [];
 
-    if (v1Results.lcy.status === "DOWN") {
+    // Check V1.0 Paytype237 failures
+    if (v1Results.paytype237.lcy.status === "DOWN") {
       failedChecks.push({
         version: "v1",
+        paytype: "237",
         currency: "LCY (MYR)",
         status: "DOWN",
-        errorMessage: v1Results.lcy.errorMessage,
+        errorMessage: v1Results.paytype237.lcy.errorMessage,
       });
     }
 
-    if (v1Results.usd.status === "DOWN") {
+    if (v1Results.paytype237.usd.status === "DOWN") {
       failedChecks.push({
         version: "v1",
+        paytype: "237",
         currency: "USD",
         status: "DOWN",
-        errorMessage: v1Results.usd.errorMessage,
+        errorMessage: v1Results.paytype237.usd.errorMessage,
       });
     }
 
-    if (v2Results.lcy.status === "DOWN") {
+    // Check V1.0 Paytype0 failures
+    if (v1Results.paytype0.lcy.status === "DOWN") {
       failedChecks.push({
-        version: "v2",
+        version: "v1",
+        paytype: "0",
         currency: "LCY (MYR)",
         status: "DOWN",
-        errorMessage: v2Results.lcy.errorMessage,
+        errorMessage: v1Results.paytype0.lcy.errorMessage,
       });
     }
 
-    if (v2Results.usd.status === "DOWN") {
+    if (v1Results.paytype0.usd.status === "DOWN") {
       failedChecks.push({
-        version: "v2",
+        version: "v1",
+        paytype: "0",
         currency: "USD",
         status: "DOWN",
-        errorMessage: v2Results.usd.errorMessage,
+        errorMessage: v1Results.paytype0.usd.errorMessage,
+      });
+    }
+
+    // Check V2.0 Paytype237 failures
+    if (v2Results.paytype237.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        paytype: "237",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: v2Results.paytype237.lcy.errorMessage,
+      });
+    }
+
+    if (v2Results.paytype237.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        paytype: "237",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: v2Results.paytype237.usd.errorMessage,
+      });
+    }
+
+    // Check V2.0 Paytype0 failures
+    if (v2Results.paytype0.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        paytype: "0",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: v2Results.paytype0.lcy.errorMessage,
+      });
+    }
+
+    if (v2Results.paytype0.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v2",
+        paytype: "0",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: v2Results.paytype0.usd.errorMessage,
       });
     }
 
@@ -732,7 +1018,7 @@ export const scheduledSandboxCheck = onSchedule({
  * @param {Array} failedChecks - Array of failed check objects
  */
 async function sendFailureNotificationEmail(
-  failedChecks: Array<{version: string, currency: string, status: string, errorMessage?: string}>
+  failedChecks: Array<{version: string, paytype: string, currency: string, status: string, errorMessage?: string}>
 ) {
   try {
     logger.info("Starting to send failure notification email", {
@@ -763,6 +1049,7 @@ async function sendFailureNotificationEmail(
 
     if (v1Failures.length > 0) {
       emailBody += "Failed Version(s): v1\n";
+      emailBody += "Failed Paytypes: " + v1Failures.map((f) => f.paytype).join(", ") + "\n";
       emailBody += "Failed Currency: " + v1Failures.map((f) => f.currency).join(", ") + "\n";
       if (v1Failures.some((f) => f.errorMessage)) {
         emailBody += "Error Details: " + v1Failures.find((f) => f.errorMessage)?.errorMessage + "\n";
@@ -772,6 +1059,7 @@ async function sendFailureNotificationEmail(
 
     if (v2Failures.length > 0) {
       emailBody += "Failed Version(s): v2\n";
+      emailBody += "Failed Paytypes: " + v2Failures.map((f) => f.paytype).join(", ") + "\n";
       emailBody += "Failed Currency: " + v2Failures.map((f) => f.currency).join(", ") + "\n";
       if (v2Failures.some((f) => f.errorMessage)) {
         emailBody += "Error Details: " + v2Failures.find((f) => f.errorMessage)?.errorMessage + "\n";
@@ -883,10 +1171,11 @@ export const triggerMockFail = onRequest({
   }
 
   try {
-    // Simulate a failure in v1 LCY check
+    // Simulate a failure in v1 LCY check with paytype 237
     const mockFailure = [
       {
         version: "v1",
+        paytype: "237",
         currency: "LCY (MYR)",
         status: "DOWN",
         errorMessage: "Mock failure for testing purposes",

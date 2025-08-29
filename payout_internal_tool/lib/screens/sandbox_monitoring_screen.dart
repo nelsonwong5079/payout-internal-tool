@@ -46,6 +46,10 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   String? _currentUsdViewFactory;
   String? _currentLcyViewFactoryV2;
   String? _currentUsdViewFactoryV2;
+  String? _currentLcyViewFactoryPaytype0;
+  String? _currentUsdViewFactoryPaytype0;
+  String? _currentLcyViewFactoryV2Paytype0;
+  String? _currentUsdViewFactoryV2Paytype0;
 
   @override
   void initState() {
@@ -252,12 +256,59 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
         final data = json.decode(responses[0].body);
         if (data['success'] == true) {
           v1Data = data['data'];
-          setState(() {
-            _monitoringData = v1Data;
-          });
+          
+          // Debug logging
+          print('V1 Data received: ${v1Data?.keys.toList()}');
+          
+          // Handle both old and new data structures
+          if (v1Data != null && v1Data.containsKey('paytype237')) {
+            // New structure
+            print('Using new V1 data structure');
+            setState(() {
+              _monitoringData = v1Data;
+            });
+          } else if (v1Data != null && v1Data.containsKey('lcy')) {
+            // Old structure - convert to new structure
+            print('Converting old V1 data structure to new structure');
+            final convertedData = {
+              'timestamp': v1Data['timestamp'],
+              'paytype237': {
+                'lcy': v1Data['lcy'],
+                'usd': v1Data['usd'],
+              },
+              'paytype0': {
+                'lcy': v1Data['lcy'], // Use same data for now
+                'usd': v1Data['usd'], // Use same data for now
+              },
+            };
+            setState(() {
+              _monitoringData = convertedData;
+            });
+            v1Data = convertedData;
+          } else {
+            print('V1 Data structure not recognized: ${v1Data?.keys.toList()}');
+            // Create empty structure to prevent crashes
+            final emptyData = {
+              'timestamp': DateTime.now().toIso8601String(),
+              'paytype237': {
+                'lcy': {'status': 'UNKNOWN', 'responseTime': 0},
+                'usd': {'status': 'UNKNOWN', 'responseTime': 0},
+              },
+              'paytype0': {
+                'lcy': {'status': 'UNKNOWN', 'responseTime': 0},
+                'usd': {'status': 'UNKNOWN', 'responseTime': 0},
+              },
+            };
+            setState(() {
+              _monitoringData = emptyData;
+            });
+            v1Data = emptyData;
+          }
           
           // Add to historical data
-          _addToHistoricalData(_monitoringData!);
+          if (_monitoringData != null) {
+            _addToHistoricalData(_monitoringData!);
+          }
           
           // Register iframe views after data is loaded
           _registerIframeViews();
@@ -275,9 +326,54 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
         final data = json.decode(responses[1].body);
         if (data['success'] == true) {
           v2Data = data['data'];
-          setState(() {
-            _monitoringDataV2 = v2Data;
-          });
+          
+          // Debug logging
+          print('V2 Data received: ${v2Data?.keys.toList()}');
+          
+          // Handle both old and new data structures
+          if (v2Data != null && v2Data.containsKey('paytype237')) {
+            // New structure
+            print('Using new V2 data structure');
+            setState(() {
+              _monitoringDataV2 = v2Data;
+            });
+          } else if (v2Data != null && v2Data.containsKey('lcy')) {
+            // Old structure - convert to new structure
+            print('Converting old V2 data structure to new structure');
+            final convertedData = {
+              'timestamp': v2Data['timestamp'],
+              'paytype237': {
+                'lcy': v2Data['lcy'],
+                'usd': v2Data['usd'],
+              },
+              'paytype0': {
+                'lcy': v2Data['lcy'], // Use same data for now
+                'usd': v2Data['usd'], // Use same data for now
+              },
+            };
+            setState(() {
+              _monitoringDataV2 = convertedData;
+            });
+            v2Data = convertedData;
+          } else {
+            print('V2 Data structure not recognized: ${v2Data?.keys.toList()}');
+            // Create empty structure to prevent crashes
+            final emptyData = {
+              'timestamp': DateTime.now().toIso8601String(),
+              'paytype237': {
+                'lcy': {'status': 'UNKNOWN', 'responseTime': 0},
+                'usd': {'status': 'UNKNOWN', 'responseTime': 0},
+              },
+              'paytype0': {
+                'lcy': {'status': 'UNKNOWN', 'responseTime': 0},
+                'usd': {'status': 'UNKNOWN', 'responseTime': 0},
+              },
+            };
+            setState(() {
+              _monitoringDataV2 = emptyData;
+            });
+            v2Data = emptyData;
+          }
           
           // Register v2 iframe views after data is loaded
           _registerIframeViewsV2();
@@ -316,48 +412,102 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       
       // Check v1 data for failures
       if (v1Data != null) {
-        final lcyStatus = v1Data['lcy']?['status'];
-        final usdStatus = v1Data['usd']?['status'];
+        // Check Paytype237 failures
+        final paytype237LcyStatus = v1Data['paytype237']?['lcy']?['status'];
+        final paytype237UsdStatus = v1Data['paytype237']?['usd']?['status'];
         
-        if (lcyStatus == 'DOWN') {
+        if (paytype237LcyStatus == 'DOWN') {
           failedChecks.add({
             'version': 'v1',
+            'paytype': '237',
             'currency': 'LCY (MYR)',
             'status': 'DOWN',
-            'errorMessage': v1Data['lcy']?['errorMessage'] ?? 'Unknown error',
+            'errorMessage': v1Data['paytype237']?['lcy']?['errorMessage'] ?? 'Unknown error',
           });
         }
         
-        if (usdStatus == 'DOWN') {
+        if (paytype237UsdStatus == 'DOWN') {
           failedChecks.add({
             'version': 'v1',
+            'paytype': '237',
             'currency': 'USD',
             'status': 'DOWN',
-            'errorMessage': v1Data['usd']?['errorMessage'] ?? 'Unknown error',
+            'errorMessage': v1Data['paytype237']?['usd']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+
+        // Check Paytype0 failures
+        final paytype0LcyStatus = v1Data['paytype0']?['lcy']?['status'];
+        final paytype0UsdStatus = v1Data['paytype0']?['usd']?['status'];
+        
+        if (paytype0LcyStatus == 'DOWN') {
+          failedChecks.add({
+            'version': 'v1',
+            'paytype': '0',
+            'currency': 'LCY (MYR)',
+            'status': 'DOWN',
+            'errorMessage': v1Data['paytype0']?['lcy']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+        
+        if (paytype0UsdStatus == 'DOWN') {
+          failedChecks.add({
+            'version': 'v1',
+            'paytype': '0',
+            'currency': 'USD',
+            'status': 'DOWN',
+            'errorMessage': v1Data['paytype0']?['usd']?['errorMessage'] ?? 'Unknown error',
           });
         }
       }
       
       // Check v2 data for failures
       if (v2Data != null) {
-        final lcyStatusV2 = v2Data['lcy']?['status'];
-        final usdStatusV2 = v2Data['usd']?['status'];
+        // Check Paytype237 failures
+        final paytype237LcyStatusV2 = v2Data['paytype237']?['lcy']?['status'];
+        final paytype237UsdStatusV2 = v2Data['paytype237']?['usd']?['status'];
         
-        if (lcyStatusV2 == 'DOWN') {
+        if (paytype237LcyStatusV2 == 'DOWN') {
           failedChecks.add({
             'version': 'v2',
+            'paytype': '237',
             'currency': 'LCY (MYR)',
             'status': 'DOWN',
-            'errorMessage': v2Data['lcy']?['errorMessage'] ?? 'Unknown error',
+            'errorMessage': v2Data['paytype237']?['lcy']?['errorMessage'] ?? 'Unknown error',
           });
         }
         
-        if (usdStatusV2 == 'DOWN') {
+        if (paytype237UsdStatusV2 == 'DOWN') {
           failedChecks.add({
             'version': 'v2',
+            'paytype': '237',
             'currency': 'USD',
             'status': 'DOWN',
-            'errorMessage': v2Data['usd']?['errorMessage'] ?? 'Unknown error',
+            'errorMessage': v2Data['paytype237']?['usd']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+
+        // Check Paytype0 failures
+        final paytype0LcyStatusV2 = v2Data['paytype0']?['lcy']?['status'];
+        final paytype0UsdStatusV2 = v2Data['paytype0']?['usd']?['status'];
+        
+        if (paytype0LcyStatusV2 == 'DOWN') {
+          failedChecks.add({
+            'version': 'v2',
+            'paytype': '0',
+            'currency': 'LCY (MYR)',
+            'status': 'DOWN',
+            'errorMessage': v2Data['paytype0']?['lcy']?['errorMessage'] ?? 'Unknown error',
+          });
+        }
+        
+        if (paytype0UsdStatusV2 == 'DOWN') {
+          failedChecks.add({
+            'version': 'v2',
+            'paytype': '0',
+            'currency': 'USD',
+            'status': 'DOWN',
+            'errorMessage': v2Data['paytype0']?['usd']?['errorMessage'] ?? 'Unknown error',
           });
         }
       }
@@ -482,18 +632,24 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   void _registerIframeViews() {
     if (_isIframeRegistered || _monitoringData == null) return;
     
-    final lcyTxnId = _monitoringData!['lcy']['txnId'];
-    final usdTxnId = _monitoringData!['usd']['txnId'];
+    // Get transaction IDs for both paytypes
+    final paytype237LcyTxnId = _monitoringData!['paytype237']?['lcy']?['txnId'];
+    final paytype237UsdTxnId = _monitoringData!['paytype237']?['usd']?['txnId'];
+    final paytype0LcyTxnId = _monitoringData!['paytype0']?['lcy']?['txnId'];
+    final paytype0UsdTxnId = _monitoringData!['paytype0']?['usd']?['txnId'];
     
     // Generate unique view factory names with timestamp to ensure fresh content
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final lcyViewFactoryName = 'lcy-sandbox-iframe-$timestamp';
-    final usdViewFactoryName = 'usd-sandbox-iframe-$timestamp';
+    final paytype237LcyViewFactoryName = 'lcy-sandbox-iframe-paytype237-$timestamp';
+    final paytype237UsdViewFactoryName = 'usd-sandbox-iframe-paytype237-$timestamp';
+    final paytype0LcyViewFactoryName = 'lcy-sandbox-iframe-paytype0-$timestamp';
+    final paytype0UsdViewFactoryName = 'usd-sandbox-iframe-paytype0-$timestamp';
     
-    if (lcyTxnId != null) {
-      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$lcyTxnId';
+    // Register Paytype 237 iframes
+    if (paytype237LcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype237LcyTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        lcyViewFactoryName,
+        paytype237LcyViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = lcyUrl
           ..style.border = 'none'
@@ -510,10 +666,51 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       );
     }
     
-    if (usdTxnId != null) {
-      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$usdTxnId';
+    if (paytype237UsdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype237UsdTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        usdViewFactoryName,
+        paytype237UsdViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = usdUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    // Register Paytype 0 iframes
+    if (paytype0LcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype0LcyTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        paytype0LcyViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = lcyUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    if (paytype0UsdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype0UsdTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        paytype0UsdViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = usdUrl
           ..style.border = 'none'
@@ -533,8 +730,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     setState(() {
       _isIframeRegistered = true;
       // Store the current view factory names for use in the UI
-      _currentLcyViewFactory = lcyViewFactoryName;
-      _currentUsdViewFactory = usdViewFactoryName;
+      _currentLcyViewFactory = paytype237LcyViewFactoryName;
+      _currentUsdViewFactory = paytype237UsdViewFactoryName;
+      // Store Paytype 0 view factory names
+      _currentLcyViewFactoryPaytype0 = paytype0LcyViewFactoryName;
+      _currentUsdViewFactoryPaytype0 = paytype0UsdViewFactoryName;
     });
   }
 
@@ -542,18 +742,24 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   void _registerIframeViewsV2() {
     if (_isIframeRegisteredV2 || _monitoringDataV2 == null) return;
     
-    final lcyTxnId = _monitoringDataV2!['lcy']['txnId'];
-    final usdTxnId = _monitoringDataV2!['usd']['txnId'];
+    // Get transaction IDs for both paytypes
+    final paytype237LcyTxnId = _monitoringDataV2!['paytype237']?['lcy']?['txnId'];
+    final paytype237UsdTxnId = _monitoringDataV2!['paytype237']?['usd']?['txnId'];
+    final paytype0LcyTxnId = _monitoringDataV2!['paytype0']?['lcy']?['txnId'];
+    final paytype0UsdTxnId = _monitoringDataV2!['paytype0']?['usd']?['txnId'];
     
     // Generate unique view factory names with timestamp to ensure fresh content
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final lcyViewFactoryName = 'lcy-sandbox-iframe-v2-$timestamp';
-    final usdViewFactoryName = 'usd-sandbox-iframe-v2-$timestamp';
+    final paytype237LcyViewFactoryName = 'lcy-sandbox-iframe-v2-paytype237-$timestamp';
+    final paytype237UsdViewFactoryName = 'usd-sandbox-iframe-v2-paytype237-$timestamp';
+    final paytype0LcyViewFactoryName = 'lcy-sandbox-iframe-v2-paytype0-$timestamp';
+    final paytype0UsdViewFactoryName = 'usd-sandbox-iframe-v2-paytype0-$timestamp';
     
-    if (lcyTxnId != null) {
-      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$lcyTxnId';
+    // Register Paytype 237 iframes
+    if (paytype237LcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype237LcyTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        lcyViewFactoryName,
+        paytype237LcyViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = lcyUrl
           ..style.border = 'none'
@@ -570,10 +776,51 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
       );
     }
     
-    if (usdTxnId != null) {
-      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$usdTxnId';
+    if (paytype237UsdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype237UsdTxnId';
       ui_web.platformViewRegistry.registerViewFactory(
-        usdViewFactoryName,
+        paytype237UsdViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = usdUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    // Register Paytype 0 iframes
+    if (paytype0LcyTxnId != null) {
+      final lcyUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype0LcyTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        paytype0LcyViewFactoryName,
+        (int viewId) => html.IFrameElement()
+          ..src = lcyUrl
+          ..style.border = 'none'
+          ..style.width = '100%'
+          ..style.height = '100%'
+          // Security restrictions to prevent popups and unwanted behaviors
+          ..setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms')
+          ..setAttribute('allow', 'payment') // Allow payment APIs if needed
+          ..setAttribute('referrerpolicy', 'no-referrer') // Don't send referrer info
+          ..setAttribute('loading', 'lazy') // Lazy load for performance
+          // Additional security attributes
+          ..setAttribute('allowfullscreen', 'false')
+          ..setAttribute('allowpaymentrequest', 'false'),
+      );
+    }
+    
+    if (paytype0UsdTxnId != null) {
+      final usdUrl = 'https://sandbox.codapayments.com/airtime/begin?type=3&txn_id=$paytype0UsdTxnId';
+      ui_web.platformViewRegistry.registerViewFactory(
+        paytype0UsdViewFactoryName,
         (int viewId) => html.IFrameElement()
           ..src = usdUrl
           ..style.border = 'none'
@@ -593,8 +840,11 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     setState(() {
       _isIframeRegisteredV2 = true;
       // Store the current view factory names for use in the UI
-      _currentLcyViewFactoryV2 = lcyViewFactoryName;
-      _currentUsdViewFactoryV2 = usdViewFactoryName;
+      _currentLcyViewFactoryV2 = paytype237LcyViewFactoryName;
+      _currentUsdViewFactoryV2 = paytype237UsdViewFactoryName;
+      // Store Paytype 0 view factory names for V2
+      _currentLcyViewFactoryV2Paytype0 = paytype0LcyViewFactoryName;
+      _currentUsdViewFactoryV2Paytype0 = paytype0UsdViewFactoryName;
     });
   }
 
@@ -607,8 +857,8 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
   void _addToHistoricalData(Map<String, dynamic> data) {
     final newRecord = {
       'timestamp': data['timestamp'],
-      'lcy': data['lcy'],
-      'usd': data['usd'],
+      'paytype237': data['paytype237'],
+      'paytype0': data['paytype0'],
     };
     
     setState(() {
@@ -640,15 +890,21 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
     bool v2Up = false;
     
     if (_monitoringData != null) {
-      final lcyStatus = _monitoringData!['lcy']['status'];
-      final usdStatus = _monitoringData!['usd']['status'];
-      v1Up = lcyStatus == 'UP' && usdStatus == 'UP';
+      final paytype237LcyStatus = _monitoringData!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN';
+      final paytype237UsdStatus = _monitoringData!['paytype237']?['usd']?['status'] ?? 'UNKNOWN';
+      final paytype0LcyStatus = _monitoringData!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN';
+      final paytype0UsdStatus = _monitoringData!['paytype0']?['usd']?['status'] ?? 'UNKNOWN';
+      v1Up = paytype237LcyStatus == 'UP' && paytype237UsdStatus == 'UP' &&
+              paytype0LcyStatus == 'UP' && paytype0UsdStatus == 'UP';
     }
     
     if (_monitoringDataV2 != null) {
-      final lcyStatusV2 = _monitoringDataV2!['lcy']['status'];
-      final usdStatusV2 = _monitoringDataV2!['usd']['status'];
-      v2Up = lcyStatusV2 == 'UP' && usdStatusV2 == 'UP';
+      final paytype237LcyStatusV2 = _monitoringDataV2!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN';
+      final paytype237UsdStatusV2 = _monitoringDataV2!['paytype237']?['usd']?['status'] ?? 'UNKNOWN';
+      final paytype0LcyStatusV2 = _monitoringDataV2!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN';
+      final paytype0UsdStatusV2 = _monitoringDataV2!['paytype0']?['usd']?['status'] ?? 'UNKNOWN';
+      v2Up = paytype237LcyStatusV2 == 'UP' && paytype237UsdStatusV2 == 'UP' &&
+             paytype0LcyStatusV2 == 'UP' && paytype0UsdStatusV2 == 'UP';
     }
     
     return Container(
@@ -954,12 +1210,58 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                     const SizedBox(height: 8),
                     if (_monitoringData != null) ...[
-                      _buildCurrencyStatusItem('LCY', _monitoringData!['lcy']['status'], '458'),
+                      // Paytype 237
+                      Text(
+                        'Paytype 237:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      _buildCurrencyStatusItem('USD', _monitoringData!['usd']['status'], '840'),
+                      _buildCurrencyStatusItem('LCY', _monitoringData!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', _monitoringData!['paytype237']?['usd']?['status'] ?? 'UNKNOWN', '840'),
+                      const SizedBox(height: 8),
+                      // Paytype 0
+                      Text(
+                        'Paytype 0:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', _monitoringData!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', _monitoringData!['paytype0']?['usd']?['status'] ?? 'UNKNOWN', '840'),
                     ] else ...[
-                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      Text(
+                        'Paytype 237:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
                       const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Paytype 0:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
                       _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
                     ],
                   ],
@@ -981,12 +1283,58 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                     ),
                     const SizedBox(height: 8),
                     if (_monitoringDataV2 != null) ...[
-                      _buildCurrencyStatusItem('LCY', _monitoringDataV2!['lcy']['status'], '458'),
+                      // Paytype 237
+                      Text(
+                        'Paytype 237:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      _buildCurrencyStatusItem('USD', _monitoringDataV2!['usd']['status'], '840'),
+                      _buildCurrencyStatusItem('LCY', _monitoringDataV2!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', _monitoringDataV2!['paytype237']?['usd']?['status'] ?? 'UNKNOWN', '840'),
+                      const SizedBox(height: 8),
+                      // Paytype 0
+                      Text(
+                        'Paytype 0:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', _monitoringDataV2!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', _monitoringDataV2!['paytype0']?['usd']?['status'] ?? 'UNKNOWN', '840'),
                     ] else ...[
-                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      Text(
+                        'Paytype 237:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
                       const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
+                      _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Paytype 0:',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white.withOpacity(0.7),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _buildCurrencyStatusItem('LCY', 'UNKNOWN', '458'),
+                      const SizedBox(height: 2),
                       _buildCurrencyStatusItem('USD', 'UNKNOWN', '840'),
                     ],
                   ],
@@ -1046,10 +1394,19 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   // Build metrics grid only (without header)
   Widget _buildMetricsGrid() {
-    final lcyStatus = _monitoringData!['lcy']['status'];
-    final usdStatus = _monitoringData!['usd']['status'];
-    final totalServices = 2;
-    final upServices = (lcyStatus == 'UP' ? 1 : 0) + (usdStatus == 'UP' ? 1 : 0);
+    if (_monitoringData == null) {
+      return Container(); // Return empty container if no data
+    }
+    
+    final paytype237LcyStatus = _monitoringData!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN';
+    final paytype237UsdStatus = _monitoringData!['paytype237']?['usd']?['status'] ?? 'UNKNOWN';
+    final paytype0LcyStatus = _monitoringData!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN';
+    final paytype0UsdStatus = _monitoringData!['paytype0']?['usd']?['status'] ?? 'UNKNOWN';
+    final totalServices = 4;
+    final upServices = (paytype237LcyStatus == 'UP' ? 1 : 0) + 
+                      (paytype237UsdStatus == 'UP' ? 1 : 0) +
+                      (paytype0LcyStatus == 'UP' ? 1 : 0) + 
+                      (paytype0UsdStatus == 'UP' ? 1 : 0);
     final downServices = totalServices - upServices;
     final uptimePercentage = (upServices / totalServices * 100).round();
     
@@ -1224,7 +1581,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '${_monitoringData!['lcy']['responseTime'] ?? 0}ms',
+                  '${_monitoringData!['paytype237']?['lcy']?['responseTime'] ?? 0}ms',
                   style: TextStyle(
                     fontSize: 32,
                     fontWeight: FontWeight.w900,
@@ -1313,10 +1670,19 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   // Build enhanced metrics overview dashboard
   Widget _buildMetricsOverview() {
-    final lcyStatus = _monitoringData!['lcy']['status'];
-    final usdStatus = _monitoringData!['usd']['status'];
-    final totalServices = 2;
-    final upServices = (lcyStatus == 'UP' ? 1 : 0) + (usdStatus == 'UP' ? 1 : 0);
+    if (_monitoringData == null) {
+      return Container(); // Return empty container if no data
+    }
+    
+    final paytype237LcyStatus = _monitoringData!['paytype237']?['lcy']?['status'] ?? 'UNKNOWN';
+    final paytype237UsdStatus = _monitoringData!['paytype237']?['usd']?['status'] ?? 'UNKNOWN';
+    final paytype0LcyStatus = _monitoringData!['paytype0']?['lcy']?['status'] ?? 'UNKNOWN';
+    final paytype0UsdStatus = _monitoringData!['paytype0']?['usd']?['status'] ?? 'UNKNOWN';
+    final totalServices = 4;
+    final upServices = (paytype237LcyStatus == 'UP' ? 1 : 0) + 
+                      (paytype237UsdStatus == 'UP' ? 1 : 0) +
+                      (paytype0LcyStatus == 'UP' ? 1 : 0) + 
+                      (paytype0UsdStatus == 'UP' ? 1 : 0);
     final downServices = totalServices - upServices;
     final uptimePercentage = (upServices / totalServices * 100).round();
     
@@ -1562,7 +1928,7 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        '${_monitoringData!['lcy']['responseTime'] ?? 'N/A'}ms',
+                        '${_monitoringData!['paytype237']?['lcy']?['responseTime'] ?? 'N/A'}ms',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.w900,
@@ -1590,11 +1956,46 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   // Build enhanced status card for a currency
   Widget _buildEnhancedStatusCard(String currency, String title, Map<String, dynamic> statusData, String iframeKey) {
-    final isUp = statusData['status'] == 'UP';
+    final isUp = (statusData['status'] ?? 'UNKNOWN') == 'UP';
     final resultCode = statusData['resultCode'];
-    final errorMessage = statusData['errorMessage'];
+    final errorMessage = statusData['errorMessage'] ?? '';
     final responseTime = statusData['responseTime'];
     final txnId = statusData['txnId'];
+    
+    // Add null safety for statusData
+    if (statusData.isEmpty) {
+      return Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.withOpacity(0.3), width: 2),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'No data available',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     
     return Container(
       decoration: BoxDecoration(
@@ -2034,8 +2435,24 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   final index = entry.key;
                   final record = entry.value;
                   final timestamp = _formatTimestamp(record['timestamp']);
-                  final lcyStatus = record['lcy']['status'];
-                  final usdStatus = record['usd']['status'];
+                  
+                  // Handle both old and new data structures for historical data
+                  String lcyStatus;
+                  String usdStatus;
+                  
+                  if (record.containsKey('paytype237')) {
+                    // New structure
+                    lcyStatus = record['paytype237']?['lcy']?['status'] ?? 'UNKNOWN';
+                    usdStatus = record['paytype237']?['usd']?['status'] ?? 'UNKNOWN';
+                  } else if (record.containsKey('lcy')) {
+                    // Old structure
+                    lcyStatus = record['lcy']?['status'] ?? 'UNKNOWN';
+                    usdStatus = record['usd']?['status'] ?? 'UNKNOWN';
+                  } else {
+                    // Fallback
+                    lcyStatus = 'UNKNOWN';
+                    usdStatus = 'UNKNOWN';
+                  }
                   
                   return Container(
                     padding: const EdgeInsets.all(8),
@@ -2679,14 +3096,28 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                   */
                   
                   // Compact Status Cards
+                  // Paytype 237 Status Cards
                   Row(
                     children: [
                       Expanded(
-                        child: _buildEnhancedStatusCard('414', 'LCY Currency Check', _monitoringData!['lcy'], _currentLcyViewFactory ?? 'lcy-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('414', 'LCY Paytype 237', _monitoringData!['paytype237']?['lcy'] ?? {}, _currentLcyViewFactory ?? 'lcy-sandbox-iframe'),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: _buildEnhancedStatusCard('840', 'USD Currency Check', _monitoringData!['usd'], _currentUsdViewFactory ?? 'usd-sandbox-iframe'),
+                        child: _buildEnhancedStatusCard('840', 'USD Paytype 237', _monitoringData!['paytype237']?['usd'] ?? {}, _currentUsdViewFactory ?? 'usd-sandbox-iframe'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Paytype 0 Status Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildEnhancedStatusCard('414', 'LCY Paytype 0', _monitoringData!['paytype0']?['lcy'] ?? {}, _currentLcyViewFactoryPaytype0 ?? 'lcy-sandbox-iframe-paytype0'),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildEnhancedStatusCard('840', 'USD Paytype 0', _monitoringData!['paytype0']?['usd'] ?? {}, _currentUsdViewFactoryPaytype0 ?? 'usd-sandbox-iframe-paytype0'),
                       ),
                     ],
                   ),
@@ -2749,14 +3180,28 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
                             ],
                           ),
                           const SizedBox(height: 12),
+                          // Paytype 237 Status Cards
                           Row(
                             children: [
                               Expanded(
-                                child: _buildEnhancedStatusCard('458', 'LCY v2.0 Check', _monitoringDataV2!['lcy'], _currentLcyViewFactoryV2 ?? 'lcy-sandbox-iframe-v2'),
+                                child: _buildEnhancedStatusCard('458', 'LCY v2.0 Paytype 237', _monitoringDataV2!['paytype237']?['lcy'] ?? {}, _currentLcyViewFactoryV2 ?? 'lcy-sandbox-iframe-v2'),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
-                                child: _buildEnhancedStatusCard('840', 'USD v2.0 Check', _monitoringDataV2!['usd'], _currentUsdViewFactoryV2 ?? 'usd-sandbox-iframe-v2'),
+                                child: _buildEnhancedStatusCard('840', 'USD v2.0 Paytype 237', _monitoringDataV2!['paytype237']?['usd'] ?? {}, _currentUsdViewFactoryV2 ?? 'usd-sandbox-iframe-v2'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          // Paytype 0 Status Cards
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildEnhancedStatusCard('458', 'LCY v2.0 Paytype 0', _monitoringDataV2!['paytype0']?['lcy'] ?? {}, _currentLcyViewFactoryV2Paytype0 ?? 'lcy-sandbox-iframe-v2-paytype0'),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _buildEnhancedStatusCard('840', 'USD v2.0 Paytype 0', _monitoringDataV2!['paytype0']?['usd'] ?? {}, _currentUsdViewFactoryV2Paytype0 ?? 'usd-sandbox-iframe-v2-paytype0'),
                               ),
                             ],
                           ),
