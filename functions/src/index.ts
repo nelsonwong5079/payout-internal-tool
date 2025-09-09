@@ -373,12 +373,87 @@ export const checkSandboxStatus = onRequest(async (request, response) => {
       },
     };
 
+    // Check for any DOWN statuses and prepare failedChecks array
+    const failedChecks = [];
+
+    // Check Paytype237 failures
+    if (results.paytype237.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        paytype: "237",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: results.paytype237.lcy.errorMessage,
+      });
+    }
+
+    if (results.paytype237.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        paytype: "237",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: results.paytype237.usd.errorMessage,
+      });
+    }
+
+    // Check Paytype0 failures
+    if (results.paytype0.lcy.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        paytype: "0",
+        currency: "LCY (MYR)",
+        status: "DOWN",
+        errorMessage: results.paytype0.lcy.errorMessage,
+      });
+    }
+
+    if (results.paytype0.usd.status === "DOWN") {
+      failedChecks.push({
+        version: "v1",
+        paytype: "0",
+        currency: "USD",
+        status: "DOWN",
+        errorMessage: results.paytype0.usd.errorMessage,
+      });
+    }
+
+    // If any checks failed, send notification email
+    if (failedChecks.length > 0) {
+      await sendFailureNotificationEmail(failedChecks);
+      logger.info("Failure notification sent for sandbox check", {
+        failedChecks: failedChecks.length,
+        structuredData: true,
+      });
+    }
+
     response.status(200).json({
       success: true,
       data: results,
     });
   } catch (error) {
     logger.error("Error checking sandbox status", error);
+
+    // Create a failedCheck entry for the general error
+    const failedChecks = [{
+      version: "v1",
+      paytype: "all",
+      currency: "all",
+      status: "DOWN",
+      errorMessage: (error as Error).message || "Network error occurred while checking sandbox status",
+    }];
+
+    // Send notification email for the error
+    try {
+      await sendFailureNotificationEmail(failedChecks);
+      logger.info("Failure notification sent for general error", {
+        error: (error as Error).message,
+        structuredData: true,
+      });
+    } catch (emailError) {
+      logger.error("Failed to send error notification email", emailError);
+    }
+
     response.status(500).json({
       success: false,
       error: (error as Error).message,
@@ -469,26 +544,47 @@ async function checkCurrencyStatus(currency: number): Promise<{
       },
     };
 
-    const response = await fetch("https://sandbox.codapayments.com/airtime/api/restful/v1.0/Payment/init.json", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
+    // Create a timeout promise
+    const timeout = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Request timeout after 30 seconds")), 30000);
+    });
+
+    // Race between the fetch and timeout
+    const response = await Promise.race([
+      fetch("https://sandbox.codapayments.com/airtime/api/restful/v1.0/Payment/init.json", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }),
+      timeout,
+    ]).catch((error) => {
+      throw new Error(`Network request failed: ${error.message}`);
     });
 
     const responseTime = Date.now() - startTime;
 
     if (!response.ok) {
+      const errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      logger.error("API request failed", {
+        currency,
+        status: response.status,
+        statusText: response.statusText,
+        responseTime,
+        structuredData: true,
+      });
       return {
         status: "DOWN",
-        errorMessage: `HTTP ${response.status}: ${response.statusText}`,
+        errorMessage,
         responseTime,
       };
     }
 
     // Get raw response text first
-    const rawResponseText = await response.text();
+    const rawResponseText = await response.text().catch((error) => {
+      throw new Error(`Failed to read response: ${error.message}`);
+    });
 
     // Manually parse the JSON to preserve large number precision
     // First, let's extract the txnId as a string before parsing
@@ -523,9 +619,18 @@ async function checkCurrencyStatus(currency: number): Promise<{
     }
   } catch (error) {
     const responseTime = Date.now() - startTime;
+    const errorMessage = (error as Error).message || "No response from sandbox environment";
+
+    logger.error("Error in currency status check", {
+      currency,
+      error: errorMessage,
+      responseTime,
+      structuredData: true,
+    });
+
     return {
       status: "DOWN",
-      errorMessage: (error as Error).message || "No response from sandbox environment",
+      errorMessage,
       responseTime,
     };
   }
@@ -840,13 +945,30 @@ async function checkCurrencyStatusV2Paytype0(currency: number): Promise<{
   }
 }
 
-// Scheduled function to check sandbox status at 9 AM and 1 PM GMT+8
+// Scheduled function to check sandbox status every hour from 9 AM to 6 PM GMT+8
 export const scheduledSandboxCheck = onSchedule({
-  schedule: "0 1,5 * * *", // 1 AM and 5 AM UTC = 9 AM and 1 PM GMT+8
+  // Run every hour from 1 AM to 10 AM UTC (9 AM to 6 PM GMT+8)
+  schedule: "0 1-10 * * *",
   timeZone: "UTC",
   secrets: [emailAppPassword],
 }, async () => {
-  logger.info("Starting scheduled sandbox status check", {structuredData: true});
+  // Get current hour in GMT+8
+  const now = new Date();
+  const gmt8Hour = (now.getUTCHours() + 8) % 24;
+
+  // Only run between 9 AM and 6 PM GMT+8
+  if (gmt8Hour < 9 || gmt8Hour > 18) {
+    logger.info("Outside of working hours in GMT+8, skipping check", {
+      currentHourGMT8: gmt8Hour,
+      structuredData: true,
+    });
+    return;
+  }
+
+  logger.info("Starting scheduled sandbox status check", {
+    currentHourGMT8: gmt8Hour,
+    structuredData: true,
+  });
 
   try {
     // Check v1.0 API status
@@ -910,6 +1032,7 @@ export const scheduledSandboxCheck = onSchedule({
       upServices,
       totalServices,
       uptimePercentage: Math.round((upServices / totalServices) * 100),
+      currentHourGMT8: gmt8Hour,
       structuredData: true,
     });
 
