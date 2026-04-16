@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
+import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
+import 'screens/whitelabel_json_screen.dart';
 import 'main.dart' as main_app;
 
 void main() async {
@@ -131,11 +133,15 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
   final List<Widget> _pages = [
     const main_app.EmailSenderPage(),
     const SandboxMonitoringScreen(),
+    const WhitelabelJsonScreen(),
+    const CodaPayoutJwtGeneratorScreen(),
   ];
 
   final List<String> _pageTitles = [
     'Payout Internal Tool',
     'Payin - Sandbox Monitoring',
+    'Whitelabel JSON Generator',
+    'Coda Payout JWT Generator',
   ];
 
   @override
@@ -156,7 +162,13 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
-                _currentIndex == 0 ? Icons.account_balance_wallet : Icons.monitor_heart,
+                _currentIndex == 0
+                    ? Icons.account_balance_wallet
+                    : _currentIndex == 1
+                        ? Icons.monitor_heart
+                        : _currentIndex == 2
+                            ? Icons.palette
+                            : Icons.vpn_key,
                 color: Colors.white,
                 size: 24,
               ),
@@ -256,6 +268,20 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                     1,
                     'Payin - Sandbox Monitoring',
                     Icons.monitor_heart,
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavItem(
+                    2,
+                    'Whitelabel JSON',
+                    Icons.palette,
+                  ),
+                ),
+                Expanded(
+                  child: _buildNavItem(
+                    3,
+                    'Payout JWT Generator',
+                    Icons.vpn_key,
                   ),
                 ),
               ],

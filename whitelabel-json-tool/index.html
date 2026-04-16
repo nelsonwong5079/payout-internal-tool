@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Payout - Unified Whitelabel JSON Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #050816;
+        color: #f9fafb;
+      }
+      .app-shell {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 340px;
+        padding: 24px 20px;
+        background: radial-gradient(circle at top left, #111827 0%, #020617 40%, #000 100%);
+        border-right: 1px solid rgba(148, 163, 184, 0.25);
+      }
+      .sidebar-header {
+        margin-bottom: 24px;
+      }
+      .sidebar-title {
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+      .sidebar-subtitle {
+        margin-top: 4px;
+        font-size: 12px;
+        color: #9ca3af;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: rgba(37, 99, 235, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.4);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #bfdbfe;
+      }
+      .badge-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: #60a5fa;
+        box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.35);
+      }
+      .section {
+        margin-top: 18px;
+        padding: 14px 14px 12px;
+        border-radius: 14px;
+        background: radial-gradient(circle at top, rgba(31, 41, 55, 0.7), rgba(15, 23, 42, 0.9));
+        border: 1px solid rgba(55, 65, 81, 0.9);
+      }
+      .section-title {
+        font-size: 13px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #e5e7eb;
+        margin-bottom: 10px;
+      }
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+      .field-label {
+        font-size: 12px;
+        font-weight: 500;
+        color: #d1d5db;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+      }
+      .field-hint {
+        font-size: 11px;
+        color: #9ca3af;
+      }
+      .field input[type="text"],
+      .field input[type="url"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 9px;
+        border: 1px solid rgba(75, 85, 99, 0.9);
+        background: rgba(15, 23, 42, 0.9);
+        color: #f9fafb;
+        font-size: 13px;
+      }
+      .field input[type="text"]:focus,
+      .field input[type="url"]:focus {
+        outline: none;
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.75);
+      }
+      .color-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .color-row input[type="color"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 32px;
+        height: 28px;
+        border-radius: 8px;
+        border: 1px solid rgba(75, 85, 99, 0.9);
+        padding: 0;
+        background: transparent;
+      }
+      .color-row input[type="color"]::-webkit-color-swatch {
+        border-radius: 6px;
+        border: none;
+      }
+      .color-row input[type="color"]::-moz-color-swatch {
+        border-radius: 6px;
+        border: none;
+      }
+      .toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+        user-select: none;
+        padding: 6px 8px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(55, 65, 81, 0.9);
+      }
+      .toggle-track {
+        width: 38px;
+        height: 20px;
+        border-radius: 999px;
+        background: #111827;
+        border: 1px solid rgba(75, 85, 99, 0.9);
+        position: relative;
+        transition: background 0.18s ease, border-color 0.18s ease;
+      }
+      .toggle-thumb {
+        position: absolute;
+        top: 1px;
+        left: 1px;
+        width: 16px;
+        height: 16px;
+        border-radius: 999px;
+        background: #e5e7eb;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.45);
+        transition: transform 0.18s ease;
+      }
+      .toggle-track.on {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        border-color: rgba(34, 197, 94, 0.8);
+      }
+      .toggle-track.on .toggle-thumb {
+        transform: translateX(16px);
+      }
+      .toggle-label {
+        font-size: 12px;
+        color: #d1d5db;
+      }
+      .toggle-label span {
+        font-weight: 600;
+      }
+      .main {
+        flex: 1;
+        padding: 24px 24px 24px 20px;
+        display: flex;
+        flex-direction: column;
+      }
+      .main-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .main-title {
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .pill {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        background: rgba(15, 23, 42, 0.95);
+        border: 1px solid rgba(75, 85, 99, 0.9);
+        color: #9ca3af;
+      }
+      .json-shell {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        border-radius: 16px;
+        background: radial-gradient(circle at top left, #020617 0%, #020617 40%, #000 100%);
+        border: 1px solid rgba(55, 65, 81, 0.9);
+        box-shadow: 0 22px 45px rgba(15, 23, 42, 0.95);
+        overflow: hidden;
+      }
+      .json-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(31, 41, 55, 1);
+        background: linear-gradient(90deg, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.85));
+      }
+      .json-toolbar-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+      }
+      .json-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: #22c55e;
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.3);
+      }
+      .copy-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(56, 189, 248, 0.75);
+        background: radial-gradient(circle at top left, rgba(8, 47, 73, 0.95), rgba(8, 47, 73, 0.75));
+        color: #e0f2fe;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        border-color: rgba(56, 189, 248, 1);
+        box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.65);
+      }
+      .json-output {
+        flex: 1;
+        padding: 14px 14px 16px;
+        overflow: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #e5e7eb;
+        background: radial-gradient(circle at top left, #020617 0%, #020617 35%, #000 100%);
+      }
+      .json-output pre {
+        margin: 0;
+        white-space: pre;
+      }
+      .pill-small {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 2px 8px;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1px solid rgba(55, 65, 81, 0.9);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+      }
+      .pill-small-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #3b82f6;
+      }
+      @media (max-width: 960px) {
+        .app-shell {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid rgba(55, 65, 81, 0.9);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="./whitelabel-tool.js"></script>
+  </body>
+</html>
+

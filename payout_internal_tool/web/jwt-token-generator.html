@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coda Payout JWT Token Generator</title>
+  <style>
+    :root {
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #dbe3ee;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --danger: #dc2626;
+      --success: #059669;
+      --warning-bg: #fff7ed;
+      --warning-border: #fdba74;
+      --warning-text: #9a3412;
+      --output-bg: #0f172a;
+      --output-text: #e5e7eb;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 920px;
+      margin: 16px auto;
+      padding: 0 16px 16px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .subtitle {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .warning {
+      margin-bottom: 18px;
+      padding: 12px 14px;
+      border: 1px solid var(--warning-border);
+      background: var(--warning-bg);
+      color: var(--warning-text);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .helper-text {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .iat-row {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .iat-row input {
+      flex: 1;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease, opacity 0.15s ease, transform 0.05s ease;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-hover);
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .btn-secondary:hover {
+      background: #d1d5db;
+    }
+
+    .btn-ghost {
+      background: #f3f4f6;
+      color: #111827;
+      border: 1px solid var(--border);
+    }
+
+    .btn-ghost:hover {
+      background: #e5e7eb;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+      margin-bottom: 18px;
+    }
+
+    .message {
+      min-height: 22px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .message.success {
+      color: var(--success);
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+
+    .output-box {
+      background: var(--output-bg);
+      color: var(--output-text);
+      border-radius: 10px;
+      padding: 12px;
+      border: 1px solid #1e293b;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "Courier New", Courier, monospace;
+      font-size: 12.5px;
+      min-height: 56px;
+    }
+
+    .token-box {
+      min-height: 96px;
+    }
+
+    .token-helper {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      background: #111827;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 10px;
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+      font-size: 13px;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    @media (max-width: 640px) {
+      .iat-row {
+        flex-direction: column;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Coda Payout JWT Token Generator</h1>
+      <p class="subtitle">
+        Generate a payout authentication JWT locally in your browser for internal testing and documentation support.
+      </p>
+
+      <div class="warning">
+        For testing / troubleshooting only. Do not expose your secret key publicly.
+      </div>
+
+      <div class="form-group">
+        <label for="partnerId">Partner ID</label>
+        <input type="text" id="partnerId" placeholder="Enter partner_id" autocomplete="off" />
+      </div>
+
+      <div class="form-group">
+        <label for="iat">IAT (UTC Unix timestamp)</label>
+        <div class="iat-row">
+          <input type="text" id="iat" placeholder="Enter UTC Unix timestamp" autocomplete="off" />
+          <button type="button" class="btn btn-ghost" id="useCurrentTimestamp">
+            Use current UTC timestamp
+          </button>
+        </div>
+        <div class="helper-text">
+          IAT should be a UTC Unix timestamp. Token is valid for 5 minutes.
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="secretKey">Secret Key</label>
+        <input type="password" id="secretKey" placeholder="Enter secret key" autocomplete="off" />
+      </div>
+
+      <div id="message" class="message" aria-live="polite"></div>
+
+      <div class="actions">
+        <button type="button" class="btn btn-primary" id="generateBtn">Generate Token</button>
+        <button type="button" class="btn btn-secondary" id="copyBtn">Copy Token</button>
+        <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
+      </div>
+
+      <div class="section">
+        <h2>JWT Header</h2>
+        <div class="output-box" id="headerOutput">{}</div>
+      </div>
+
+      <div class="section">
+        <h2>JWT Payload</h2>
+        <div class="output-box" id="payloadOutput">{}</div>
+      </div>
+
+      <div class="section">
+        <h2>Generated JWT Token</h2>
+        <div class="output-box token-box" id="tokenOutput"></div>
+        <div class="token-helper">
+          Use this token in request header as: Authorization: Bearer &lt;jwt_token&gt;
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast">Token copied to clipboard.</div>
+
+  <!-- CryptoJS for HMAC-SHA256 signing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+
+  <script>
+    const partnerIdInput = document.getElementById("partnerId");
+    const iatInput = document.getElementById("iat");
+    const secretKeyInput = document.getElementById("secretKey");
+
+    const headerOutput = document.getElementById("headerOutput");
+    const payloadOutput = document.getElementById("payloadOutput");
+    const tokenOutput = document.getElementById("tokenOutput");
+
+    const messageEl = document.getElementById("message");
+    const toastEl = document.getElementById("toast");
+
+    const generateBtn = document.getElementById("generateBtn");
+    const copyBtn = document.getElementById("copyBtn");
+    const clearBtn = document.getElementById("clearBtn");
+    const useCurrentTimestampBtn = document.getElementById("useCurrentTimestamp");
+
+    function showMessage(text, type) {
+      messageEl.textContent = text;
+      messageEl.className = "message " + type;
+    }
+
+    function clearMessage() {
+      messageEl.textContent = "";
+      messageEl.className = "message";
+    }
+
+    function showToast(text) {
+      toastEl.textContent = text;
+      toastEl.classList.add("show");
+      setTimeout(() => toastEl.classList.remove("show"), 2200);
+    }
+
+    function getCurrentUtcUnixTimestamp() {
+      return Math.floor(Date.now() / 1000);
+    }
+
+    // Convert a UTF-8 string to Base64URL format.
+    function base64UrlEncodeUtf8(str) {
+      const wordArray = CryptoJS.enc.Utf8.parse(str);
+      const base64 = CryptoJS.enc.Base64.stringify(wordArray);
+      return base64
+        .replace(/=+$/g, "")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_");
+    }
+
+    // Convert a CryptoJS WordArray signature to Base64URL format.
+    function base64UrlEncodeWordArray(wordArray) {
+      const base64 = CryptoJS.enc.Base64.stringify(wordArray);
+      return base64
+        .replace(/=+$/g, "")
+        .replace(/\+/g, "-")
+        .replace(/\//g, "_");
+    }
+
+    function validateInputs(partnerId, iat, secretKey) {
+      if (!partnerId || !iat || !secretKey) {
+        return "Please fill in Partner ID, IAT, and Secret Key.";
+      }
+
+      if (!/^\d+$/.test(iat)) {
+        return "IAT must be a numeric UTC Unix timestamp.";
+      }
+
+      return "";
+    }
+
+    function generateJwtToken(partnerId, iat, secretKey) {
+      const header = { alg: "HS256", typ: "JWT" };
+      const payload = { partner_id: partnerId, iat: Number(iat) };
+
+      const headerJson = JSON.stringify(header);
+      const payloadJson = JSON.stringify(payload);
+
+      const encodedHeader = base64UrlEncodeUtf8(headerJson);
+      const encodedPayload = base64UrlEncodeUtf8(payloadJson);
+      const unsignedToken = encodedHeader + "." + encodedPayload;
+
+      // HS256 = HMAC-SHA256
+      const signature = CryptoJS.HmacSHA256(unsignedToken, secretKey);
+      const encodedSignature = base64UrlEncodeWordArray(signature);
+
+      const jwt = unsignedToken + "." + encodedSignature;
+
+      return { header, payload, jwt };
+    }
+
+    function renderOutput(header, payload, jwt) {
+      headerOutput.textContent = JSON.stringify(header, null, 2);
+      payloadOutput.textContent = JSON.stringify(payload, null, 2);
+      tokenOutput.textContent = jwt;
+    }
+
+    function clearOutput() {
+      headerOutput.textContent = "{}";
+      payloadOutput.textContent = "{}";
+      tokenOutput.textContent = "";
+    }
+
+    generateBtn.addEventListener("click", () => {
+      clearMessage();
+
+      const partnerId = partnerIdInput.value.trim();
+      const iat = iatInput.value.trim();
+      const secretKey = secretKeyInput.value;
+
+      const validationError = validateInputs(partnerId, iat, secretKey);
+      if (validationError) {
+        showMessage(validationError, "error");
+        clearOutput();
+        return;
+      }
+
+      try {
+        const result = generateJwtToken(partnerId, iat, secretKey);
+        renderOutput(result.header, result.payload, result.jwt);
+        showMessage("JWT token generated successfully.", "success");
+      } catch (error) {
+        clearOutput();
+        showMessage("Failed to generate token. Please check your inputs and try again.", "error");
+        console.error(error);
+      }
+    });
+
+    copyBtn.addEventListener("click", async () => {
+      const token = (tokenOutput.textContent || "").trim();
+
+      if (!token) {
+        showMessage("Generate a token before copying.", "error");
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(token);
+        showMessage("JWT token copied successfully.", "success");
+        showToast("Token copied to clipboard.");
+      } catch (error) {
+        showMessage("Unable to copy token. Please copy it manually.", "error");
+        console.error(error);
+      }
+    });
+
+    clearBtn.addEventListener("click", () => {
+      partnerIdInput.value = "";
+      iatInput.value = "";
+      secretKeyInput.value = "";
+      clearOutput();
+      clearMessage();
+      partnerIdInput.focus();
+    });
+
+    useCurrentTimestampBtn.addEventListener("click", () => {
+      iatInput.value = String(getCurrentUtcUnixTimestamp());
+      clearMessage();
+    });
+  </script>
+</body>
+</html>
+
