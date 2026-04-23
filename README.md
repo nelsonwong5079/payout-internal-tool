@@ -7,6 +7,31 @@ Hosted at: 👉 [https://payout-tool.web.app/](https://payout-tool.web.app/)
 
 ---
 
+## 🌐 Deploy Web Changes (Firebase Hosting)
+When you change the Flutter web UI (for example, adding/updating internal HTML tools embedded in the app), deploy the updated static site to the existing Firebase Hosting target `payout-tool`.
+
+### Prerequisites
+- You have the Flutter SDK installed.
+- You have Firebase CLI installed and are logged in: `firebase login`
+
+### Steps
+From the repo root:
+```bash
+cd /Users/nelson/Development/payout-internal-tool
+
+# Build latest Flutter web assets
+cd payout_internal_tool
+flutter build web --release
+
+# Deploy ONLY hosting (no backend/functions changes)
+cd ..
+firebase deploy --only hosting:payout-tool
+```
+
+### Notes
+- Firebase Hosting is configured to serve from `payout_internal_tool/build/web`.
+- If you add standalone HTML/JS assets under `payout_internal_tool/web/`, the Flutter web build will copy them into `build/web/` (so they become available to the app via iframe/import).
+
 ## 🚀 Key Features
 
 ### 1️⃣ Sandbox Update
