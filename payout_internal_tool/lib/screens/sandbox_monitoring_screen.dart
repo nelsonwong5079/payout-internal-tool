@@ -4,6 +4,8 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:html' as html;
 import 'dart:ui_web' as ui_web;
+import '../theme/app_theme.dart';
+import '../widgets/status_pill.dart';
 
 class SandboxMonitoringScreen extends StatefulWidget {
   const SandboxMonitoringScreen({super.key});
@@ -2598,203 +2600,49 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A), // Dark dashboard background
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Compact Dashboard Header
-                FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          const Color(0xFF1E293B),
-                          const Color(0xFF334155),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: const Color(0xFF475569).withOpacity(0.3),
-                        width: 1,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.page,
+        0,
+        AppSpacing.page,
+        AppSpacing.page,
+      ),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  if (_monitoringData != null)
+                    StatusPill(
+                      label:
+                          'Updated ${_formatTimestamp(_monitoringData!['timestamp'])}',
+                      tone: StatusPillTone.success,
                     ),
-                    child: Row(
-                      children: [
-                        // Enhanced Icon with glow effect
-                        AnimatedBuilder(
-                          animation: _pulseAnimation,
-                          builder: (context, child) {
-                            return Transform.scale(
-                              scale: _pulseAnimation.value,
-                              child: Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
-                                    colors: [
-                                      const Color(0xFF3B82F6),
-                                      const Color(0xFF1D4ED8),
-                                    ],
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF3B82F6).withOpacity(0.4),
-                                      blurRadius: 15,
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.analytics_outlined,
-                                  size: 24,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'SANDBOX MONITORING DASHBOARD',
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 1.5,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Real-time system health monitoring and performance metrics',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.white.withOpacity(0.8),
-                                  fontWeight: FontWeight.w500,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                  const Spacer(),
+                  AnimatedBuilder(
+                    animation: _refreshAnimation,
+                    builder: (context, child) {
+                      return Transform.rotate(
+                        angle: _refreshAnimation.value * 2 * 3.14159,
+                        child: OutlinedButton.icon(
+                          onPressed: _isRefreshing ? null : _manualRefresh,
+                          icon: Icon(
+                            _isRefreshing
+                                ? Icons.hourglass_empty
+                                : Icons.refresh_rounded,
+                            size: 16,
+                          ),
+                          label: Text(
+                            _isRefreshing ? 'Checking…' : 'Refresh',
                           ),
                         ),
-                        Column(
-                          children: [
-                            // Enhanced Last updated time
-                            if (_monitoringData != null) ...[
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981).withOpacity(0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFF10B981).withOpacity(0.3),
-                                  ),
-                                ),
-                                child: Column(
-                                  children: [
-                              Text(
-                                'Last Updated',
-                                style: TextStyle(
-                                        fontSize: 11,
-                                        color: const Color(0xFF10B981),
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                ),
-                              ),
-                              Text(
-                                _formatTimestamp(_monitoringData!['timestamp']),
-                                style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ],
-                                ),
-                              ),
-                            ],
-                            const SizedBox(height: 8),
-                            
-                            // Enhanced Refresh button
-                            AnimatedBuilder(
-                              animation: _refreshAnimation,
-                              builder: (context, child) {
-                                return Transform.rotate(
-                                  angle: _refreshAnimation.value * 2 * 3.14159,
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                        colors: [
-                                          const Color(0xFF3B82F6),
-                                          const Color(0xFF1D4ED8),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(12),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF3B82F6).withOpacity(0.3),
-                                          blurRadius: 8,
-                                          offset: const Offset(0, 4),
-                                        ),
-                                      ],
-                                    ),
-                                  child: ElevatedButton.icon(
-                                    onPressed: _isRefreshing ? null : _manualRefresh,
-                                    icon: Icon(
-                                      _isRefreshing ? Icons.hourglass_empty : Icons.refresh,
-                                        size: 18,
-                                      ),
-                                      label: Text(
-                                        _isRefreshing ? 'Checking...' : 'Refresh Data',
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                      foregroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(12),
-                                      ),
-                                        elevation: 0,
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-
-                          ],
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                ),
-                const SizedBox(height: 32),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.section),
                 
                 // Enhanced Loading state
                 if (_isLoading) ...[
@@ -3219,8 +3067,6 @@ class _SandboxMonitoringScreenState extends State<SandboxMonitoringScreen>
               ],
             ),
           ),
-        ),
-      ),
     );
   }
 } 

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import '../theme/app_theme.dart';
+import '../widgets/status_pill.dart';
 
 class WhitelabelJsonScreen extends StatefulWidget {
   const WhitelabelJsonScreen({super.key});
@@ -154,98 +156,34 @@ class _WhitelabelJsonScreenState extends State<WhitelabelJsonScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFF020617),
-      body: SafeArea(
-        child: Row(
-          children: [
-            SizedBox(
-              width: 380,
-              child: _buildLeftPanel(context),
-            ),
-            const VerticalDivider(
-              width: 1,
-              color: Color(0xFF1F2937),
-            ),
-            Expanded(
-              child: _buildRightPanel(context),
-            ),
-          ],
+    return Row(
+      children: [
+        SizedBox(
+          width: 360,
+          child: _buildLeftPanel(context),
         ),
-      ),
+        const VerticalDivider(width: 1, color: AppColors.glassBorder),
+        Expanded(child: _buildRightPanel(context)),
+      ],
     );
   }
 
   Widget _buildLeftPanel(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF111827),
-            Color(0xFF020617),
-          ],
-        ),
-      ),
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Unified Whitelabel JSON',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.08,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Enter each value once and we sync V1 + V2 JSON.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.grey.shade400,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFF111827),
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: const Color(0xFF1D4ED8)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF60A5FA),
-                      borderRadius: BorderRadius.circular(999),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x4060A5FA),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'V1 + V2 in sync',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFFBFDBFE),
-                          fontSize: 11,
-                          letterSpacing: 0.08,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 0, 12, AppSpacing.page),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Configuration',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Values sync to V1 + V2 JSON automatically.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 20),
             _buildSection(
               context,
               title: 'Header',
@@ -345,7 +283,6 @@ class _WhitelabelJsonScreenState extends State<WhitelabelJsonScreen> {
             const SizedBox(height: 16),
           ],
         ),
-      ),
     );
   }
 
@@ -357,9 +294,9 @@ class _WhitelabelJsonScreenState extends State<WhitelabelJsonScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF020617).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade800),
+        color: AppColors.canvasDark.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        border: Border.all(color: AppColors.borderDark),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -677,76 +614,32 @@ class _WhitelabelJsonScreenState extends State<WhitelabelJsonScreen> {
 
   Widget _buildRightPanel(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(12, 0, AppSpacing.page, AppSpacing.page),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Whitelabel JSON Generator',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Live unified config for common, checkout, commonV2, checkoutV2.',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey.shade400,
-                        ),
-                  ),
-                ],
+              Text(
+                'JSON output',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF020617),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.grey.shade700),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF3B82F6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Single source of truth',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: Colors.grey.shade300,
-                            fontSize: 11,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
+              const StatusPill(label: 'Live', tone: StatusPillTone.info),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF020617),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.grey.shade800),
-                boxShadow: const [
+                color: AppColors.surfaceDark,
+                borderRadius: BorderRadius.circular(AppRadii.lg),
+                border: Border.all(color: AppColors.borderDark),
+                boxShadow: [
                   BoxShadow(
-                    color: Colors.black87,
+                    color: Colors.black.withValues(alpha: 0.4),
                     blurRadius: 24,
-                    offset: Offset(0, 12),
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),

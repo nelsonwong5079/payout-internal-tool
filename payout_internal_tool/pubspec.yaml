@@ -51,6 +51,9 @@ dependencies:
   # Color picker for hex color selection in whitelabel JSON tool
   flutter_colorpicker: ^1.0.3
 
+  # Typography for polished UI
+  google_fonts: ^6.2.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

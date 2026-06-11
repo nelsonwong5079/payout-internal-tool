@@ -12,6 +12,9 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'theme/app_theme.dart';
+import 'widgets/app_section_header.dart';
+import 'widgets/ops_surface.dart';
 
 // Custom input formatter for currency codes (alphabetic uppercase only)
 class UppercaseAlphabeticInputFormatter extends TextInputFormatter {
@@ -2124,242 +2127,108 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     return RawKeyboardListener(
       focusNode: _focusNode,
       onKey: _handleKeyEvent,
-      child: Container(
-        color: Colors.black,
-        child: Stack(
-          children: [
-            // Sophisticated Black Background with Subtle Patterns
-            Container(
-              decoration: const BoxDecoration(
-                color: Colors.black,
+      child: Stack(
+        children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.page,
+                0,
+                AppSpacing.page,
+                AppSpacing.page,
               ),
-              child: AnimatedBuilder(
-                animation: _floatingAnimation,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: _FloatingParticlesPainter(
-                      particles: _particles,
-                      animation: _floatingAnimation,
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: _showHelpGuide ? 800 : 1200,
                     ),
-                    child: Container(),
-                  );
-                },
-              ),
-            ),
-            
-            // Main Content
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
-                child: SingleChildScrollView(
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: _showHelpGuide ? 800 : 1200,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Admin Section
-                          _buildAdminSection(),
-                          
-                          // Compact Hero Section
-                          FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: SlideTransition(
-                              position: _slideAnimation,
-                              child: Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.1),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: Row(
-                                  children: [
-                                    // Compact Icon
-                                    AnimatedBuilder(
-                                      animation: Listenable.merge([_pulseAnimation, _glowAnimation]),
-                                      builder: (context, child) {
-                                        return Transform.scale(
-                                          scale: _pulseAnimation.value,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(12),
-                                            decoration: BoxDecoration(
-                                              color: Colors.black,
-                                              borderRadius: BorderRadius.circular(12),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.white.withOpacity(0.1 * _glowAnimation.value),
-                                                  blurRadius: 10 * _glowAnimation.value,
-                                                  spreadRadius: 1 * _glowAnimation.value,
-                                                ),
-                                              ],
-                                            ),
-                                            child: Icon(
-                                              Icons.upload_file,
-                                              size: 24,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            'PAYOUT INTERNAL TOOL',
-                                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                              color: Colors.black,
-                                              fontWeight: FontWeight.w800,
-                                              letterSpacing: 1.5,
-                                              fontSize: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 2),
-                                          Text(
-                                            'Upload and process ZIP files for transaction editing',
-                                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                              color: Colors.black.withOpacity(0.7),
-                                              fontWeight: FontWeight.w500,
-                                              fontSize: 13,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          
-                          // Compact Help Button
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildAdminSection(),
+
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              ElevatedButton.icon(
+                              OutlinedButton.icon(
                                 onPressed: () {
                                   setState(() {
                                     _showHelpGuide = !_showHelpGuide;
                                   });
                                 },
-                                icon: Icon(_showHelpGuide ? Icons.help : Icons.help_outline, size: 16),
-                                label: Text(_showHelpGuide ? 'HIDE GUIDE' : 'HOW TO USE THIS TOOL'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue.shade600,
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  textStyle: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                icon: Icon(
+                                  _showHelpGuide
+                                      ? Icons.close_rounded
+                                      : Icons.help_outline_rounded,
+                                  size: 16,
+                                ),
+                                label: Text(
+                                  _showHelpGuide
+                                      ? 'Hide guide'
+                                      : 'How to use this tool',
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: AppSpacing.section),
                   
-                          // Compact File Upload Section
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(16),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.black.withOpacity(0.1)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                          OpsSurface(
+                            padding: const EdgeInsets.all(AppSpacing.card),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        Icons.file_upload,
-                                        size: 24,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Text(
-                                      'FILE UPLOAD',
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.black,
-                                        letterSpacing: 1.5,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ],
+                                AppSectionHeader(
+                                  monoTag: 'Upload',
+                                  title: 'File upload',
+                                  subtitle:
+                                      'Supports password-protected ZIP files',
+                                  icon: Icons.file_upload_outlined,
                                 ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
                                 Center(
                                   child: Container(
                                     width: 400,
                                     height: 100,
                                     decoration: BoxDecoration(
                                       border: Border.all(
-                                        color: Colors.black.withOpacity(0.2),
-                                        style: BorderStyle.solid,
-                                        width: 2,
+                                        color: AppColors.cyan
+                                            .withValues(alpha: 0.25),
+                                        width: 1.5,
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
-                                      color: Colors.black.withOpacity(0.02),
+                                      borderRadius:
+                                          BorderRadius.circular(AppRadii.lg),
+                                      color: AppColors.glass,
                                     ),
-                                    child: InkWell(
-                                      onTap: _handleFileUpload,
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Column(
+                                    child: Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: _handleFileUpload,
+                                        borderRadius:
+                                            BorderRadius.circular(AppRadii.lg),
+                                        child: Column(
                                         mainAxisAlignment: MainAxisAlignment.center,
                                         children: [
                                           Icon(
                                             Icons.cloud_upload_outlined,
-                                            size: 28,
-                                            color: Colors.black.withOpacity(0.6),
+                                            size: 32,
+                                            color: AppColors.cyan
+                                                .withValues(alpha: 0.8),
                                           ),
-                                          const SizedBox(height: 8),
+                                          const SizedBox(height: 10),
                                           Text(
-                                            'CLICK TO UPLOAD ZIP FILE',
+                                            'Click to upload ZIP file',
                                             style: TextStyle(
                                               fontSize: 14,
-                                              color: Colors.black.withOpacity(0.7),
+                                              color: AppColors.textPrimary,
                                               fontWeight: FontWeight.w600,
-                                              letterSpacing: 0.5,
                                             ),
                                           ),
-                                          const SizedBox(height: 2),
+                                          const SizedBox(height: 4),
                                           Text(
-                                            'SUPPORTS PASSWORD-PROTECTED ZIP FILES',
+                                            'Password-protected archives supported',
                                             style: TextStyle(
                                               fontSize: 11,
-                                              color: Colors.black.withOpacity(0.5),
-                                              letterSpacing: 0.3,
+                                              color: AppColors.textSecondary,
                                             ),
                                           ),
                                         ],
@@ -2367,24 +2236,27 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     ),
                                   ),
                                 ),
+                              ),
                                 if (_selectedFileName != null) ...[
                                   const SizedBox(height: 12),
                                   Container(
                                     padding: const EdgeInsets.all(16),
                                     decoration: BoxDecoration(
-                                      color: Colors.black.withOpacity(0.05),
+                                      color: AppColors.glass,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                      border: Border.all(
+                                          color: AppColors.glassBorder),
                                     ),
                                     child: Row(
                                       children: [
-                                        Icon(Icons.file_present, color: Colors.black.withOpacity(0.7), size: 24),
+                                        Icon(Icons.file_present,
+                                            color: AppColors.cyan, size: 22),
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
                                             _selectedFileName!,
-                                            style: TextStyle(
-                                              color: Colors.black.withOpacity(0.8),
+                                            style: const TextStyle(
+                                              color: AppColors.textPrimary,
                                               fontWeight: FontWeight.w600,
                                               fontSize: 14,
                                             ),
@@ -2435,82 +2307,30 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                           
                           // Compact Data Table Section
                           if (_isFileProcessed && _csvHeaders != null && _csvData != null) ...[
-                            const SizedBox(height: 12),
-                            Container(
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.black.withOpacity(0.1)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(height: 16),
+                            OpsSurface(
+                              padding: EdgeInsets.zero,
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Compact Header
-                                  Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black,
-                                      borderRadius: const BorderRadius.only(
-                                        topLeft: Radius.circular(16),
-                                        topRight: Radius.circular(16),
-                                      ),
-                                    ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(AppSpacing.card),
                                     child: Row(
                                       children: [
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(8),
-                                          ),
-                                          child: Icon(
-                                            Icons.table_chart,
-                                            size: 20,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Text(
-                                          'TRANSACTION DATA',
-                                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                            fontWeight: FontWeight.w700,
-                                            color: Colors.white,
-                                            letterSpacing: 1.5,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const Spacer(),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withOpacity(0.1),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: Border.all(color: Colors.white.withOpacity(0.2)),
-                                          ),
-                                          child: Text(
-                                            '${_csvData!.length} ROWS',
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w600,
-                                              color: Colors.white,
-                                              letterSpacing: 1.0,
-                                            ),
+                                        Expanded(
+                                          child: AppSectionHeader(
+                                            monoTag: 'Data',
+                                            title: 'Transaction data',
+                                            subtitle:
+                                                '${_csvData!.length} rows loaded',
+                                            icon: Icons.table_rows_outlined,
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
-                                  
-                                  // Compact Filter Section
-                                  Container(
+                                  const Divider(height: 1),
+                                  Padding(
                                     padding: const EdgeInsets.all(16),
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2891,7 +2711,9 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                               ],
                                                             ) :
                                                             // Premium Display mode
-                                                            InkWell(
+                                                            Material(
+                                                              color: Colors.transparent,
+                                                              child: InkWell(
                                                               onTap: (isEditable && !isAutoSynced) ? () {
                                                                 if (_isDropdownColumn(originalCellIndex)) {
                                                                   // For dropdown columns, show dropdown even outside batch mode
@@ -2960,6 +2782,7 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                                   ],
                                                                 ),
                                                               ),
+                                                            ),
                                                             ),
                                                         );
                                                       }).toList(),
@@ -3185,66 +3008,34 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
 
                           // Compact Additional API Actions Section
                           const SizedBox(height: 16),
-                                                      Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.black.withOpacity(0.1)),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.05),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Icon(
-                                        Icons.email_outlined,
-                                        size: 24,
-                                        color: Colors.black,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Text(
-                                      'TRIGGER REPORTS',
-                                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.black,
-                                        letterSpacing: 1.5,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
+                            OpsSurface(
+                              padding: const EdgeInsets.all(AppSpacing.card),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  AppSectionHeader(
+                                    monoTag: 'Reports',
+                                    title: 'Trigger reports',
+                                    subtitle:
+                                        'Send unfinished transaction reports via email',
+                                    icon: Icons.send_outlined,
+                                  ),
+                                  const SizedBox(height: 16),
                                 Row(
                                   children: [
                                     // Premium Wallet Report Button
                                     Expanded(
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.05),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(AppRadii.md),
+                                          border: Border.all(color: AppColors.glassBorder),
                                         ),
                                         child: Material(
                                           color: Colors.transparent,
                                           child: InkWell(
                                             onTap: _callWalletUnfinishedReportApi,
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(AppRadii.md),
                                             child: Padding(
                                               padding: const EdgeInsets.all(16),
                                               child: Column(
@@ -3253,18 +3044,17 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                   Row(
                                                     children: [
                                                       Icon(
-                                                        Icons.account_balance_wallet,
-                                                        size: 20,
-                                                        color: Colors.black,
+                                                        Icons.account_balance_wallet_outlined,
+                                                        size: 18,
+                                                        color: AppColors.textPrimary,
                                                       ),
                                                       const SizedBox(width: 10),
                                                       Text(
-                                                        'WALLET REPORT',
+                                                        'Wallet report',
                                                         style: TextStyle(
                                                           fontSize: 14,
-                                                          fontWeight: FontWeight.w700,
-                                                          color: Colors.black,
-                                                          letterSpacing: 0.8,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: AppColors.textPrimary,
                                                         ),
                                                       ),
                                                     ],
@@ -3273,9 +3063,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                   Text(
                                                     'Send unfinished wallet transactions report',
                                                     style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.black.withOpacity(0.7),
-                                                      fontWeight: FontWeight.w500,
+                                                      fontSize: 13,
+                                                      color: AppColors.textSecondary,
                                                     ),
                                                   ),
                                                 ],
@@ -3291,15 +3080,15 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                     Expanded(
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          color: Colors.black.withOpacity(0.05),
-                                          borderRadius: BorderRadius.circular(12),
-                                          border: Border.all(color: Colors.black.withOpacity(0.1)),
+                                          color: AppColors.surface,
+                                          borderRadius: BorderRadius.circular(AppRadii.md),
+                                          border: Border.all(color: AppColors.glassBorder),
                                         ),
                                         child: Material(
                                           color: Colors.transparent,
                                           child: InkWell(
                                             onTap: _callBankTransferUnfinishedReportApi,
-                                            borderRadius: BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(AppRadii.md),
                                             child: Padding(
                                               padding: const EdgeInsets.all(16),
                                               child: Column(
@@ -3308,18 +3097,17 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                   Row(
                                                     children: [
                                                       Icon(
-                                                        Icons.account_balance,
-                                                        size: 20,
-                                                        color: Colors.black,
+                                                        Icons.account_balance_outlined,
+                                                        size: 18,
+                                                        color: AppColors.textPrimary,
                                                       ),
                                                       const SizedBox(width: 10),
                                                       Text(
-                                                        'BANK TRANSFER REPORT',
+                                                        'Bank transfer report',
                                                         style: TextStyle(
                                                           fontSize: 14,
-                                                          fontWeight: FontWeight.w700,
-                                                          color: Colors.black,
-                                                          letterSpacing: 0.8,
+                                                          fontWeight: FontWeight.w600,
+                                                          color: AppColors.textPrimary,
                                                         ),
                                                       ),
                                                     ],
@@ -3328,9 +3116,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                                   Text(
                                                     'Send unfinished bank transfer report',
                                                     style: TextStyle(
-                                                      fontSize: 14,
-                                                      color: Colors.black.withOpacity(0.7),
-                                                      fontWeight: FontWeight.w500,
+                                                      fontSize: 13,
+                                                      color: AppColors.textSecondary,
                                                     ),
                                                   ),
                                                 ],
@@ -3353,7 +3140,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                   ),
                 ),
               ),
-            ),
             
             // Compact Help Guide Sidebar
             if (_showHelpGuide) ...[
@@ -3362,48 +3148,31 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                 top: 0,
                 bottom: 0,
                 child: Container(
-                  width: 350,
+                  width: 360,
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(-2, 0),
-                      ),
-                    ],
+                    color: AppColors.surfaceElevated,
+                    border: Border(
+                      left: BorderSide(color: AppColors.glassBorder),
+                    ),
                   ),
                   child: Column(
                     children: [
-                      // Compact Help Guide Header
                       Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade600,
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: AppColors.glassBorder),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(
-                                Icons.help_outline,
-                                size: 20,
-                                color: Colors.white,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
                             const Expanded(
                               child: Text(
-                                'HOW TO USE THIS TOOL',
+                                'How to use this tool',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white,
-                                  letterSpacing: 1.5,
-                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textPrimary,
+                                  fontSize: 15,
                                 ),
                               ),
                             ),
@@ -3413,7 +3182,8 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
                                   _showHelpGuide = false;
                                 });
                               },
-                              icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                              icon: const Icon(Icons.close_rounded,
+                                  color: AppColors.textSecondary, size: 20),
                             ),
                           ],
                         ),
@@ -3450,7 +3220,6 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
             ],
           ],
         ),
-      ),
     );
   }
 
