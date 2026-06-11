@@ -1,11 +1,11 @@
 {
-    "name": "payout_internal_tool",
-    "short_name": "payout_internal_tool",
+    "name": "PE Ops",
+    "short_name": "PE Ops",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Payment Enablement operations toolkit.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
