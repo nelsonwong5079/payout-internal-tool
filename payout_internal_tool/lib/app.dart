@@ -9,6 +9,7 @@ import 'screens/login_screen.dart';
 import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
 import 'screens/whitelabel_json_screen.dart';
+import 'screens/public_template_library_page.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ambient_background.dart';
 import 'main.dart' as main_app;
@@ -30,7 +31,11 @@ class MyApp extends StatelessWidget {
         title: 'Payout Internal Tool',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.dark(),
-        home: const AuthWrapper(),
+        initialRoute: '/',
+        routes: {
+          '/': (_) => const AuthWrapper(),
+          '/templates': (_) => const PublicTemplateLibraryPage(),
+        },
       ),
     );
   }

@@ -336,10 +336,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: const [
-                  _FeatureChip(label: 'Batch processing'),
-                  _FeatureChip(label: 'Sandbox monitor'),
-                  _FeatureChip(label: 'Theme builder'),
+                children: [
+                  const _FeatureChip(label: 'Batch processing'),
+                  const _FeatureChip(label: 'Sandbox monitor'),
+                  const _FeatureChip(label: 'Theme builder'),
+                  _FeatureChip(
+                    label: 'Template library',
+                    onTap: () =>
+                        Navigator.of(context).pushNamed('/templates'),
+                  ),
                 ],
               ),
             ],
@@ -541,7 +546,26 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                               : const Text('Sign in'),
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              Navigator.of(context).pushNamed('/templates'),
+                          icon: const Icon(Icons.article_outlined, size: 18),
+                          label: const Text('Template Library'),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'No sign-in required',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.textMutedOnDark,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -579,25 +603,42 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 }
 
 class _FeatureChip extends StatelessWidget {
-  const _FeatureChip({required this.label});
+  const _FeatureChip({required this.label, this.onTap});
 
   final String label;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColors.glass,
+        color: onTap != null ? AppColors.surfaceMuted : AppColors.glass,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: AppColors.glassBorder),
+        border: Border.all(
+          color: onTap != null
+              ? AppColors.accent.withValues(alpha: 0.35)
+              : AppColors.glassBorder,
+        ),
       ),
       child: Text(
         label,
         style: GoogleFonts.inter(
           fontSize: 12,
-          color: AppColors.textSecondary,
+          color: onTap != null ? AppColors.textPrimary : AppColors.textSecondary,
+          fontWeight: onTap != null ? FontWeight.w500 : FontWeight.normal,
         ),
+      ),
+    );
+
+    if (onTap == null) return chip;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: chip,
       ),
     );
   }
