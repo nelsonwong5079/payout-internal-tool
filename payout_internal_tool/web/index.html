@@ -61,6 +61,12 @@
 
     // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
+
+    // Payout Renotify uses a local proxy (same pattern as the Python CLI on VPN).
+    window.PE_OPS_CONFIG = {
+      renotifyProxyUrl: 'http://127.0.0.1:8747/notify',
+      renotifyProxyHealthUrl: 'http://127.0.0.1:8747/health',
+    };
   </script>
   
   <script src="flutter_bootstrap.js" async></script>

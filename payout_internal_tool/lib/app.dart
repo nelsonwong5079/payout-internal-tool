@@ -9,6 +9,7 @@ import 'screens/login_screen.dart';
 import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
 import 'screens/whitelabel_json_screen.dart';
+import 'screens/payout_renotify_screen.dart';
 import 'screens/public_template_library_page.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ambient_background.dart';
@@ -122,6 +123,14 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
       pageTitle: 'JWT Generator',
       subtitle: 'Create sandbox payout tokens',
     ),
+    _NavDestination(
+      label: 'Payout Renotify',
+      shortLabel: 'Renotify',
+      icon: Icons.notifications_active_outlined,
+      selectedIcon: Icons.notifications_active,
+      pageTitle: 'Payout Renotify',
+      subtitle: 'Resend payout notifications by ID',
+    ),
   ];
 
   final List<Widget> _pages = const [
@@ -129,6 +138,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
     SandboxMonitoringScreen(),
     WhitelabelJsonScreen(),
     CodaPayoutJwtGeneratorScreen(),
+    PayoutRenotifyScreen(),
   ];
 
   void _selectIndex(int index) {

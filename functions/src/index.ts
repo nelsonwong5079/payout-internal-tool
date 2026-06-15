@@ -1274,6 +1274,76 @@ export const triggerFailureEmail = onRequest({
   }
 });
 
+// Proxy payout renotify — browsers cannot call scheduler APIs directly (CORS).
+export const payoutRenotify = onRequest(async (request, response) => {
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  response.set("Access-Control-Allow-Headers", "Content-Type");
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  try {
+    const {environment, payoutId} = request.body as {
+      environment?: string;
+      payoutId?: string;
+    };
+
+    if (!environment || !payoutId) {
+      response.status(400).json({
+        error: "Missing required fields: environment, payoutId",
+      });
+      return;
+    }
+
+    const notifyUrls: Record<string, string> = {
+      staging: "https://payout-scheduler.codapay.net/backoffice/notify",
+      production: "https://payout-scheduler.codainfra.net/backoffice/notify",
+    };
+
+    const targetUrl = notifyUrls[environment];
+    if (!targetUrl) {
+      response.status(400).json({
+        error: "Invalid environment. Use 'staging' or 'production'.",
+      });
+      return;
+    }
+
+    logger.info("Proxying payout renotify", {
+      environment,
+      payoutId,
+      targetUrl,
+      structuredData: true,
+    });
+
+    const upstream = await fetch(targetUrl, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({payoutIds: [payoutId]}),
+    });
+
+    const body = await upstream.text();
+    const contentType = upstream.headers.get("content-type") || "application/json";
+
+    response.status(upstream.status);
+    response.set("Content-Type", contentType);
+    response.send(body);
+  } catch (error) {
+    logger.error("Error proxying payout renotify", error);
+    response.status(502).json({
+      message: "Unable to reach payout scheduler. Please ensure you are on VPN.",
+      error: (error as Error).message,
+    });
+  }
+});
+
 // HTTP function to trigger mock fail scenario
 export const triggerMockFail = onRequest({
   secrets: [emailAppPassword],
