@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'dart:ui';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
@@ -188,13 +186,9 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
         if (showHeader) _buildPageHeader(dest),
         Expanded(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
+            duration: const Duration(milliseconds: 180),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
-            transitionBuilder: (child, animation) => FadeTransition(
-              opacity: animation,
-              child: child,
-            ),
             child: KeyedSubtree(
               key: ValueKey(_currentIndex),
               child: _pages[_currentIndex],
@@ -209,9 +203,9 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
     return Container(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
-        20,
+        AppSpacing.lg,
         AppSpacing.page,
-        16,
+        AppSpacing.md,
       ),
       decoration: const BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.glassBorder)),
@@ -224,23 +218,9 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    dest.pageTitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.3,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    dest.subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  Text(dest.pageTitle, style: AppTypography.display),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(dest.subtitle, style: AppTypography.body),
                 ],
               ),
             ),
@@ -252,65 +232,50 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
   }
 
   Widget _buildSidebar() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          width: 248,
-          decoration: const BoxDecoration(
-            color: Color(0xB3101012),
-            border: Border(right: BorderSide(color: AppColors.glassBorder)),
-          ),
-          child: SafeArea(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                  child: Row(
-                    children: [
-                      _buildLogoMark(size: 32),
-                      const SizedBox(width: 10),
-                      Text(
-                        'PE Ops',
-                        style: GoogleFonts.inter(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.2,
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(
-                    'Tools',
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppColors.textMutedOnDark,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    children: [
-                      for (var i = 0; i < _destinations.length; i++)
-                        _buildSidebarItem(i),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: _buildUserMenu(compact: false),
-                ),
-              ],
+    return Container(
+      width: 240,
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(right: BorderSide(color: AppColors.glassBorder)),
+      ),
+      child: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
+              child: Row(
+                children: [
+                  _buildLogoMark(size: 32),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text('PE Ops', style: AppTypography.title),
+                ],
+              ),
             ),
-          ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              child: Text('Tools', style: AppTypography.label),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                children: [
+                  for (var i = 0; i < _destinations.length; i++)
+                    _buildSidebarItem(i),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: _buildUserMenu(compact: false),
+            ),
+          ],
         ),
       ),
     );
@@ -321,10 +286,10 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: AppColors.textPrimary,
-        borderRadius: BorderRadius.circular(size * 0.28),
+        color: AppColors.accent,
+        borderRadius: BorderRadius.circular(AppRadii.md),
       ),
-      child: Icon(Icons.bolt_rounded, color: AppColors.void_, size: size * 0.55),
+      child: Icon(Icons.bolt_rounded, color: Colors.white, size: size * 0.55),
     );
   }
 
@@ -339,25 +304,41 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
         child: InkWell(
           onTap: () => _selectIndex(index),
           borderRadius: BorderRadius.circular(AppRadii.md),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
+          child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.md),
               color: selected ? AppColors.surfaceMuted : Colors.transparent,
+              border: selected
+                  ? Border.all(color: AppColors.glassBorder)
+                  : null,
             ),
             child: Row(
               children: [
+                if (selected)
+                  Container(
+                    width: 3,
+                    height: 16,
+                    margin: const EdgeInsets.only(right: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.accent,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 13),
                 Icon(
                   selected ? dest.selectedIcon : dest.icon,
                   size: 18,
-                  color: selected ? AppColors.textPrimary : AppColors.textMutedOnDark,
+                  color: selected
+                      ? AppColors.textPrimary
+                      : AppColors.textMutedOnDark,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     dest.label,
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
                       color: selected
@@ -392,13 +373,13 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
             color: AppColors.surfaceElevated,
             child: Container(
               padding: EdgeInsets.symmetric(
-                horizontal: compact ? 8 : 10,
+                horizontal: compact ? AppSpacing.sm : 10,
                 vertical: compact ? 6 : 8,
               ),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadii.md),
                 border: Border.all(color: AppColors.glassBorder),
-                color: AppColors.glass,
+                color: AppColors.surfaceElevated,
               ),
               child: Row(
                 mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
@@ -408,9 +389,8 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                     backgroundColor: AppColors.surfaceMuted,
                     child: Text(
                       initial,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                      style: AppTypography.mono(
+                        size: 12,
                         color: AppColors.textPrimary,
                       ),
                     ),
@@ -421,11 +401,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                       child: Text(
                         email.split('@').first,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
-                        ),
+                        style: AppTypography.title.copyWith(fontSize: 13),
                       ),
                     ),
                     const Icon(Icons.unfold_more_rounded,
@@ -454,13 +430,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
               PopupMenuItem(
                 enabled: false,
                 height: 36,
-                child: Text(
-                  email,
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
+                child: Text(email, style: AppTypography.body),
               ),
               const PopupMenuDivider(),
               PopupMenuItem(
@@ -470,7 +440,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
                     const Icon(Icons.logout_rounded,
                         size: 16, color: AppColors.textSecondary),
                     const SizedBox(width: 10),
-                    Text('Sign out', style: GoogleFonts.inter(fontSize: 13)),
+                    Text('Sign out', style: AppTypography.title.copyWith(fontSize: 13)),
                   ],
                 ),
               ),
@@ -482,25 +452,20 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
   }
 
   Widget _buildBottomNav() {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: Container(
-          decoration: const BoxDecoration(
-            color: Color(0xCC101012),
-            border: Border(top: BorderSide(color: AppColors.glassBorder)),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-              child: Row(
-                children: [
-                  for (var i = 0; i < _destinations.length; i++)
-                    Expanded(child: _buildBottomNavItem(i)),
-                ],
-              ),
-            ),
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        border: Border(top: BorderSide(color: AppColors.glassBorder)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+          child: Row(
+            children: [
+              for (var i = 0; i < _destinations.length; i++)
+                Expanded(child: _buildBottomNavItem(i)),
+            ],
           ),
         ),
       ),
@@ -516,8 +481,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
       child: InkWell(
         onTap: () => _selectIndex(index),
         borderRadius: BorderRadius.circular(AppRadii.md),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
+        child: Container(
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadii.md),
@@ -529,15 +493,17 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
               Icon(
                 selected ? dest.selectedIcon : dest.icon,
                 size: 20,
-                color: selected ? AppColors.textPrimary : AppColors.textMutedOnDark,
+                color: selected ? AppColors.accent : AppColors.textMutedOnDark,
               ),
               const SizedBox(height: 4),
               Text(
                 dest.shortLabel,
-                style: GoogleFonts.inter(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
-                  color: selected ? AppColors.textPrimary : AppColors.textMutedOnDark,
+                  color: selected
+                      ? AppColors.textPrimary
+                      : AppColors.textMutedOnDark,
                 ),
               ),
             ],

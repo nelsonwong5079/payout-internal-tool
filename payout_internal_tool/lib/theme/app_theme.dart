@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Modern zinc-based design tokens.
+/// Restrained zinc tokens — flat surfaces, one accent, clear hierarchy.
 abstract final class AppColors {
   static const void_ = Color(0xFF09090B);
   static const canvas = Color(0xFF09090B);
   static const canvasDark = canvas;
   static const surface = Color(0xFF18181B);
   static const surfaceDark = surface;
-  static const surfaceElevated = Color(0xFF1F1F23);
+  static const surfaceElevated = Color(0xFF1C1C1F);
   static const surfaceMuted = Color(0xFF27272A);
-  static const glass = Color(0x0AFFFFFF);
-  static const glassBorder = Color(0x1FFFFFFF);
+  static const glass = Color(0x08FFFFFF);
+  static const glassBorder = Color(0x1AFFFFFF);
 
   static const accent = Color(0xFF6366F1);
   static const accentHover = Color(0xFF818CF8);
@@ -43,42 +43,83 @@ abstract final class AppColors {
 
 abstract final class AppRadii {
   static const sm = 6.0;
-  static const md = 10.0;
-  static const lg = 14.0;
-  static const xl = 18.0;
-  static const xxl = 24.0;
+  static const md = 8.0;
+  static const lg = 12.0;
+  static const xl = 16.0;
+  static const xxl = 20.0;
 }
 
+/// 4px base spacing scale.
 abstract final class AppSpacing {
-  static const page = 28.0;
+  static const xs = 4.0;
+  static const sm = 8.0;
+  static const md = 12.0;
+  static const lg = 16.0;
+  static const xl = 20.0;
+  static const page = 24.0;
   static const section = 20.0;
-  static const card = 24.0;
+  static const card = 20.0;
+}
+
+abstract final class AppTypography {
+  static TextStyle get display => GoogleFonts.inter(
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+        height: 1.25,
+        color: AppColors.textPrimary,
+      );
+
+  static TextStyle get title => GoogleFonts.inter(
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        height: 1.3,
+        color: AppColors.textPrimary,
+      );
+
+  static TextStyle get body => GoogleFonts.inter(
+        fontSize: 13,
+        height: 1.5,
+        color: AppColors.textSecondary,
+      );
+
+  static TextStyle get label => GoogleFonts.inter(
+        fontSize: 11,
+        fontWeight: FontWeight.w500,
+        height: 1.35,
+        color: AppColors.textMutedOnDark,
+      );
+
+  static TextStyle mono({double size = 12, Color? color}) =>
+      GoogleFonts.jetBrainsMono(
+        fontSize: size,
+        height: 1.45,
+        color: color ?? AppColors.textSecondary,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
+
+  static TextStyle data({double size = 20, Color? color}) => GoogleFonts.inter(
+        fontSize: size,
+        fontWeight: FontWeight.w600,
+        height: 1.2,
+        color: color ?? AppColors.textPrimary,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      );
 }
 
 abstract final class AppTheme {
   static TextTheme _textTheme() {
     final base = ThemeData.dark().textTheme;
     return GoogleFonts.interTextTheme(base).copyWith(
-      headlineLarge: GoogleFonts.inter(
-        fontSize: 30,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.8,
-        color: AppColors.textPrimary,
-      ),
+      headlineLarge: AppTypography.display,
       headlineMedium: GoogleFonts.inter(
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: FontWeight.w600,
-        letterSpacing: -0.4,
+        height: 1.3,
         color: AppColors.textPrimary,
       ),
-      titleLarge: GoogleFonts.inter(
-        fontSize: 17,
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.2,
-        color: AppColors.textPrimary,
-      ),
+      titleLarge: AppTypography.title,
       titleMedium: GoogleFonts.inter(
-        fontSize: 14,
+        fontSize: 13,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
@@ -87,23 +128,14 @@ abstract final class AppTheme {
         color: AppColors.textPrimary,
         height: 1.5,
       ),
-      bodyMedium: GoogleFonts.inter(
-        fontSize: 13,
-        color: AppColors.textSecondary,
-        height: 1.5,
-      ),
-      labelSmall: GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.2,
-        color: AppColors.textMutedOnDark,
-      ),
+      bodyMedium: AppTypography.body,
+      labelSmall: AppTypography.label,
     );
   }
 
   static ThemeData dark() {
     return ThemeData(
-      colorScheme: ColorScheme.dark(
+      colorScheme: const ColorScheme.dark(
         primary: AppColors.accent,
         secondary: AppColors.accentHover,
         surface: AppColors.surface,
@@ -118,12 +150,7 @@ abstract final class AppTheme {
         backgroundColor: Colors.transparent,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
-        titleTextStyle: GoogleFonts.inter(
-          fontSize: 15,
-          fontWeight: FontWeight.w600,
-          letterSpacing: -0.2,
-          color: AppColors.textPrimary,
-        ),
+        titleTextStyle: AppTypography.title,
       ),
       cardTheme: CardThemeData(
         elevation: 0,
@@ -137,12 +164,27 @@ abstract final class AppTheme {
         color: AppColors.glassBorder,
         thickness: 1,
       ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          elevation: 0,
+          backgroundColor: AppColors.accent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadii.md),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          backgroundColor: AppColors.textPrimary,
-          foregroundColor: AppColors.void_,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          backgroundColor: AppColors.accent,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
           ),
@@ -155,7 +197,7 @@ abstract final class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textSecondary,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
           side: const BorderSide(color: AppColors.glassBorder),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadii.md),
@@ -180,10 +222,10 @@ abstract final class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadii.md),
-          borderSide: const BorderSide(color: AppColors.accent, width: 1),
+          borderSide: const BorderSide(color: AppColors.accent),
         ),
         contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         hintStyle: GoogleFonts.inter(color: AppColors.textMutedOnDark),
         labelStyle: GoogleFonts.inter(
           fontSize: 13,
@@ -212,46 +254,32 @@ abstract final class AppTheme {
 
   static ThemeData light() => dark();
 
-  static LinearGradient get brandGradient => const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [AppColors.accent, AppColors.accentHover],
-      );
-
-  static LinearGradient get darkPanelGradient => const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [AppColors.surfaceElevated, AppColors.surface],
-      );
+  static BoxDecoration panelDecoration({
+    double radius = AppRadii.lg,
+    Color? color,
+  }) {
+    return BoxDecoration(
+      borderRadius: BorderRadius.circular(radius),
+      color: color ?? AppColors.surfaceElevated,
+      border: Border.all(color: AppColors.glassBorder),
+    );
+  }
 
   static BoxDecoration glassDecoration({
     double radius = AppRadii.lg,
     Color? tint,
-    bool glow = false,
   }) {
-    return BoxDecoration(
-      borderRadius: BorderRadius.circular(radius),
-      color: AppColors.surfaceElevated.withValues(alpha: 0.72),
-      border: Border.all(
-        color: glow
-            ? AppColors.accent.withValues(alpha: 0.25)
-            : AppColors.glassBorder,
-      ),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withValues(alpha: 0.18),
-          blurRadius: 24,
-          offset: const Offset(0, 8),
-        ),
-      ],
+    return panelDecoration(
+      radius: radius,
+      color: tint ?? AppColors.surfaceElevated,
     );
   }
 
-  static BoxDecoration darkPanelDecoration({double radius = AppRadii.xl}) {
-    return glassDecoration(radius: radius);
+  static BoxDecoration darkPanelDecoration({double radius = AppRadii.lg}) {
+    return panelDecoration(radius: radius);
   }
 
   static BoxDecoration lightCardDecoration({double radius = AppRadii.lg}) {
-    return glassDecoration(radius: radius);
+    return panelDecoration(radius: radius);
   }
 }

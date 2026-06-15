@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 class AppSectionHeader extends StatelessWidget {
@@ -31,8 +30,8 @@ class AppSectionHeader extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Container(
-            width: 40,
-            height: 40,
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadii.md),
               color: AppColors.surfaceMuted,
@@ -40,43 +39,20 @@ class AppSectionHeader extends StatelessWidget {
             ),
             child: Icon(icon, size: 18, color: accent),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: AppSpacing.md),
         ],
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (monoTag != null) ...[
-                Text(
-                  monoTag!,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textMutedOnDark,
-                  ),
-                ),
-                const SizedBox(height: 4),
+                Text(monoTag!, style: AppTypography.label),
+                const SizedBox(height: AppSpacing.xs),
               ],
-              Text(
-                title,
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.4,
-                  color: AppColors.textPrimary,
-                  height: 1.2,
-                ),
-              ),
+              Text(title, style: AppTypography.display),
               if (subtitle != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  subtitle!,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: AppColors.textSecondary,
-                    height: 1.45,
-                  ),
-                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(subtitle!, style: AppTypography.body),
               ],
             ],
           ),

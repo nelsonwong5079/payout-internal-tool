@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 
 enum StatusPillTone { neutral, success, error, info, warning }
@@ -70,11 +69,7 @@ class StatusPill extends StatelessWidget {
           ],
           Text(
             label,
-            style: GoogleFonts.inter(
-              color: fg,
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppTypography.label.copyWith(color: fg),
           ),
         ],
       ),

@@ -6,29 +6,31 @@
   <title>Coda Payout JWT Token Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg-top: #8ad7ff;
-      --bg-bottom: #d8f7ff;
-      --card: #fffaf0;
-      --panel: #ffffff;
-      --text: #3f2f2a;
-      --muted: #7b6d68;
-      --border: #f6d38f;
-      --primary: #ff9f4b;
-      --primary-hover: #f48a2a;
-      --secondary: #7cc8ff;
-      --secondary-hover: #61b7f5;
-      --ghost: #fff3d9;
-      --ghost-hover: #ffe8bd;
-      --danger: #cf4a40;
-      --success: #2f9f67;
-      --warning-bg: #fff3d0;
-      --warning-border: #ffc970;
-      --warning-text: #8f4d18;
-      --output-bg: #293347;
-      --output-text: #eaf2ff;
+      --canvas: #09090b;
+      --surface: #18181b;
+      --surface-elevated: #1c1c1f;
+      --surface-muted: #27272a;
+      --border: rgba(255, 255, 255, 0.1);
+      --text: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --space-xs: 4px;
+      --space-sm: 8px;
+      --space-md: 12px;
+      --space-lg: 16px;
+      --space-xl: 20px;
+      --space-page: 24px;
     }
 
     * {
@@ -41,361 +43,261 @@
 
     body {
       margin: 0;
-      font-family: "Trebuchet MS", "Verdana", Arial, sans-serif;
-      background: linear-gradient(180deg, var(--bg-top) 0%, var(--bg-bottom) 55%, #f8fdff 100%);
-      color: var(--text);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-size: 13px;
       line-height: 1.5;
-      position: relative;
-      overflow-x: hidden;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      z-index: 0;
-      pointer-events: none;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.75);
-      filter: blur(0.5px);
-    }
-
-    body::before {
-      width: 240px;
-      height: 70px;
-      top: 42px;
-      left: 4%;
-      box-shadow: 120px 20px 0 12px rgba(255, 255, 255, 0.65);
-      animation: cloudFloatLeft 14s ease-in-out infinite;
-    }
-
-    body::after {
-      width: 190px;
-      height: 58px;
-      top: 92px;
-      right: 6%;
-      box-shadow: -90px -22px 0 8px rgba(255, 255, 255, 0.65);
-      animation: cloudFloatRight 16s ease-in-out infinite;
+      background: var(--canvas);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
     }
 
     .container {
       max-width: 920px;
-      margin: 16px auto;
-      padding: 0 16px 16px;
-      position: relative;
-      z-index: 1;
+      margin: 0 auto;
+      padding: var(--space-page);
     }
 
-    .card {
-      background: linear-gradient(180deg, #fffefb 0%, #fff8e8 100%);
-      border: 3px solid var(--border);
-      border-radius: 24px;
-      padding: 24px;
-      box-shadow:
-        0 12px 28px rgba(90, 70, 20, 0.18),
-        inset 0 2px 0 rgba(255, 255, 255, 0.9);
-      animation: panelFloat 3.4s ease-in-out infinite;
+    .panel {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: var(--space-page);
     }
 
-    .title-badge {
+    .label-tag {
       display: inline-block;
-      margin-bottom: 10px;
-      padding: 4px 10px;
+      margin-bottom: var(--space-sm);
+      padding: 2px 8px;
       border-radius: 999px;
-      border: 2px solid #f6c06f;
-      background: #fff1ce;
-      color: #8f5b20;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .title-badge::after {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: -40%;
-      width: 30%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.55);
-      transform: skewX(-24deg);
-      animation: badgeShine 2.8s linear infinite;
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
-      color: #6b421a;
-      text-shadow: 0 1px 0 #fff, 2px 2px 0 rgba(255, 202, 130, 0.7);
-      font-family: "Press Start 2P", "Trebuchet MS", Arial, sans-serif;
-      line-height: 1.35;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 500;
     }
 
     .subtitle {
-      margin: 0 0 18px;
-      color: var(--muted);
-      font-size: 14px;
-    }
-
-    .sprite-row {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .sprite-icon {
-      width: 18px;
-      height: 18px;
-      border-radius: 4px;
-      border: 2px solid rgba(0, 0, 0, 0.12);
-      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
-      image-rendering: pixelated;
-      animation: spriteBounce 1.8s ease-in-out infinite;
-    }
-
-    .sprite-star {
-      background:
-        radial-gradient(circle at 50% 50%, #fff6bd 0 30%, transparent 31%),
-        linear-gradient(90deg, transparent 35%, #ffd057 35% 65%, transparent 65%),
-        linear-gradient(0deg, transparent 35%, #ffd057 35% 65%, transparent 65%),
-        #ffb43a;
-    }
-
-    .sprite-leaf {
-      background:
-        radial-gradient(circle at 35% 65%, #b6f499 0 34%, transparent 35%),
-        radial-gradient(circle at 70% 35%, #84d867 0 32%, transparent 33%),
-        #56ad44;
-    }
-
-    .sprite-gem {
-      background:
-        linear-gradient(135deg, #b5f0ff 0 45%, #6ed0ff 46% 60%, #56b7f5 61% 100%);
-    }
-
-    .sprite-icon:nth-child(2) {
-      animation-delay: 0.25s;
-    }
-
-    .sprite-icon:nth-child(3) {
-      animation-delay: 0.5s;
+      margin: 0 0 var(--space-lg);
+      color: var(--text-secondary);
+      font-size: 13px;
     }
 
     .warning {
-      margin-bottom: 18px;
-      padding: 12px 14px;
-      border: 2px solid var(--warning-border);
-      background: linear-gradient(180deg, #fff7de 0%, var(--warning-bg) 100%);
-      color: var(--warning-text);
-      border-radius: 14px;
-      font-size: 13px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      display: flex;
+      gap: var(--space-sm);
+      align-items: flex-start;
+      margin-bottom: var(--space-xl);
+      padding: var(--space-md);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.08);
+      color: var(--text-secondary);
+      border-radius: var(--radius-md);
+      font-size: 12px;
+    }
+
+    .warning-icon {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      color: var(--warning);
     }
 
     .form-group {
-      margin-bottom: 14px;
-      padding: 12px;
-      background: linear-gradient(180deg, #fffdfa 0%, #fff5df 100%);
-      border: 2px solid #f7d293;
-      border-radius: 14px;
+      margin-bottom: var(--space-lg);
     }
 
     label {
       display: block;
-      font-weight: 700;
-      margin-bottom: 8px;
+      margin-bottom: var(--space-sm);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
     }
 
     input {
       width: 100%;
-      padding: 12px 14px;
-      border: 2px solid #ffd99c;
-      border-radius: 12px;
-      background: var(--panel);
-      font-size: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 13px;
       outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: border-color 0.15s ease;
+    }
+
+    input::placeholder {
+      color: var(--text-muted);
     }
 
     input:focus {
-      border-color: #ffb35c;
-      box-shadow: 0 0 0 4px rgba(255, 168, 81, 0.18);
+      border-color: var(--accent);
     }
 
     .helper-text {
-      margin-top: 6px;
-      color: var(--muted);
-      font-size: 12px;
+      margin-top: var(--space-xs);
+      color: var(--text-muted);
+      font-size: 11px;
     }
 
     .iat-row {
       display: flex;
-      gap: 10px;
+      gap: var(--space-sm);
       align-items: stretch;
     }
 
     .iat-row input {
       flex: 1;
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
     }
 
     .btn {
-      border: 2px solid transparent;
-      border-radius: 14px;
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 700;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 600;
       cursor: pointer;
-      transition: background 0.15s ease, opacity 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
-      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.12);
-      position: relative;
-      overflow: hidden;
+      transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+      white-space: nowrap;
     }
 
-    .btn:active {
-      transform: translateY(2px);
-      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.12);
-    }
-
-    .btn::after {
-      content: "";
-      position: absolute;
-      left: -35%;
-      top: 0;
-      width: 22%;
-      height: 100%;
-      background: rgba(255, 255, 255, 0.35);
-      transform: skewX(-22deg);
-      transition: left 0.25s ease;
-    }
-
-    .btn:hover::after {
-      left: 120%;
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .btn-primary {
-      background: linear-gradient(180deg, #ffbe74 0%, var(--primary) 100%);
-      color: #4a2a07;
-      border-color: #dd8b3f;
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
     }
 
-    .btn-primary:hover {
-      background: linear-gradient(180deg, #ffc788 0%, var(--primary-hover) 100%);
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
     }
 
     .btn-secondary {
-      background: linear-gradient(180deg, #b8e7ff 0%, var(--secondary) 100%);
-      color: #1b3c57;
-      border-color: #59a9de;
+      background: transparent;
+      color: var(--text-secondary);
+      border-color: var(--border);
     }
 
-    .btn-secondary:hover {
-      background: linear-gradient(180deg, #c7edff 0%, var(--secondary-hover) 100%);
+    .btn-secondary:hover:not(:disabled) {
+      background: var(--surface-muted);
+      color: var(--text);
     }
 
     .btn-ghost {
-      background: var(--ghost);
-      color: #725025;
-      border-color: #f0c16d;
+      background: var(--surface);
+      color: var(--text-secondary);
+      border-color: var(--border);
     }
 
-    .btn-ghost:hover {
-      background: var(--ghost-hover);
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--surface-muted);
+      color: var(--text);
     }
 
     .actions {
       display: flex;
       flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 18px;
-      margin-bottom: 18px;
+      gap: var(--space-sm);
+      margin-top: var(--space-xl);
+      margin-bottom: var(--space-xl);
     }
 
     .message {
-      min-height: 22px;
-      margin-bottom: 14px;
-      font-size: 13px;
-      font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 8px;
+      min-height: 20px;
+      margin-bottom: var(--space-md);
+      font-size: 12px;
+      font-weight: 500;
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
     }
 
     .message.error {
-      color: var(--danger);
-      background: rgba(207, 74, 64, 0.1);
+      color: var(--error);
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.25);
     }
 
     .message.success {
       color: var(--success);
-      background: rgba(47, 159, 103, 0.1);
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.25);
     }
 
     .section {
-      margin-top: 18px;
-      background: linear-gradient(180deg, #fff9e8 0%, #fff3da 100%);
-      border: 2px solid #efc979;
-      border-radius: 14px;
-      padding: 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+      margin-top: var(--space-lg);
+      padding: var(--space-md);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
     }
 
     .section h2 {
-      margin: 0 0 10px;
-      font-size: 14px;
-      color: #6b421a;
+      margin: 0 0 var(--space-sm);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.3px;
-      font-family: "Press Start 2P", "Trebuchet MS", Arial, sans-serif;
-      line-height: 1.5;
-    }
-
-    .section h2::before {
-      content: "★ ";
-      color: #ff8f1f;
+      letter-spacing: 0.04em;
     }
 
     .output-box {
-      background: linear-gradient(180deg, #334260 0%, var(--output-bg) 100%);
-      color: var(--output-text);
-      border-radius: 12px;
-      padding: 12px;
-      border: 2px solid #4a5f88;
+      background: var(--canvas);
+      color: var(--text-secondary);
+      border-radius: var(--radius-md);
+      padding: var(--space-md);
+      border: 1px solid var(--border);
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-word;
-      font-family: "Courier New", Courier, monospace;
-      font-size: 12.5px;
-      min-height: 56px;
-      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06);
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      font-variant-numeric: tabular-nums;
+      min-height: 48px;
     }
 
     .token-box {
-      min-height: 96px;
+      min-height: 88px;
+      color: var(--text);
     }
 
     .token-helper {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-      padding-left: 2px;
+      margin-top: var(--space-sm);
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
+    .token-helper code {
+      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-size: 11px;
+      color: var(--text-secondary);
     }
 
     .toast {
       position: fixed;
-      right: 14px;
-      bottom: 14px;
-      background: linear-gradient(180deg, #3f4b64 0%, #273245 100%);
-      color: #fff;
-      padding: 10px 12px;
-      border-radius: 12px;
-      border: 2px solid #7c8dad;
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
-      font-size: 13px;
+      right: var(--space-lg);
+      bottom: var(--space-lg);
+      background: var(--surface-elevated);
+      color: var(--text);
+      padding: var(--space-sm) var(--space-md);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      font-size: 12px;
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(6px);
       pointer-events: none;
-      transition: opacity 0.2s ease, transform 0.2s ease;
+      transition: opacity 0.18s ease, transform 0.18s ease;
     }
 
     .toast.show {
@@ -403,38 +305,13 @@
       transform: translateY(0);
     }
 
-    @keyframes cloudFloatLeft {
-      0%, 100% { transform: translateX(0) translateY(0); }
-      50% { transform: translateX(14px) translateY(-4px); }
-    }
-
-    @keyframes cloudFloatRight {
-      0%, 100% { transform: translateX(0) translateY(0); }
-      50% { transform: translateX(-12px) translateY(-5px); }
-    }
-
-    @keyframes panelFloat {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-2px); }
-    }
-
-    @keyframes spriteBounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-3px); }
-    }
-
-    @keyframes badgeShine {
-      0% { left: -40%; }
-      100% { left: 130%; }
-    }
-
     @media (max-width: 640px) {
-      h1 {
-        font-size: 18px;
+      .container {
+        padding: var(--space-lg);
       }
 
-      .card {
-        padding: 18px;
+      .panel {
+        padding: var(--space-lg);
       }
 
       .iat-row {
@@ -453,20 +330,17 @@
 </head>
 <body>
   <div class="container">
-    <div class="card">
-      <div class="title-badge">Fantasy Theme UI</div>
-      <div class="sprite-row" aria-hidden="true">
-        <span class="sprite-icon sprite-star"></span>
-        <span class="sprite-icon sprite-leaf"></span>
-        <span class="sprite-icon sprite-gem"></span>
-      </div>
-      <h1>Coda Payout JWT Token Generator</h1>
+    <div class="panel">
+      <span class="label-tag">Local signing</span>
       <p class="subtitle">
-        Generate a payout authentication JWT locally in your browser for internal testing and documentation support.
+        Generate a payout authentication JWT in your browser for internal testing and documentation.
       </p>
 
       <div class="warning">
-        For testing / troubleshooting only. Do not expose your secret key publicly.
+        <svg class="warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>For testing and troubleshooting only. Never expose your secret key publicly.</span>
       </div>
 
       <div class="form-group">
@@ -479,7 +353,7 @@
         <div class="iat-row">
           <input type="text" id="iat" placeholder="Enter UTC Unix timestamp" autocomplete="off" />
           <button type="button" class="btn btn-ghost" id="useCurrentTimestamp">
-            Use current UTC timestamp
+            Use current UTC
           </button>
         </div>
         <div class="helper-text">
@@ -495,26 +369,26 @@
       <div id="message" class="message" aria-live="polite"></div>
 
       <div class="actions">
-        <button type="button" class="btn btn-primary" id="generateBtn">Generate Token</button>
-        <button type="button" class="btn btn-secondary" id="copyBtn">Copy Token</button>
+        <button type="button" class="btn btn-primary" id="generateBtn">Generate token</button>
+        <button type="button" class="btn btn-secondary" id="copyBtn">Copy token</button>
         <button type="button" class="btn btn-ghost" id="clearBtn">Clear</button>
       </div>
 
       <div class="section">
-        <h2>JWT Header</h2>
+        <h2>JWT header</h2>
         <div class="output-box" id="headerOutput">{}</div>
       </div>
 
       <div class="section">
-        <h2>JWT Payload</h2>
+        <h2>JWT payload</h2>
         <div class="output-box" id="payloadOutput">{}</div>
       </div>
 
       <div class="section">
-        <h2>Generated JWT Token</h2>
+        <h2>Generated JWT token</h2>
         <div class="output-box token-box" id="tokenOutput"></div>
         <div class="token-helper">
-          Use this token in request header as: Authorization: Bearer &lt;jwt_token&gt;
+          Use in request header: <code>Authorization: Bearer &lt;jwt_token&gt;</code>
         </div>
       </div>
     </div>
@@ -522,7 +396,6 @@
 
   <div id="toast" class="toast">Token copied to clipboard.</div>
 
-  <!-- CryptoJS for HMAC-SHA256 signing -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
 
   <script>
@@ -562,7 +435,6 @@
       return Math.floor(Date.now() / 1000);
     }
 
-    // Convert a UTF-8 string to Base64URL format.
     function base64UrlEncodeUtf8(str) {
       const wordArray = CryptoJS.enc.Utf8.parse(str);
       const base64 = CryptoJS.enc.Base64.stringify(wordArray);
@@ -572,7 +444,6 @@
         .replace(/\//g, "_");
     }
 
-    // Convert a CryptoJS WordArray signature to Base64URL format.
     function base64UrlEncodeWordArray(wordArray) {
       const base64 = CryptoJS.enc.Base64.stringify(wordArray);
       return base64
@@ -604,7 +475,6 @@
       const encodedPayload = base64UrlEncodeUtf8(payloadJson);
       const unsignedToken = encodedHeader + "." + encodedPayload;
 
-      // HS256 = HMAC-SHA256
       const signature = CryptoJS.HmacSHA256(unsignedToken, secretKey);
       const encodedSignature = base64UrlEncodeWordArray(signature);
 
@@ -684,4 +554,3 @@
   </script>
 </body>
 </html>
-

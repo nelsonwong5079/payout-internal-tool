@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'template_library_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ambient_background.dart';
@@ -47,19 +46,11 @@ class PublicTemplateLibraryPage extends StatelessWidget {
                         children: [
                           Text(
                             'Template Library',
-                            style: GoogleFonts.inter(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -0.3,
-                              color: AppColors.textPrimary,
-                            ),
+                            style: AppTypography.display.copyWith(fontSize: 18),
                           ),
                           Text(
                             'Publisher communication templates — no sign-in required',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              color: AppColors.textSecondary,
-                            ),
+                            style: AppTypography.body.copyWith(fontSize: 12),
                           ),
                         ],
                       ),

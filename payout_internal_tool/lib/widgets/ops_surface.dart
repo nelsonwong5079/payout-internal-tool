@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../theme/app_theme.dart';
 import 'glass_surface.dart';
 
@@ -12,7 +11,6 @@ class OpsSurface extends StatelessWidget {
     this.dark = true,
     this.radius = AppRadii.lg,
     this.width,
-    this.glow = false,
   });
 
   final Widget child;
@@ -20,7 +18,6 @@ class OpsSurface extends StatelessWidget {
   final bool dark;
   final double radius;
   final double? width;
-  final bool glow;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +26,6 @@ class OpsSurface extends StatelessWidget {
         padding: padding ?? const EdgeInsets.all(20),
         radius: radius,
         width: width,
-        glow: glow,
         child: child,
       );
     }
