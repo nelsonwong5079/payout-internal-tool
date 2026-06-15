@@ -2,6 +2,7 @@ import 'dart:html' as html;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../services/payout_renotify_service.dart';
@@ -223,6 +224,23 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
     });
   }
 
+  String get _samplePayoutId {
+    final parsed = PayoutRenotifyService.parsePayoutIds(_inputController.text);
+    if (parsed.validIds.isNotEmpty) return parsed.validIds.first;
+    return PayoutRenotifyService.examplePayoutId;
+  }
+
+  String get _curlCommand => PayoutRenotifyService.buildCurlCommand(
+        environment: _environment,
+        payoutId: _samplePayoutId,
+      );
+
+  Future<void> _copyCurl() async {
+    await Clipboard.setData(ClipboardData(text: _curlCommand));
+    if (!mounted) return;
+    _showMessage('curl command copied to clipboard');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -299,6 +317,8 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
 
   List<Widget> _buildInputFields() {
     return [
+      _buildApiReference(),
+      const SizedBox(height: 20),
       Text(
         'Payout IDs',
         style: GoogleFonts.inter(
@@ -395,74 +415,183 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
   Widget _buildEnvironmentHeader() {
     final isProduction = _environment == RenotifyEnvironment.production;
 
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return GlassSurface(
+      padding: const EdgeInsets.all(16),
+      radius: AppRadii.md,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Environment',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  isProduction
+                      ? 'Production scheduler — use with caution'
+                      : 'Staging scheduler for testing',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.textMutedOnDark,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          StatusPill(
+            label: _environment.label,
+            tone: isProduction ? StatusPillTone.error : StatusPillTone.warning,
+          ),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                'Environment',
+                'Staging',
                 style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  fontSize: 11,
+                  color: !isProduction
+                      ? AppColors.textPrimary
+                      : AppColors.textMutedOnDark,
                 ),
               ),
-              const SizedBox(height: 4),
+              Switch(
+                value: isProduction,
+                onChanged: _isProcessing
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _environment = value
+                              ? RenotifyEnvironment.production
+                              : RenotifyEnvironment.staging;
+                        });
+                      },
+              ),
               Text(
-                isProduction
-                    ? 'Production scheduler — use with caution'
-                    : 'Staging scheduler for testing',
+                'Production',
                 style: GoogleFonts.inter(
-                  fontSize: 12,
-                  color: AppColors.textMutedOnDark,
+                  fontSize: 11,
+                  color: isProduction
+                      ? AppColors.error
+                      : AppColors.textMutedOnDark,
                 ),
               ),
             ],
           ),
-        ),
-        StatusPill(
-          label: _environment.label,
-          tone: isProduction ? StatusPillTone.error : StatusPillTone.warning,
-        ),
-        const SizedBox(width: 14),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Text(
-              'Staging',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                color: !isProduction
-                    ? AppColors.textPrimary
-                    : AppColors.textMutedOnDark,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildApiReference() {
+    return GlassSurface(
+      padding: const EdgeInsets.all(16),
+      radius: AppRadii.md,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'API request',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _copyCurl,
+                icon: const Icon(Icons.copy_rounded, size: 14),
+                label: const Text('Copy curl'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(
+                    color: AppColors.accent.withValues(alpha: 0.25),
+                  ),
+                ),
+                child: Text(
+                  'POST',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.accentHover,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: SelectableText(
+                  _environment.notifyUrl,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Equivalent curl (one payout ID per request):',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              color: AppColors.textMutedOnDark,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.void_.withValues(alpha: 0.45),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(color: AppColors.glassBorder),
+            ),
+            child: SelectableText(
+              _curlCommand,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10.5,
+                height: 1.5,
+                color: AppColors.textPrimary,
               ),
             ),
-            Switch(
-              value: isProduction,
-              onChanged: _isProcessing
-                  ? null
-                  : (value) {
-                      setState(() {
-                        _environment = value
-                            ? RenotifyEnvironment.production
-                            : RenotifyEnvironment.staging;
-                      });
-                    },
-            ),
+          ),
+          if (PayoutRenotifyService.parsePayoutIds(_inputController.text)
+              .validIds
+              .length >
+              1) ...[
+            const SizedBox(height: 8),
             Text(
-              'Production',
+              'Multiple IDs each trigger a separate POST like the one above.',
               style: GoogleFonts.inter(
                 fontSize: 11,
-                color: isProduction
-                    ? AppColors.error
-                    : AppColors.textMutedOnDark,
+                color: AppColors.textMutedOnDark,
               ),
             ),
           ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 

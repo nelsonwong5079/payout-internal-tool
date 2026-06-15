@@ -142,6 +142,22 @@ class PayoutRenotifyService {
     return trimmed.contains(' ');
   }
 
+  static String buildCurlCommand({
+    required RenotifyEnvironment environment,
+    required String payoutId,
+  }) {
+    final url = environment.notifyUrl;
+    final body = const JsonEncoder.withIndent('    ').convert({
+      'payoutIds': [payoutId],
+    });
+
+    return "curl --location --request POST '$url' \\\n"
+        "--header 'Content-Type: application/json' \\\n"
+        "--data '$body'";
+  }
+
+  static const examplePayoutId = '52954907-e9fb-431a-8489-e48d21323192';
+
   Future<bool> isLocalProxyAvailable() async {
     try {
       final response = await _xhr(
