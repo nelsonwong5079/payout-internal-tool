@@ -73,17 +73,9 @@ Future<Uint8List> buildHolidayNoticePdf({
           text: pw.TextSpan(
             style: _bodyStyle(),
             children: [
-              const pw.TextSpan(
-                text:
-                    'We would like to inform you that our finance colleagues in ',
-              ),
-              pw.TextSpan(
-                text: 'Malaysia, Indonesia, and Singapore',
-                style: _bodyStyle(bold: true),
-              ),
               pw.TextSpan(
                 text:
-                    ' will have an upcoming public holiday ${dateInput.introPhrase}. During this period, ',
+                    'We would like to inform you that we will have an upcoming public holiday ${dateInput.introPhrase}. During this period, ',
               ),
               pw.TextSpan(
                 text: 'payout balance top-ups and net-offs',

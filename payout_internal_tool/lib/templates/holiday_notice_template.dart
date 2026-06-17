@@ -263,7 +263,7 @@ String buildHolidayNoticeHtml({
       <p class="greeting">Dear Publisher Partner,</p>
 
       <p class="greeting" style="margin-top: -8px;">
-        We would like to inform you that our finance colleagues in <strong>Malaysia, Indonesia, and Singapore</strong> will have an upcoming public holiday $introPhrase. During this period, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
+        We would like to inform you that we will have an upcoming public holiday $introPhrase. During this period, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
       </p>
 
       <div class="date-highlight">
