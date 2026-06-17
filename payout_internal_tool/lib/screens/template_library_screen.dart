@@ -33,8 +33,8 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
   static const _templates = [
     (
       id: 'holiday_notice',
-      name: 'Public Holiday Notice',
-      description: 'MY + ID joint holiday advisory for payout service downtime',
+      name: 'Payout Balance Notice',
+      description: 'Advisory when finance-team countries have an upcoming holiday',
     ),
   ];
 
@@ -216,16 +216,16 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
           }),
           const SizedBox(height: 20),
           _buildSection(
-            title: 'Holiday details',
+            title: 'Notice details',
             children: [
               _buildField(
-                label: 'Malaysia holiday name',
+                label: 'Malaysia — occasion',
                 hint: 'e.g. Hari Raya Aidilfitri',
                 controller: _myHolidayController,
               ),
               const SizedBox(height: 12),
               _buildField(
-                label: 'Indonesia holiday name',
+                label: 'Indonesia — occasion',
                 hint: 'e.g. Hari Raya Idul Fitri',
                 controller: _idHolidayController,
               ),
@@ -243,7 +243,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
               const SizedBox(height: 12),
               if (_dateMode == HolidayDateMode.single)
                 _buildField(
-                  label: 'Holiday date',
+                  label: 'Affected date',
                   hint: 'e.g. 10 April 2026',
                   controller: _singleDateController,
                 )

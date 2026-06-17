@@ -48,7 +48,7 @@ String buildHolidayNoticeSubject(HolidayDateInput dateInput) {
   return 'Important Notice — Payout Top Up Balance Services Unavailable $date';
 }
 
-/// Generates a professional HTML announcement for MY + ID public holidays.
+/// Generates a professional HTML payout balance advisory when finance-team countries have upcoming holidays.
 String buildHolidayNoticeHtml({
   required String malaysiaHolidayName,
   required String indonesiaHolidayName,
@@ -261,7 +261,7 @@ String buildHolidayNoticeHtml({
       <p class="greeting">Dear Publisher Partner,</p>
 
       <p class="greeting" style="margin-top: -8px;">
-        We would like to inform you that <strong>both Malaysia and Indonesia</strong> will observe a public holiday $introPhrase. During this time, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
+        We would like to inform you that our finance colleagues in <strong>Malaysia and Indonesia</strong> will have an upcoming public holiday $introPhrase. During this period, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
       </p>
 
       <div class="date-highlight">
@@ -271,11 +271,11 @@ String buildHolidayNoticeHtml({
 
       <div class="holiday-grid">
         <div class="holiday-card">
-          <div class="country-label">🇲🇾 Malaysia</div>
+          <div class="country-label">Finance colleagues — Malaysia</div>
           <div class="holiday-name">$my</div>
         </div>
         <div class="holiday-card">
-          <div class="country-label">🇮🇩 Indonesia</div>
+          <div class="country-label">Finance colleagues — Indonesia</div>
           <div class="holiday-name">$id</div>
         </div>
       </div>
@@ -288,7 +288,7 @@ String buildHolidayNoticeHtml({
       </ul>
 
       <div class="notice-box">
-        <p>We apologise for any inconvenience to your balance management during this period. Top-up and net-off services will resume once banking operations reopen in both markets. There is no change to how your existing payout transactions are processed.</p>
+        <p>We apologise for any inconvenience to your balance management during this period. Top-up and net-off services will resume once our finance colleagues return from the holiday. There is no change to how your existing payout transactions are processed.</p>
       </div>
 
       <div class="acknowledgement">
