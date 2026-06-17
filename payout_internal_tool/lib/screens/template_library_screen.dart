@@ -4,6 +4,7 @@ import 'dart:ui_web' as ui_web;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../templates/holiday_notice_pdf.dart';
 import '../templates/holiday_notice_template.dart';
 import '../theme/app_theme.dart';
 import '../widgets/glass_surface.dart';
@@ -19,6 +20,7 @@ class TemplateLibraryScreen extends StatefulWidget {
 class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
   final _myHolidayController = TextEditingController(text: 'Hari Raya Aidilfitri');
   final _idHolidayController = TextEditingController(text: 'Hari Raya Idul Fitri');
+  final _sgHolidayController = TextEditingController(text: 'Hari Raya Puasa');
   final _singleDateController = TextEditingController(text: '10 April 2026');
   final _rangeStartController = TextEditingController(text: '10 April 2026');
   final _rangeEndController = TextEditingController(text: '12 April 2026');
@@ -34,9 +36,12 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
     (
       id: 'holiday_notice',
       name: 'Payout Balance Notice',
-      description: 'Advisory when finance-team countries have an upcoming holiday',
+      description: 'Advisory when MY, ID, and SG finance teams have an upcoming holiday',
     ),
   ];
+
+  static const _receptionListUrl =
+      'https://docs.google.com/spreadsheets/d/1Ud6EKkBElwWmu-80chUvK-zOQgNfT1JPItzyS8mq8Dc/edit?gid=621262899#gid=621262899';
 
   @override
   void initState() {
@@ -75,6 +80,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
   String get _generatedHtml => buildHolidayNoticeHtml(
         malaysiaHolidayName: _myHolidayController.text,
         indonesiaHolidayName: _idHolidayController.text,
+        singaporeHolidayName: _sgHolidayController.text,
         dateInput: _dateInput,
       );
 
@@ -84,6 +90,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
   void dispose() {
     _myHolidayController.dispose();
     _idHolidayController.dispose();
+    _sgHolidayController.dispose();
     _singleDateController.dispose();
     _rangeStartController.dispose();
     _rangeEndController.dispose();
@@ -93,6 +100,40 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
   void _onFieldChanged() {
     setState(() {});
     WidgetsBinding.instance.addPostFrameCallback((_) => _syncPreview());
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      final bytes = await buildHolidayNoticePdf(
+        malaysiaHolidayName: _myHolidayController.text,
+        indonesiaHolidayName: _idHolidayController.text,
+        singaporeHolidayName: _sgHolidayController.text,
+        dateInput: _dateInput,
+      );
+      final filename = buildHolidayNoticePdfFilename(_dateInput);
+      _triggerBrowserDownload(bytes, filename);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Downloaded $filename')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to generate PDF: $e')),
+      );
+    }
+  }
+
+  void _triggerBrowserDownload(Uint8List bytes, String filename) {
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', filename)
+      ..style.display = 'none';
+    html.document.body?.append(anchor);
+    anchor.click();
+    anchor.remove();
+    html.Url.revokeObjectUrl(url);
   }
 
   Future<void> _copyHtml() async {
@@ -109,6 +150,10 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Subject line copied to clipboard')),
     );
+  }
+
+  void _openReceptionList() {
+    html.window.open(_receptionListUrl, '_blank');
   }
 
   @override
@@ -150,6 +195,8 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
             'Fill in the fields to generate publisher-ready HTML.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          const SizedBox(height: 16),
+          _buildReceptionListCallout(),
           const SizedBox(height: 20),
           ...List.generate(_templates.length, (i) {
             final t = _templates[i];
@@ -229,6 +276,12 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                 hint: 'e.g. Hari Raya Idul Fitri',
                 controller: _idHolidayController,
               ),
+              const SizedBox(height: 12),
+              _buildField(
+                label: 'Singapore — occasion',
+                hint: 'e.g. Hari Raya Puasa',
+                controller: _sgHolidayController,
+              ),
               const SizedBox(height: 16),
               Text(
                 'Affected date',
@@ -295,6 +348,102 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReceptionListCallout() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openReceptionList,
+        borderRadius: BorderRadius.circular(AppRadii.lg),
+        child: Ink(
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(
+              color: AppColors.accent.withValues(alpha: 0.5),
+              width: 1.5,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: AppColors.accent.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      child: const Icon(
+                        Icons.groups_rounded,
+                        color: AppColors.accentHover,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  'Reception list',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const StatusPill(
+                                label: 'Required',
+                                tone: StatusPillTone.warning,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Before sending, open the spreadsheet to confirm who should receive this announcement.',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: AppColors.textSecondary,
+                              height: 1.45,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: _openReceptionList,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('Open reception list'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    textStyle: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -427,6 +576,69 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
     );
   }
 
+  Widget _buildReceptionListBanner() {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: _openReceptionList,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.accent.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(
+              color: AppColors.accent.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
+                ),
+                child: const Icon(
+                  Icons.groups_rounded,
+                  size: 18,
+                  color: AppColors.accentHover,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Check the reception list before sending this announcement.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              FilledButton.tonalIcon(
+                onPressed: _openReceptionList,
+                icon: const Icon(Icons.open_in_new_rounded, size: 14),
+                label: const Text('Open list'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.accent.withValues(alpha: 0.2),
+                  foregroundColor: AppColors.accentHover,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPreviewPanel(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, AppSpacing.page, AppSpacing.page),
@@ -440,12 +652,20 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
               const StatusPill(label: 'Live', tone: StatusPillTone.info),
               const Spacer(),
               OutlinedButton.icon(
+                onPressed: _downloadPdf,
+                icon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                label: const Text('Download PDF'),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
                 onPressed: _copyHtml,
                 icon: const Icon(Icons.code, size: 16),
                 label: const Text('Copy HTML'),
               ),
             ],
           ),
+          const SizedBox(height: 12),
+          _buildReceptionListBanner(),
           const SizedBox(height: 12),
           Expanded(
             child: GlassSurface(

@@ -52,10 +52,12 @@ String buildHolidayNoticeSubject(HolidayDateInput dateInput) {
 String buildHolidayNoticeHtml({
   required String malaysiaHolidayName,
   required String indonesiaHolidayName,
+  required String singaporeHolidayName,
   required HolidayDateInput dateInput,
 }) {
   final my = _escapeHtml(malaysiaHolidayName.trim());
   final id = _escapeHtml(indonesiaHolidayName.trim());
+  final sg = _escapeHtml(singaporeHolidayName.trim());
   final date = _escapeHtml(dateInput.displayText);
   final dateLabel = _escapeHtml(dateInput.dateLabel);
   final introPhrase = dateInput.introPhrase;
@@ -142,11 +144,11 @@ String buildHolidayNoticeHtml({
     }
     .holiday-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 12px;
       margin-bottom: 24px;
     }
-    @media (max-width: 480px) {
+    @media (max-width: 640px) {
       .holiday-grid { grid-template-columns: 1fr; }
       .body-content { padding: 20px; }
       .date-value { font-size: 18px; }
@@ -261,7 +263,7 @@ String buildHolidayNoticeHtml({
       <p class="greeting">Dear Publisher Partner,</p>
 
       <p class="greeting" style="margin-top: -8px;">
-        We would like to inform you that our finance colleagues in <strong>Malaysia and Indonesia</strong> will have an upcoming public holiday $introPhrase. During this period, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
+        We would like to inform you that our finance colleagues in <strong>Malaysia, Indonesia, and Singapore</strong> will have an upcoming public holiday $introPhrase. During this period, <strong>payout balance top-ups and net-offs</strong> will be temporarily unavailable. Your regular payout processing will <strong>not</strong> be affected.
       </p>
 
       <div class="date-highlight">
@@ -277,6 +279,10 @@ String buildHolidayNoticeHtml({
         <div class="holiday-card">
           <div class="country-label">Finance colleagues — Indonesia</div>
           <div class="holiday-name">$id</div>
+        </div>
+        <div class="holiday-card">
+          <div class="country-label">Finance colleagues — Singapore</div>
+          <div class="holiday-name">$sg</div>
         </div>
       </div>
 
