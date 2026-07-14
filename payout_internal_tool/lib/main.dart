@@ -1097,165 +1097,129 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     };
   }
 
+  String _formatReportError(Object error) {
+    var message = error.toString().trim();
+    message = message.replaceFirst(RegExp(r'^Exception:\s*'), '');
+    message = message.replaceFirst(RegExp(r'^TypeError:\s*'), '');
+    message = message.replaceFirst(RegExp(r'^Error:\s*'), '');
+    if (message.isEmpty) return 'Unknown error';
+    if (message.length > 180) {
+      return '${message.substring(0, 180)}...';
+    }
+    return message;
+  }
+
+  bool _isNetworkConnectivityError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('failed to fetch') ||
+        message.contains('networkerror') ||
+        message.contains('network error') ||
+        message.contains('load failed') ||
+        message.contains('network request failed') ||
+        message.contains('err_connection') ||
+        message.contains('err_name_not_resolved') ||
+        message.contains('err_timed_out') ||
+        message.contains('timeout') ||
+        message.contains('socket');
+  }
+
+  String _reportTriggerErrorMessage(String reportLabel, Object error) {
+    final actualError = _formatReportError(error);
+    if (_isNetworkConnectivityError(error)) {
+      return 'Unable to send the $reportLabel: $actualError. '
+          'Check your network connection, or connect to VPN if you are off the office network.';
+    }
+    return 'Unable to send the $reportLabel: $actualError';
+  }
+
+  void _showReportSnackBar({
+    required String message,
+    required bool isError,
+  }) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: isError
+                ? AppColors.error.withValues(alpha: 0.12)
+                : AppColors.success.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(
+              color: isError
+                  ? AppColors.error.withValues(alpha: 0.35)
+                  : AppColors.success.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                isError ? Icons.error_outline_rounded : Icons.check_circle_rounded,
+                color: isError ? AppColors.error : AppColors.success,
+                size: 18,
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  message,
+                  style: AppTypography.body.copyWith(
+                    color: isError ? AppColors.error : AppColors.success,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
   // Call wallet unfinished report API
   Future<void> _callWalletUnfinishedReportApi() async {
     try {
-      // Use fetch API with no-cors mode
       await html.window.fetch(
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-wallet-unfinished-report',
         createHttpOptions(method: 'POST', mode: 'no-cors'),
       );
-      
+
       // Always show success since no-cors mode doesn't return status
-      {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green.shade600),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Wallet Unfinished Report sent successfully',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Error sending Wallet Report: $error',
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-        ),
+      _showReportSnackBar(
+        message: 'Wallet unfinished report sent successfully.',
+        isError: false,
       );
-      rethrow;
+    } catch (error) {
+      _showReportSnackBar(
+        message: _reportTriggerErrorMessage('wallet report', error),
+        isError: true,
+      );
     }
   }
 
   // Call bank transfer unfinished report API
   Future<void> _callBankTransferUnfinishedReportApi() async {
     try {
-      // Use fetch API with no-cors mode
       await html.window.fetch(
         'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/send-bank-transfer-unfinished-report',
         createHttpOptions(method: 'POST', mode: 'no-cors'),
       );
-      
+
       // Always show success since no-cors mode doesn't return status
-      {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.green.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.green.shade200),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle, color: Colors.green.shade600),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      'Bank Transfer Unfinished Report sent successfully',
-                      style: TextStyle(
-                        color: Colors.green.shade700,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            backgroundColor: Colors.transparent,
-            elevation: 0,
-            behavior: SnackBarBehavior.floating,
-            margin: const EdgeInsets.all(16),
-            duration: const Duration(seconds: 4),
-          ),
-        );
-      }
-    } catch (error) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.shade200),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.error_outline, color: Colors.red.shade600),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Error sending Bank Transfer Report: $error',
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(16),
-          duration: const Duration(seconds: 4),
-        ),
+      _showReportSnackBar(
+        message: 'Bank transfer unfinished report sent successfully.',
+        isError: false,
       );
-      rethrow;
+    } catch (error) {
+      _showReportSnackBar(
+        message: _reportTriggerErrorMessage('bank transfer report', error),
+        isError: true,
+      );
     }
   }
 
