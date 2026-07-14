@@ -1049,6 +1049,27 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     return result;
   }
 
+  // VPN connection check - JavaScript fetch with no-cors mode
+  Future<bool> _checkVpnConnection() async {
+    try {
+      // Use JavaScript fetch with no-cors mode to bypass CORS restrictions
+      await html.window.fetch(
+        'https://payout-scheduler.codapay.net/internal/scheduler/email-workflow/check-new-email',
+        {
+          'method': 'POST',
+          'mode': 'no-cors', // This bypasses CORS but limits response access
+        }
+      );
+      
+      // In no-cors mode, we can't read the status code directly
+      // But if the request completes without error, it means the endpoint is reachable
+      // and likely the VPN is connected (since this is an internal endpoint)
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // Call check-new-email API client-side with no-cors
   Future<void> _callCheckNewEmailApi() async {
     try {
@@ -1238,9 +1259,361 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
     }
   }
 
-  // File upload handler
-  void _handleFileUpload() {
-    _proceedWithFileUpload();
+  // Show VPN connection dialog
+  void _showVpnDialog() {
+    var isRechecking = false;
+    var recheckFailed = false;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: AppColors.void_.withValues(alpha: 0.72),
+      builder: (BuildContext dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> recheck() async {
+              if (isRechecking) return;
+              setDialogState(() {
+                isRechecking = true;
+                recheckFailed = false;
+              });
+
+              final isConnected = await _checkVpnConnection();
+
+              if (!dialogContext.mounted) return;
+
+              if (isConnected) {
+                Navigator.of(dialogContext).pop();
+                _proceedWithFileUpload();
+                return;
+              }
+
+              setDialogState(() {
+                isRechecking = false;
+                recheckFailed = true;
+              });
+            }
+
+            Widget stepRow({
+              required String index,
+              required String title,
+              required String subtitle,
+            }) {
+              return Container(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceMuted.withValues(alpha: 0.45),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  border: Border.all(color: AppColors.glassBorder),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(AppRadii.sm),
+                        border: Border.all(color: AppColors.borderSubtle),
+                      ),
+                      child: Text(
+                        index,
+                        style: AppTypography.label.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: AppTypography.title.copyWith(fontSize: 13)),
+                          const SizedBox(height: 2),
+                          Text(subtitle, style: AppTypography.body.copyWith(fontSize: 12)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(AppRadii.xl),
+                    border: Border.all(color: AppColors.glassBorder),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.45),
+                        blurRadius: 32,
+                        offset: const Offset(0, 16),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.page,
+                          AppSpacing.page,
+                          AppSpacing.page,
+                          AppSpacing.lg,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: AppColors.warning.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(AppRadii.md),
+                                    border: Border.all(
+                                      color: AppColors.warning.withValues(alpha: 0.28),
+                                    ),
+                                  ),
+                                  child: const Icon(
+                                    Icons.vpn_lock_rounded,
+                                    color: AppColors.warning,
+                                    size: 22,
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.md),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'VPN required',
+                                        style: AppTypography.display.copyWith(fontSize: 18),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Connect to the company VPN before uploading payout files.',
+                                        style: AppTypography.body,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: AppSpacing.xl),
+                            stepRow(
+                              index: '1',
+                              title: 'Connect to VPN',
+                              subtitle: 'Join the internal network on your device.',
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            stepRow(
+                              index: '2',
+                              title: 'Recheck connection',
+                              subtitle: "We'll verify access to the payout scheduler.",
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                            stepRow(
+                              index: '3',
+                              title: 'Upload your file',
+                              subtitle: 'Once connected, choose a CSV or ZIP to continue.',
+                            ),
+                            if (recheckFailed) ...[
+                              const SizedBox(height: AppSpacing.lg),
+                              Container(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(AppRadii.md),
+                                  border: Border.all(
+                                    color: AppColors.error.withValues(alpha: 0.28),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      color: AppColors.error,
+                                      size: 18,
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: Text(
+                                        'Still unreachable. Confirm VPN is connected and try again.',
+                                        style: AppTypography.body.copyWith(
+                                          color: AppColors.error,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(
+                          AppSpacing.page,
+                          AppSpacing.md,
+                          AppSpacing.page,
+                          AppSpacing.page,
+                        ),
+                        decoration: const BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: AppColors.glassBorder),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: isRechecking
+                                    ? null
+                                    : () => Navigator.of(dialogContext).pop(),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.textSecondary,
+                                  side: const BorderSide(color: AppColors.borderSubtle),
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadii.md),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Cancel',
+                                  style: AppTypography.title.copyWith(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.sm),
+                            Expanded(
+                              flex: 2,
+                              child: FilledButton.icon(
+                                onPressed: isRechecking ? null : recheck,
+                                icon: isRechecking
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      )
+                                    : const Icon(Icons.refresh_rounded, size: 18),
+                                label: Text(
+                                  isRechecking ? 'Checking...' : 'Recheck connection',
+                                  style: AppTypography.title.copyWith(fontSize: 13),
+                                ),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: AppColors.accent,
+                                  foregroundColor: AppColors.textPrimary,
+                                  disabledBackgroundColor:
+                                      AppColors.accent.withValues(alpha: 0.55),
+                                  disabledForegroundColor: AppColors.textPrimary,
+                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppRadii.md),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildVpnCheckingDialog() {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 320),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.page),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceElevated,
+            borderRadius: BorderRadius.circular(AppRadii.xl),
+            border: Border.all(color: AppColors.glassBorder),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: AppColors.accent,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Checking VPN', style: AppTypography.title),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Verifying payout scheduler access...',
+                      style: AppTypography.body.copyWith(fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // File upload handler with VPN check
+  void _handleFileUpload() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      barrierColor: AppColors.void_.withValues(alpha: 0.72),
+      builder: (BuildContext context) => _buildVpnCheckingDialog(),
+    );
+
+    // Check VPN connection first
+    final isVpnConnected = await _checkVpnConnection();
+    
+    // Close loading dialog
+    if (mounted) Navigator.of(context).pop();
+
+    if (isVpnConnected) {
+      // VPN is connected, proceed with file upload
+      _proceedWithFileUpload();
+    } else {
+      // VPN not connected, show VPN dialog
+      _showVpnDialog();
+    }
   }
 
   // Proceed with actual file upload
