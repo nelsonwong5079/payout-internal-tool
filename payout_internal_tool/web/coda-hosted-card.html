@@ -369,27 +369,7 @@
         <div class="section-label">Theme (appearance.customStyle JSON)</div>
         <div class="field">
           <label for="themeJson">Tune without code changes</label>
-          <textarea id="themeJson">{
-{
-  "backgroundColor": "#18181B",
-  "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
-  "fontWeight": "400",
-  "fontSize": "14px",
-  "borderRadius": "8px",
-  "verticalSpacing": "12px",
-  "horizontalSpacing": "10px",
-  "titleColor": "#FAFAFA",
-  "fieldBackgroundColor": "#27272A",
-  "fieldLabelColor": "#A1A1AA",
-  "fieldTextColor": "#FAFAFA",
-  "fieldBorderColor": "#3F3F46",
-  "fieldFocusBorderColor": "#6366F1",
-  "fieldPlaceholderColor": "#71717A",
-  "checkBoxActiveBackgroundColor": "#6366F1",
-  "checkBoxDeactiveBackgroundColor": "#27272A",
-  "checkBoxBorderWidth": "1px",
-  "checkMarkColor": "#FAFAFA"
-}</textarea>
+          <textarea id="themeJson" rows="12" spellcheck="false"></textarea>
         </div>
 
         <div class="section-label">Authorize &amp; Capture</div>
@@ -473,6 +453,27 @@
     const INQUIRY_URL = BASE + '/codaCardInquiry';
     const DEBUG_FEED_URL = BASE + '/codaCardDebugFeed';
     const DEBUG_INGEST_URL = BASE + '/codaCardDebugIngest';
+
+    const DEFAULT_THEME = {
+      backgroundColor: '#18181B',
+      fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
+      fontWeight: '400',
+      fontSize: '14px',
+      borderRadius: '8px',
+      verticalSpacing: '12px',
+      horizontalSpacing: '10px',
+      titleColor: '#FAFAFA',
+      fieldBackgroundColor: '#27272A',
+      fieldLabelColor: '#A1A1AA',
+      fieldTextColor: '#FAFAFA',
+      fieldBorderColor: '#3F3F46',
+      fieldFocusBorderColor: '#6366F1',
+      fieldPlaceholderColor: '#71717A',
+      checkBoxActiveBackgroundColor: '#6366F1',
+      checkBoxDeactiveBackgroundColor: '#27272A',
+      checkBoxBorderWidth: '1px',
+      checkMarkColor: '#FAFAFA',
+    };
 
     let chargeComponent = null;
     let autoPoll = true;
@@ -563,10 +564,19 @@
     }
 
     function parseTheme() {
+      const raw = (els.themeJson.value || '').trim();
+      if (!raw) return Object.assign({}, DEFAULT_THEME);
       try {
-        return JSON.parse(els.themeJson.value);
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+          throw new Error('Theme must be a JSON object');
+        }
+        return parsed;
       } catch (e) {
-        throw new Error('Theme JSON is invalid: ' + e.message);
+        // Do not block checkout on theme typos — fall back and keep going.
+        console.warn('Invalid theme JSON, using default:', e.message);
+        els.themeJson.value = JSON.stringify(DEFAULT_THEME, null, 2);
+        return Object.assign({}, DEFAULT_THEME);
       }
     }
 
@@ -1052,6 +1062,7 @@
       els.autoPollBtn.textContent = 'Auto-poll: ' + (autoPoll ? 'on' : 'off');
     });
 
+    els.themeJson.value = JSON.stringify(DEFAULT_THEME, null, 2);
     newOrderId();
     setState('idle');
     setTxnBadge('info', 'no txn');
