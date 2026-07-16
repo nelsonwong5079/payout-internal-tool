@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Coda Hosted Card</title>
+  <script src="https://js.codapayments.com/8.0.0/coda-card.min.js"></script>
+  <style>
+    :root {
+      --void: #09090b;
+      --surface: #18181b;
+      --elevated: #1c1c1f;
+      --muted: #27272a;
+      --border: rgba(255, 255, 255, 0.1);
+      --border-strong: #3f3f46;
+      --text: #fafafa;
+      --text-secondary: #a1a1aa;
+      --text-muted: #71717a;
+      --accent: #6366f1;
+      --accent-hover: #818cf8;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --radius: 8px;
+      --font: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--void);
+      color: var(--text);
+      font-family: var(--font);
+    }
+    body { padding: 20px; }
+    .layout {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px;
+    }
+    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+    .panel {
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+    .panel.full { grid-column: 1 / -1; }
+    h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; }
+    .subtitle {
+      margin: 0 0 16px;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .section-label {
+      margin: 16px 0 8px;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: var(--muted);
+      border: 1px solid var(--border-strong);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      font-family: inherit;
+    }
+    textarea { min-height: 110px; font-family: var(--mono); font-size: 11px; }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    .field { margin-bottom: 10px; }
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .toggle-row input { width: auto; }
+    .row-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 14px;
+    }
+    button {
+      appearance: none;
+      border: none;
+      border-radius: var(--radius);
+      padding: 11px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border-strong);
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      background: var(--surface);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .status-pill.idle { color: var(--text-muted); }
+    .status-pill.ready { color: var(--accent-hover); border-color: rgba(99,102,241,0.35); }
+    .status-pill.submitting, .status-pill.tds { color: var(--warning); border-color: rgba(245,158,11,0.35); }
+    .status-pill.success { color: var(--success); border-color: rgba(34,197,94,0.35); }
+    .status-pill.error, .status-pill.failed { color: var(--error); border-color: rgba(239,68,68,0.35); }
+    .status-pill.pending { color: var(--warning); border-color: rgba(245,158,11,0.35); }
+    .status-pill.info { color: var(--accent-hover); }
+    #payment-form {
+      min-height: 220px;
+      background: var(--surface);
+      border: 1px dashed var(--border-strong);
+      border-radius: 12px;
+      padding: 12px;
+    }
+    #payment-form:empty::before {
+      content: "Start a payment session to mount the secure card form.";
+      color: var(--text-muted);
+      font-size: 13px;
+      display: block;
+      padding: 24px 8px;
+    }
+    .meta { margin-top: 12px; display: grid; gap: 8px; }
+    .meta-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+    .meta-row span:first-child { color: var(--text-muted); }
+    .meta-row span:last-child {
+      color: var(--text);
+      font-family: var(--mono);
+      text-align: right;
+      word-break: break-all;
+    }
+    .banner {
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(245,158,11,0.28);
+      background: rgba(245,158,11,0.1);
+      color: #fbbf24;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .note {
+      margin-top: 10px;
+      color: var(--text-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    details.feature {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 12px;
+      background: var(--surface);
+    }
+    details.feature summary {
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .debug-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .debug-toolbar .field { margin: 0; flex: 1; min-width: 140px; }
+    .debug-list {
+      display: grid;
+      gap: 10px;
+      max-height: 560px;
+      overflow: auto;
+    }
+    .debug-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+      padding: 12px;
+    }
+    .debug-card header {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .debug-card .title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .debug-card .meta-line {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--mono);
+      margin-bottom: 8px;
+      line-height: 1.45;
+      word-break: break-all;
+    }
+    .debug-card pre {
+      margin: 0 0 8px;
+      padding: 8px;
+      border-radius: 8px;
+      background: var(--void);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 180px;
+      overflow: auto;
+    }
+    .debug-card .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .empty-debug {
+      color: var(--text-muted);
+      font-size: 13px;
+      padding: 20px 8px;
+    }
+    .txn-badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <section class="panel">
+      <h1>Coda Hosted Card</h1>
+      <p class="subtitle">
+        Initiate a Hosted Component session, mount the PCI card form, submit the charge,
+        then reconcile via status inquiry. Backend activity streams into the debug panel below.
+      </p>
+
+      <div class="banner">
+        Frontend success is not final. Use <strong>Check status</strong> (inquiry API) to confirm
+        success / failed / pending. Keep env consistent with your API key (sandbox vs production).
+        Secrets are redacted in the debug panel.
+      </div>
+
+      <div class="section-label">Environment & credentials</div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="env">Coda env</label>
+          <select id="env">
+            <option value="production" selected>production</option>
+            <option value="sandbox">sandbox</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="apiKey">API key</label>
+          <input id="apiKey" type="password" value="live_OvTIrY6j0HZkia7k6B5SnEkxjYq" autocomplete="off" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="projectId">Project ID</label>
+          <input id="projectId" value="31" />
+        </div>
+        <div class="field">
+          <label for="payType">Pay type (card channel)</label>
+          <input id="payType" value="421" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="country">Country (numeric)</label>
+          <input id="country" value="485" />
+        </div>
+        <div class="field">
+          <label for="currency">Currency (numeric)</label>
+          <input id="currency" value="840" />
+        </div>
+      </div>
+
+      <div class="section-label">Order</div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="orderId">Order ID</label>
+          <input id="orderId" />
+        </div>
+        <div class="field">
+          <label for="userId">User ID</label>
+          <input id="userId" value="ops-user-1" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label for="itemCode">Item code</label>
+          <input id="itemCode" value="SKU001" />
+        </div>
+        <div class="field">
+          <label for="itemPrice">Item price</label>
+          <input id="itemPrice" type="number" min="0" step="0.01" value="1.00" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="itemName">Item name (Latin characters)</label>
+        <input id="itemName" value="Test Item" />
+      </div>
+
+      <details class="feature">
+        <summary>PART F — Optional features (off by default)</summary>
+        <div class="section-label">Saved cards (requires Coda enablement)</div>
+        <label class="toggle-row"><input type="checkbox" id="enableSavePaymentMethod" /> enableSavePaymentMethod</label>
+        <label class="toggle-row"><input type="checkbox" id="displaySavedPaymentMethodList" /> displaySavedPaymentMethodList</label>
+        <label class="toggle-row"><input type="checkbox" id="userInitiated" checked /> userInitiated</label>
+        <div class="grid-2">
+          <div class="field">
+            <label for="partnerShopperId">partnerShopperId</label>
+            <input id="partnerShopperId" placeholder="your-user-id" />
+          </div>
+          <div class="field">
+            <label for="shopperEmail">shopper email</label>
+            <input id="shopperEmail" type="email" placeholder="user@example.com" />
+          </div>
+        </div>
+        <p class="note">Not available for India/Indonesia. Leave off unless account is provisioned.</p>
+
+        <div class="section-label">Theme (appearance.customStyle JSON)</div>
+        <div class="field">
+          <label for="themeJson">Tune without code changes</label>
+          <textarea id="themeJson">{
+{
+  "backgroundColor": "#18181B",
+  "fontFamily": "Inter, ui-sans-serif, system-ui, sans-serif",
+  "fontWeight": "400",
+  "fontSize": "14px",
+  "borderRadius": "8px",
+  "verticalSpacing": "12px",
+  "horizontalSpacing": "10px",
+  "titleColor": "#FAFAFA",
+  "fieldBackgroundColor": "#27272A",
+  "fieldLabelColor": "#A1A1AA",
+  "fieldTextColor": "#FAFAFA",
+  "fieldBorderColor": "#3F3F46",
+  "fieldFocusBorderColor": "#6366F1",
+  "fieldPlaceholderColor": "#71717A",
+  "checkBoxActiveBackgroundColor": "#6366F1",
+  "checkBoxDeactiveBackgroundColor": "#27272A",
+  "checkBoxBorderWidth": "1px",
+  "checkMarkColor": "#FAFAFA"
+}</textarea>
+        </div>
+
+        <div class="section-label">Authorize &amp; Capture</div>
+        <label class="toggle-row"><input type="checkbox" id="authCaptureEnabled" disabled /> Enable auth/capture (stub — disabled)</label>
+        <p class="note">Capture/cancel endpoints return 501 until Coda enables POST notifications + auth/capture for the account.</p>
+      </details>
+
+      <div class="row-actions">
+        <button class="btn-primary" id="startBtn" type="button">Start payment session</button>
+        <button class="btn-secondary" id="resetBtn" type="button">Reset form</button>
+        <button class="btn-secondary" id="newOrderBtn" type="button">New order ID</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+        <div>
+          <h1 style="margin-bottom:4px;">Checkout</h1>
+          <p class="subtitle" style="margin:0;">Secure card fields mount here after init.</p>
+        </div>
+        <span id="statePill" class="status-pill idle">idle</span>
+      </div>
+
+      <div id="payment-form"></div>
+
+      <div class="row-actions">
+        <button class="btn-primary" id="payBtn" type="button" disabled>Pay now</button>
+        <button class="btn-secondary" id="inquiryBtn" type="button" disabled>Check status</button>
+      </div>
+
+      <div class="meta">
+        <div class="meta-row"><span>Correlation</span><span id="metaCorr">—</span></div>
+        <div class="meta-row"><span>Order ID</span><span id="metaOrder">—</span></div>
+        <div class="meta-row"><span>Txn ID</span><span id="metaTxn">—</span></div>
+        <div class="meta-row"><span>Inquiry status</span><span id="metaStatus">—</span></div>
+      </div>
+    </section>
+
+    <section class="panel full" id="debugPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <h1>Backend activity / debug</h1>
+          <p class="subtitle" style="margin-bottom:0;">
+            Live view of outbound Coda calls, inbound webhooks, and frontend summaries.
+            Secrets are masked. Newest first.
+          </p>
+        </div>
+        <span id="txnBadge" class="status-pill info">no txn</span>
+      </div>
+
+      <div class="debug-toolbar" style="margin-top:14px;">
+        <div class="field">
+          <label for="filterOrder">Filter orderId</label>
+          <input id="filterOrder" placeholder="current session order" />
+        </div>
+        <div class="field">
+          <label for="filterTxn">Filter txnId</label>
+          <input id="filterTxn" placeholder="optional" />
+        </div>
+        <div class="field">
+          <label for="debugToken">Debug token (if configured)</label>
+          <input id="debugToken" type="password" placeholder="optional X-Coda-Debug-Token" autocomplete="off" />
+        </div>
+      </div>
+      <div class="row-actions" style="margin-top:0;">
+        <button class="btn-secondary" id="refreshDebugBtn" type="button">Refresh</button>
+        <button class="btn-secondary" id="autoPollBtn" type="button">Auto-poll: on</button>
+        <button class="btn-secondary" id="filterSessionBtn" type="button">Filter to session</button>
+        <button class="btn-secondary" id="clearFilterBtn" type="button">Clear filters</button>
+      </div>
+      <div class="txn-badge-row" id="txnSummary"></div>
+      <div class="debug-list" id="debugList">
+        <div class="empty-debug">Waiting for backend activity…</div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const BASE = 'https://us-central1-codapay-webhook.cloudfunctions.net';
+    const INIT_URL = BASE + '/codaCardInit';
+    const INQUIRY_URL = BASE + '/codaCardInquiry';
+    const DEBUG_FEED_URL = BASE + '/codaCardDebugFeed';
+    const DEBUG_INGEST_URL = BASE + '/codaCardDebugIngest';
+
+    let chargeComponent = null;
+    let autoPoll = true;
+    let pollTimer = null;
+    let session = {
+      orderId: null,
+      txnId: null,
+      clientSecret: null,
+      correlationId: null,
+      env: null,
+      state: 'idle',
+      formReady: false,
+      badge: 'info',
+    };
+
+    const els = {
+      env: document.getElementById('env'),
+      apiKey: document.getElementById('apiKey'),
+      projectId: document.getElementById('projectId'),
+      payType: document.getElementById('payType'),
+      country: document.getElementById('country'),
+      currency: document.getElementById('currency'),
+      orderId: document.getElementById('orderId'),
+      userId: document.getElementById('userId'),
+      itemCode: document.getElementById('itemCode'),
+      itemPrice: document.getElementById('itemPrice'),
+      itemName: document.getElementById('itemName'),
+      enableSavePaymentMethod: document.getElementById('enableSavePaymentMethod'),
+      displaySavedPaymentMethodList: document.getElementById('displaySavedPaymentMethodList'),
+      userInitiated: document.getElementById('userInitiated'),
+      partnerShopperId: document.getElementById('partnerShopperId'),
+      shopperEmail: document.getElementById('shopperEmail'),
+      themeJson: document.getElementById('themeJson'),
+      startBtn: document.getElementById('startBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      newOrderBtn: document.getElementById('newOrderBtn'),
+      payBtn: document.getElementById('payBtn'),
+      inquiryBtn: document.getElementById('inquiryBtn'),
+      statePill: document.getElementById('statePill'),
+      metaCorr: document.getElementById('metaCorr'),
+      metaOrder: document.getElementById('metaOrder'),
+      metaTxn: document.getElementById('metaTxn'),
+      metaStatus: document.getElementById('metaStatus'),
+      paymentForm: document.getElementById('payment-form'),
+      filterOrder: document.getElementById('filterOrder'),
+      filterTxn: document.getElementById('filterTxn'),
+      debugToken: document.getElementById('debugToken'),
+      refreshDebugBtn: document.getElementById('refreshDebugBtn'),
+      autoPollBtn: document.getElementById('autoPollBtn'),
+      filterSessionBtn: document.getElementById('filterSessionBtn'),
+      clearFilterBtn: document.getElementById('clearFilterBtn'),
+      debugList: document.getElementById('debugList'),
+      txnBadge: document.getElementById('txnBadge'),
+      txnSummary: document.getElementById('txnSummary'),
+    };
+
+    function setTxnBadge(badge, label) {
+      session.badge = badge;
+      els.txnBadge.textContent = label;
+      els.txnBadge.className = 'status-pill ' + badge;
+    }
+
+    function setState(state) {
+      session.state = state;
+      els.statePill.textContent = state;
+      els.statePill.className = 'status-pill ' + state;
+      updateButtons();
+    }
+
+    function updateButtons() {
+      const canPay = session.state === 'ready' && session.formReady && !!chargeComponent;
+      els.payBtn.disabled = !canPay || session.state === 'submitting' || session.state === 'tds';
+      els.inquiryBtn.disabled = !session.txnId;
+      els.startBtn.disabled = session.state === 'submitting' || session.state === 'tds';
+    }
+
+    function newOrderId() {
+      const stamp = Date.now().toString(36);
+      const rand = Math.random().toString(36).slice(2, 8);
+      els.orderId.value = 'ord_' + stamp + '_' + rand;
+    }
+
+    function clearMount() {
+      chargeComponent = null;
+      els.paymentForm.innerHTML = '';
+      session.formReady = false;
+      session.clientSecret = null;
+    }
+
+    function parseTheme() {
+      try {
+        return JSON.parse(els.themeJson.value);
+      } catch (e) {
+        throw new Error('Theme JSON is invalid: ' + e.message);
+      }
+    }
+
+    function readConfig() {
+      const price = Number(els.itemPrice.value);
+      const cfg = {
+        env: els.env.value === 'production' ? 'production' : 'sandbox',
+        apiKey: els.apiKey.value.trim(),
+        projectId: els.projectId.value.trim(),
+        payType: els.payType.value.trim(),
+        country: els.country.value.trim(),
+        currency: els.currency.value.trim(),
+        orderId: els.orderId.value.trim(),
+        userId: els.userId.value.trim(),
+        correlationId: session.correlationId || els.orderId.value.trim(),
+        items: [{
+          code: els.itemCode.value.trim() || undefined,
+          price: price,
+          name: els.itemName.value.trim(),
+        }],
+      };
+
+      if (els.enableSavePaymentMethod.checked) {
+        cfg.enableSavePaymentMethod = true;
+        cfg.displaySavedPaymentMethodList = els.displaySavedPaymentMethodList.checked;
+        cfg.userInitiated = els.userInitiated.checked;
+        const shopperEntry = [];
+        if (els.partnerShopperId.value.trim()) {
+          shopperEntry.push({ key: 'partnerShopperId', value: els.partnerShopperId.value.trim() });
+        }
+        if (els.shopperEmail.value.trim()) {
+          shopperEntry.push({ key: 'email', value: els.shopperEmail.value.trim() });
+        }
+        if (shopperEntry.length) cfg.shopper = { entry: shopperEntry };
+      }
+      return cfg;
+    }
+
+    function validateConfig(cfg) {
+      if (!cfg.apiKey) return 'API key is required';
+      if (!cfg.projectId) return 'Project ID is required';
+      if (!cfg.payType) return 'Pay type is required';
+      if (!cfg.country) return 'Country is required';
+      if (!cfg.currency) return 'Currency is required';
+      if (!cfg.orderId) return 'Order ID is required';
+      if (!cfg.userId) return 'User ID is required';
+      if (!cfg.items[0].name) return 'Item name is required';
+      if (!Number.isFinite(cfg.items[0].price) || cfg.items[0].price <= 0) {
+        return 'Item price must be a positive number';
+      }
+      return null;
+    }
+
+    function debugHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = els.debugToken.value.trim();
+      if (token) headers['X-Coda-Debug-Token'] = token;
+      return headers;
+    }
+
+    async function ingestFrontend(step, message, payload, badge) {
+      try {
+        await fetch(DEBUG_INGEST_URL, {
+          method: 'POST',
+          headers: debugHeaders(),
+          body: JSON.stringify({
+            correlationId: session.correlationId,
+            orderId: session.orderId,
+            txnId: session.txnId,
+            env: session.env,
+            step: step,
+            message: message,
+            payload: payload || null,
+            badge: badge || 'info',
+          }),
+        });
+      } catch (_) {
+        // Non-fatal — panel still polls backend-recorded calls.
+      }
+    }
+
+    async function startSession() {
+      const cfg = readConfig();
+      const error = validateConfig(cfg);
+      if (error) {
+        setState('error');
+        alert(error);
+        return;
+      }
+
+      clearMount();
+      session.correlationId = cfg.orderId;
+      session.orderId = cfg.orderId;
+      session.env = cfg.env;
+      cfg.correlationId = session.correlationId;
+      els.metaCorr.textContent = session.correlationId;
+      els.metaOrder.textContent = cfg.orderId;
+      els.metaTxn.textContent = '—';
+      els.metaStatus.textContent = 'initiating…';
+      els.filterOrder.value = cfg.orderId;
+      setTxnBadge('pending', 'pending');
+      setState('submitting');
+
+      try {
+        parseTheme();
+        const res = await fetch(INIT_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cfg),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || data.resultDesc || ('Init failed (' + res.status + ')'));
+        }
+
+        session.orderId = data.orderId;
+        session.txnId = data.txnId;
+        session.clientSecret = data.clientSecret;
+        session.env = data.env;
+        session.correlationId = data.correlationId || session.correlationId;
+        els.metaCorr.textContent = session.correlationId;
+        els.metaTxn.textContent = String(data.txnId);
+        els.metaStatus.textContent = 'pending mount';
+        els.filterTxn.value = String(data.txnId);
+        await ingestFrontend('frontend: init ok', 'Received txnId + clientSecret', {
+          txnId: data.txnId,
+          resultCode: data.resultCode,
+        }, 'info');
+
+        if (typeof CodaCard !== 'function') {
+          throw new Error('CodaCard SDK failed to load');
+        }
+
+        const customStyle = parseTheme();
+        const codaCard = CodaCard();
+        const components = codaCard.components({
+          clientSecret: data.clientSecret,
+          appearance: { customStyle: customStyle },
+        });
+
+        chargeComponent = components.create('charge', {
+          withCardHolderName: true,
+          withCardHolderEmail: false,
+          locale: 'en',
+        });
+
+        chargeComponent.on('userLoaded', function () {
+          ingestFrontend('frontend: userLoaded', 'Card form finished loading');
+        });
+
+        chargeComponent.on('readyStateChange', function (isReady) {
+          session.formReady = !!isReady;
+          ingestFrontend('frontend: readyStateChange', 'Form ready=' + !!isReady, { isReady: !!isReady });
+          if (session.state !== 'submitting' && session.state !== 'tds' && session.state !== 'success') {
+            setState(isReady ? 'ready' : 'idle');
+          } else {
+            updateButtons();
+          }
+        });
+
+        chargeComponent.on('shopperActionRequired', function (required) {
+          ingestFrontend('frontend: shopperActionRequired', '3DS required=' + !!required, { required: !!required }, 'pending');
+          if (required) {
+            setState('tds');
+            els.metaStatus.textContent = '3DS in progress';
+            setTxnBadge('pending', '3DS');
+          }
+        });
+
+        chargeComponent.on('shopperActionCompleted', function () {
+          ingestFrontend('frontend: shopperActionCompleted', '3DS completed');
+          setState('submitting');
+          els.metaStatus.textContent = 'processing after 3DS';
+        });
+
+        chargeComponent.on('processingCard', async function (isSuccess, errorMessage) {
+          await ingestFrontend(
+            'frontend: processingCard',
+            isSuccess ? 'SDK reported success' : (errorMessage || 'SDK reported failure'),
+            { isSuccess: !!isSuccess, errorMessage: errorMessage },
+            isSuccess ? 'pending' : 'failed'
+          );
+          if (!isSuccess) {
+            setState('error');
+            setTxnBadge('failed', 'failed');
+            els.metaStatus.textContent = errorMessage || 'card processing failed';
+            refreshDebug();
+            return;
+          }
+          setState('submitting');
+          els.metaStatus.textContent = 'charge accepted by SDK — reconciling…';
+          setTxnBadge('pending', 'reconciling');
+          await pollInquiry({ attempts: 8, delayMs: 2500 });
+          refreshDebug();
+        });
+
+        chargeComponent.mount('#payment-form');
+        setState('idle');
+        els.metaStatus.textContent = 'form mounted — fill card details';
+        await ingestFrontend('frontend: mounted', 'Charge component mounted');
+        refreshDebug();
+      } catch (err) {
+        setState('error');
+        setTxnBadge('failed', 'failed');
+        els.metaStatus.textContent = err.message || String(err);
+        await ingestFrontend('frontend: error', err.message || String(err), null, 'error');
+        alert(err.message || String(err));
+        refreshDebug();
+      } finally {
+        updateButtons();
+      }
+    }
+
+    async function submitPayment() {
+      if (!chargeComponent || !session.formReady) return;
+      setState('submitting');
+      els.metaStatus.textContent = 'submitting card…';
+      setTxnBadge('pending', 'submitting');
+      await ingestFrontend('frontend: submit', 'Calling chargeComponent.submit()');
+      try {
+        chargeComponent.submit();
+      } catch (err) {
+        setState('error');
+        setTxnBadge('failed', 'failed');
+        els.metaStatus.textContent = err.message || String(err);
+        await ingestFrontend('frontend: submit error', err.message || String(err), null, 'error');
+      }
+      refreshDebug();
+    }
+
+    async function inquireOnce() {
+      if (!session.txnId) throw new Error('No txnId — start a session first');
+      const cfg = readConfig();
+      const res = await fetch(INQUIRY_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          env: session.env || cfg.env,
+          apiKey: cfg.apiKey,
+          projectId: cfg.projectId,
+          country: cfg.country,
+          txnId: session.txnId,
+          orderId: session.orderId,
+          correlationId: session.correlationId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || data.detail || ('Inquiry failed (' + res.status + ')'));
+      }
+      return data;
+    }
+
+    async function checkStatus() {
+      try {
+        els.metaStatus.textContent = 'inquiring…';
+        const data = await inquireOnce();
+        els.metaStatus.textContent = data.status + ' (code ' + data.resultCode + ')';
+        if (data.status === 'success') {
+          setState('success');
+          setTxnBadge('success', 'success');
+        } else if (data.status === 'failed') {
+          setState('error');
+          setTxnBadge('failed', 'failed');
+        } else {
+          setTxnBadge('pending', 'pending');
+          setState(session.formReady ? 'ready' : session.state);
+        }
+      } catch (err) {
+        els.metaStatus.textContent = err.message || String(err);
+        alert(err.message || String(err));
+      }
+      refreshDebug();
+    }
+
+    async function pollInquiry(opts) {
+      for (var i = 0; i < opts.attempts; i++) {
+        try {
+          var data = await inquireOnce();
+          els.metaStatus.textContent = data.status + ' (code ' + data.resultCode + ')';
+          if (data.status === 'success') {
+            setState('success');
+            setTxnBadge('success', 'success');
+            return;
+          }
+          if (data.status === 'failed' && (data.isStatusFinal === true || data.isStatusFinal === 'true')) {
+            setState('error');
+            setTxnBadge('failed', 'failed');
+            return;
+          }
+          if (data.status === 'failed' && i === opts.attempts - 1) {
+            setState('error');
+            setTxnBadge('failed', 'failed');
+            return;
+          }
+          setTxnBadge('pending', 'pending');
+        } catch (err) {
+          // continue polling
+        }
+        if (i < opts.attempts - 1) {
+          await new Promise(function (r) { setTimeout(r, opts.delayMs); });
+        }
+      }
+      setState(session.formReady ? 'ready' : 'idle');
+      els.metaStatus.textContent = 'still pending — use Check status';
+      setTxnBadge('pending', 'pending');
+    }
+
+    function pretty(value) {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch (_) {
+        return String(value);
+      }
+    }
+
+    function arrow(direction) {
+      if (direction === 'OUTBOUND') return '→ OUTBOUND';
+      if (direction === 'INBOUND') return '← INBOUND';
+      return '• INTERNAL';
+    }
+
+    function copyText(text) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+      }
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      return Promise.resolve();
+    }
+
+    function renderDebug(events) {
+      if (!events || !events.length) {
+        els.debugList.innerHTML = '<div class="empty-debug">No debug events yet for this filter.</div>';
+        els.txnSummary.innerHTML = '';
+        return;
+      }
+
+      const byCorr = {};
+      events.forEach(function (e) {
+        const key = e.correlationId || e.orderId || 'unknown';
+        if (!byCorr[key]) byCorr[key] = e.badge || 'info';
+        // Prefer terminal badges when present
+        if (e.badge === 'success' || e.badge === 'failed') byCorr[key] = e.badge;
+        else if (byCorr[key] !== 'success' && byCorr[key] !== 'failed' && e.badge === 'pending') {
+          byCorr[key] = 'pending';
+        }
+      });
+
+      els.txnSummary.innerHTML = Object.keys(byCorr).slice(0, 8).map(function (key) {
+        return '<span class="status-pill ' + byCorr[key] + '">' + key + ': ' + byCorr[key] + '</span>';
+      }).join('');
+
+      els.debugList.innerHTML = events.map(function (e, idx) {
+        const ts = e.timestamp || '';
+        const latency = e.latencyMs == null ? '—' : (e.latencyMs + ' ms');
+        const checksum = e.checksumVerified == null ?
+          '' :
+          (' · checksum=' + (e.checksumVerified ? 'PASS' : 'FAIL'));
+        const err = e.error ? ('\nERROR: ' + e.error) : '';
+        return (
+          '<article class="debug-card" data-idx="' + idx + '">' +
+            '<header>' +
+              '<div class="title">' + arrow(e.direction) + ': ' + (e.step || '') + '</div>' +
+              '<span class="status-pill ' + (e.badge || 'info') + '">' + (e.badge || 'info') + '</span>' +
+            '</header>' +
+            '<div class="meta-line">' +
+              ts + ' · corr=' + (e.correlationId || '—') +
+              ' · order=' + (e.orderId || '—') +
+              ' · txn=' + (e.txnId || '—') +
+              ' · ' + (e.method || '') + ' ' + (e.url || '') +
+              ' · HTTP ' + (e.responseStatus == null ? '—' : e.responseStatus) +
+              ' · ' + latency + checksum +
+            '</div>' +
+            '<div class="meta-line">' + (e.interpretedResult || '') + err + '</div>' +
+            '<div class="section-label" style="margin-top:0">Request</div>' +
+            '<pre class="req">' + pretty(e.requestPayload) + '</pre>' +
+            '<div class="section-label" style="margin-top:0">Response</div>' +
+            '<pre class="res">' + pretty(e.responseBody) + '</pre>' +
+            '<div class="actions">' +
+              '<button class="btn-secondary btn-copy-req" type="button" data-idx="' + idx + '">Copy request</button>' +
+              '<button class="btn-secondary btn-copy-res" type="button" data-idx="' + idx + '">Copy response</button>' +
+              '<button class="btn-secondary btn-copy-all" type="button" data-idx="' + idx + '">Copy entry</button>' +
+            '</div>' +
+          '</article>'
+        );
+      }).join('');
+
+      els.debugList.querySelectorAll('.btn-copy-req').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const e = events[Number(btn.getAttribute('data-idx'))];
+          copyText(pretty(e.requestPayload));
+        });
+      });
+      els.debugList.querySelectorAll('.btn-copy-res').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const e = events[Number(btn.getAttribute('data-idx'))];
+          copyText(pretty(e.responseBody));
+        });
+      });
+      els.debugList.querySelectorAll('.btn-copy-all').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          const e = events[Number(btn.getAttribute('data-idx'))];
+          copyText(pretty(e));
+        });
+      });
+    }
+
+    async function refreshDebug() {
+      try {
+        const params = new URLSearchParams();
+        if (els.filterOrder.value.trim()) params.set('orderId', els.filterOrder.value.trim());
+        if (els.filterTxn.value.trim()) params.set('txnId', els.filterTxn.value.trim());
+        params.set('limit', '100');
+        const res = await fetch(DEBUG_FEED_URL + '?' + params.toString(), {
+          method: 'GET',
+          headers: debugHeaders(),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          els.debugList.innerHTML =
+            '<div class="empty-debug">Debug feed unavailable: ' +
+            (data.error || res.status) +
+            '. Deploy codaCardDebugFeed and ensure CODA_DEBUG_PANEL_ENABLED=true.</div>';
+          return;
+        }
+        renderDebug(data.events || []);
+      } catch (err) {
+        els.debugList.innerHTML =
+          '<div class="empty-debug">Debug feed error: ' + (err.message || String(err)) + '</div>';
+      }
+    }
+
+    function resetAll() {
+      clearMount();
+      session = {
+        orderId: null,
+        txnId: null,
+        clientSecret: null,
+        correlationId: null,
+        env: null,
+        state: 'idle',
+        formReady: false,
+        badge: 'info',
+      };
+      els.metaCorr.textContent = '—';
+      els.metaOrder.textContent = '—';
+      els.metaTxn.textContent = '—';
+      els.metaStatus.textContent = '—';
+      setTxnBadge('info', 'no txn');
+      setState('idle');
+    }
+
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = setInterval(function () {
+        if (autoPoll) refreshDebug();
+      }, 2500);
+    }
+
+    els.startBtn.addEventListener('click', startSession);
+    els.payBtn.addEventListener('click', submitPayment);
+    els.inquiryBtn.addEventListener('click', checkStatus);
+    els.resetBtn.addEventListener('click', resetAll);
+    els.newOrderBtn.addEventListener('click', newOrderId);
+    els.refreshDebugBtn.addEventListener('click', refreshDebug);
+    els.filterSessionBtn.addEventListener('click', function () {
+      if (session.orderId) els.filterOrder.value = session.orderId;
+      if (session.txnId) els.filterTxn.value = String(session.txnId);
+      refreshDebug();
+    });
+    els.clearFilterBtn.addEventListener('click', function () {
+      els.filterOrder.value = '';
+      els.filterTxn.value = '';
+      refreshDebug();
+    });
+    els.autoPollBtn.addEventListener('click', function () {
+      autoPoll = !autoPoll;
+      els.autoPollBtn.textContent = 'Auto-poll: ' + (autoPoll ? 'on' : 'off');
+    });
+
+    newOrderId();
+    setState('idle');
+    setTxnBadge('info', 'no txn');
+    refreshDebug();
+    startPolling();
+  </script>
+</body>
+</html>

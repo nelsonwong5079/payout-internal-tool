@@ -14,6 +14,17 @@ import * as logger from "firebase-functions/logger";
 import nodemailer from "nodemailer";
 import * as archiver from "archiver";
 import {defineSecret} from "firebase-functions/params";
+import {
+  CodaEnv,
+  codaUrls,
+  debugAccessToken,
+  interpretResultCode,
+  isDebugPanelEnabled,
+  listDebugEvents,
+  observedCodaFetch,
+  recordDebugEvent,
+  verifyCodaChecksum,
+} from "./codaCardObservability";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ArchiverZipEncrypted = require("archiver-zip-encrypted");
 
@@ -1394,8 +1405,554 @@ export const triggerMockFail = onRequest({
   }
 });
 
-// export const helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
+/**
+ * Apply CORS headers for the hosted-card tooling endpoints.
+ * @param {{set: (k: string, v: string) => void}} response HTTP response
+ * @return {void}
+ */
+function setCodaCors(response: {
+  set: (k: string, v: string) => void;
+}): void {
+  response.set("Access-Control-Allow-Origin", "*");
+  response.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, X-Coda-Debug-Token"
+  );
+}
+
+/**
+ * Proxy Coda Hosted Component init with full debug observability.
+ */
+export const codaCardInit = onRequest(async (request, response) => {
+  setCodaCors(response);
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  const body = request.body as {
+    env?: string;
+    apiKey?: string;
+    projectId?: string | number;
+    country?: string | number;
+    currency?: string | number;
+    payType?: string | number;
+    orderId?: string;
+    userId?: string;
+    correlationId?: string;
+    items?: Array<{code?: string; price?: number; name?: string}>;
+    enableSavePaymentMethod?: boolean;
+    displaySavedPaymentMethodList?: boolean;
+    userInitiated?: boolean;
+    shopper?: {entry?: Array<{key: string; value: string}>};
+  };
+
+  const env = (body.env === "production" ? "production" : "sandbox") as CodaEnv;
+  const apiKey = (body.apiKey || "").trim();
+  const projectId = body.projectId;
+  const country = body.country;
+  const currency = body.currency;
+  const payType = body.payType;
+  const orderId = (body.orderId || "").trim();
+  const userId = (body.userId || "").trim();
+  const items = body.items;
+  const correlationId =
+    (body.correlationId || "").trim() || orderId || `corr_${Date.now()}`;
+
+  try {
+    if (!apiKey || projectId === undefined || country === undefined ||
+      currency === undefined || payType === undefined || !orderId || !userId) {
+      response.status(400).json({
+        error:
+          "Missing required fields: apiKey, projectId, country, currency, payType, orderId, userId",
+      });
+      return;
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      response.status(400).json({error: "items must be a non-empty array"});
+      return;
+    }
+
+    for (const item of items) {
+      if (typeof item.price !== "number" || !item.name) {
+        response.status(400).json({
+          error: "Each item requires numeric price and name",
+        });
+        return;
+      }
+    }
+
+    const initRequest: Record<string, unknown> = {
+      country: String(country),
+      payType: String(payType),
+      apiKey,
+      projectId: String(projectId),
+      orderId,
+      currency: String(currency),
+      items: items.map((item) => ({
+        ...(item.code ? {code: String(item.code)} : {}),
+        price: item.price,
+        name: String(item.name),
+      })),
+      profile: {
+        entry: [{key: "user_id", value: userId}],
+      },
+    };
+
+    // PART F — saved cards (off by default; requires Coda enablement).
+    if (body.enableSavePaymentMethod === true) {
+      initRequest.enableSavePaymentMethod = true;
+      initRequest.displaySavedPaymentMethodList =
+        body.displaySavedPaymentMethodList === true;
+      initRequest.userInitiated = body.userInitiated !== false;
+      if (body.shopper?.entry?.length) {
+        initRequest.shopper = body.shopper;
+      }
+    }
+
+    const {initUrl} = codaUrls(env);
+    const {status, json} = await observedCodaFetch({
+      env,
+      step: "Coda init",
+      method: "POST",
+      url: initUrl,
+      requestPayload: {initRequest},
+      correlationId,
+      orderId,
+      interpret: (parsed) => {
+        const initResult = (parsed as {
+          initResult?: {resultCode?: number; resultDesc?: string};
+        })?.initResult;
+        const mapped = interpretResultCode(initResult?.resultCode);
+        const desc = initResult?.resultDesc ?
+          ` (${initResult.resultDesc})` :
+          "";
+        return {
+          interpretedResult: `${mapped.label}${desc}`,
+          badge: mapped.badge,
+        };
+      },
+    });
+
+    const initResult = (json as {
+      initResult?: {
+        resultCode?: number;
+        resultDesc?: string;
+        txnId?: number | string;
+        clientSecret?: string;
+      };
+    })?.initResult;
+
+    if (!initResult) {
+      response.status(502).json({
+        error: "Missing initResult from Coda",
+        status,
+        body: json,
+        correlationId,
+      });
+      return;
+    }
+
+    if (initResult.resultCode !== 0) {
+      response.status(400).json({
+        error: initResult.resultDesc || "Coda init failed",
+        resultCode: initResult.resultCode,
+        resultDesc: initResult.resultDesc,
+        orderId,
+        env,
+        correlationId,
+      });
+      return;
+    }
+
+    response.status(200).json({
+      orderId,
+      env,
+      txnId: initResult.txnId,
+      clientSecret: initResult.clientSecret,
+      resultCode: initResult.resultCode,
+      resultDesc: initResult.resultDesc || "Success",
+      correlationId,
+    });
+  } catch (error) {
+    logger.error("Error in codaCardInit", error);
+    response.status(502).json({
+      error: "Unable to reach Coda init API",
+      detail: (error as Error).message,
+      correlationId,
+    });
+  }
+});
+
+/**
+ * Proxy Coda payment status inquiry with full debug observability.
+ */
+export const codaCardInquiry = onRequest(async (request, response) => {
+  setCodaCors(response);
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  const body = request.body as {
+    env?: string;
+    apiKey?: string;
+    projectId?: string | number;
+    country?: string | number;
+    txnId?: string | number;
+    orderId?: string;
+    correlationId?: string;
+  };
+
+  const env = (body.env === "production" ? "production" : "sandbox") as CodaEnv;
+  const apiKey = (body.apiKey || "").trim();
+  const projectId = body.projectId;
+  const country = body.country;
+  const txnId = body.txnId;
+  const orderId = (body.orderId || "").trim() || null;
+  const correlationId =
+    (body.correlationId || "").trim() ||
+    orderId ||
+    String(txnId || `corr_${Date.now()}`);
+
+  try {
+    if (!apiKey || projectId === undefined || country === undefined ||
+      txnId === undefined || txnId === null || String(txnId).trim() === "") {
+      response.status(400).json({
+        error: "Missing required fields: apiKey, projectId, country, txnId",
+      });
+      return;
+    }
+
+    const {inquiryUrl} = codaUrls(env);
+    const inquiryPaymentRequest = {
+      apiKey,
+      country: Number(country),
+      projectId: String(projectId),
+      txnId: String(txnId),
+      needStatusFinal: "true",
+    };
+
+    const {json} = await observedCodaFetch({
+      env,
+      step: "Coda status inquiry",
+      method: "POST",
+      url: inquiryUrl,
+      requestPayload: {inquiryPaymentRequest},
+      correlationId,
+      orderId,
+      txnId: String(txnId),
+      interpret: (parsed) => {
+        const paymentResult = (parsed as {
+          paymentResult?: {
+            resultCode?: number;
+            resultDesc?: string;
+            profile?: {status?: string};
+          };
+        })?.paymentResult;
+        const mapped = interpretResultCode(paymentResult?.resultCode);
+        const status = paymentResult?.profile?.status;
+        const desc = paymentResult?.resultDesc ?
+          ` (${paymentResult.resultDesc})` :
+          "";
+        return {
+          interpretedResult: status ?
+            `${mapped.label}; profile.status=${status}${desc}` :
+            `${mapped.label}${desc}`,
+          badge: mapped.badge,
+        };
+      },
+    });
+
+    const paymentResult = (json as {
+      paymentResult?: {
+        resultCode?: number;
+        resultDesc?: string;
+        txnId?: string;
+        orderId?: string;
+        totalPrice?: number;
+        profile?: {
+          status?: string;
+          isStatusFinal?: string | boolean;
+          PaymentType?: string;
+        };
+      };
+    })?.paymentResult;
+
+    if (!paymentResult) {
+      response.status(502).json({
+        error: "Missing paymentResult from Coda",
+        body: json,
+        correlationId,
+      });
+      return;
+    }
+
+    const resultCode = Number(paymentResult.resultCode);
+    let status = paymentResult.profile?.status;
+    if (!status) {
+      if (resultCode === 0) status = "success";
+      else if (resultCode === 431 || resultCode === 481 || resultCode === 216) {
+        status = "pending";
+      } else status = "failed";
+    }
+
+    response.status(200).json({
+      env,
+      txnId: paymentResult.txnId ?? String(txnId),
+      orderId: paymentResult.orderId ?? orderId,
+      resultCode,
+      resultDesc: paymentResult.resultDesc,
+      totalPrice: paymentResult.totalPrice,
+      status,
+      isStatusFinal: paymentResult.profile?.isStatusFinal,
+      paymentType: paymentResult.profile?.PaymentType,
+      paymentResult,
+      correlationId,
+    });
+  } catch (error) {
+    logger.error("Error in codaCardInquiry", error);
+    response.status(502).json({
+      error: "Unable to reach Coda inquiry API",
+      detail: (error as Error).message,
+      correlationId,
+    });
+  }
+});
+
+/**
+ * Optional complete-notification webhook (GET query params).
+ * Always records an INBOUND debug event. Checksum verified when merchant secret
+ * + apiKey are provided (query/body/env). Primary PE Ops flow still uses inquiry.
+ */
+export const codaCardWebhook = onRequest(async (request, response) => {
+  setCodaCors(response);
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  const params: Record<string, string> = {};
+  const source = {
+    ...((request.query || {}) as Record<string, unknown>),
+    ...((request.body || {}) as Record<string, unknown>),
+  };
+  for (const [k, v] of Object.entries(source)) {
+    if (v !== undefined && v !== null) params[k] = String(v);
+  }
+
+  const orderId = params.OrderId || params.orderId || null;
+  const txnId = params.TxnId || params.txnId || null;
+  const resultCode = params.ResultCode || params.resultCode;
+  const correlationId = orderId || txnId || `wh_${Date.now()}`;
+  const apiKey =
+    params.apiKey ||
+    process.env.CODA_API_KEY ||
+    "";
+  const merchantSecret =
+    params.merchantSecret ||
+    process.env.CODA_MERCHANT_SECRET ||
+    "";
+
+  let checksumVerified: boolean | null = null;
+  if (merchantSecret && apiKey && (params.Checksum || params.checksum)) {
+    checksumVerified = verifyCodaChecksum(params, apiKey, merchantSecret);
+  }
+
+  const mapped = interpretResultCode(resultCode);
+  await recordDebugEvent({
+    correlationId,
+    orderId,
+    txnId,
+    direction: "INBOUND",
+    step: "webhook received",
+    method: request.method,
+    url: request.originalUrl || "/codaCardWebhook",
+    requestPayload: params,
+    responseStatus: checksumVerified === false ? 401 : 200,
+    responseBody: {
+      ack: checksumVerified === false ? "checksum_failed" : "ResultCode=0",
+    },
+    latencyMs: 0,
+    interpretedResult: mapped.label,
+    badge: checksumVerified === false ? "error" : mapped.badge,
+    checksumVerified,
+    error: checksumVerified === false ? "Checksum verification failed" : null,
+  });
+
+  if (checksumVerified === false) {
+    response.status(401).send("checksum_failed");
+    return;
+  }
+
+  // Quick ack so Coda stops retrying. Fulfillment still gated on inquiry.
+  response.status(200).send("ResultCode=0");
+});
+
+/**
+ * Ingest frontend lifecycle summaries into the same debug stream.
+ */
+export const codaCardDebugIngest = onRequest(async (request, response) => {
+  setCodaCors(response);
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (!isDebugPanelEnabled()) {
+    response.status(404).json({error: "Debug panel disabled"});
+    return;
+  }
+
+  if (request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed. Use POST."});
+    return;
+  }
+
+  const token = debugAccessToken();
+  if (token) {
+    const provided = String(request.get("X-Coda-Debug-Token") || "");
+    if (provided !== token) {
+      response.status(401).json({error: "Unauthorized debug token"});
+      return;
+    }
+  }
+
+  const body = request.body as {
+    correlationId?: string;
+    orderId?: string;
+    txnId?: string | number;
+    step?: string;
+    message?: string;
+    payload?: unknown;
+    badge?: "success" | "pending" | "failed" | "info" | "error";
+    env?: CodaEnv;
+  };
+
+  const event = await recordDebugEvent({
+    correlationId:
+      (body.correlationId || "").trim() ||
+      (body.orderId || "").trim() ||
+      `fe_${Date.now()}`,
+    orderId: body.orderId || null,
+    txnId: body.txnId !== undefined ? String(body.txnId) : null,
+    direction: "INTERNAL",
+    step: body.step || "frontend event",
+    method: "CLIENT",
+    url: "frontend://coda-hosted-card",
+    requestPayload: body.payload ?? {message: body.message},
+    responseStatus: null,
+    responseBody: null,
+    latencyMs: null,
+    interpretedResult: body.message || body.step || "frontend event",
+    badge: body.badge || "info",
+    env: body.env || null,
+  });
+
+  response.status(200).json({ok: true, id: event.id});
+});
+
+/**
+ * Live debug feed for the in-app activity panel (newest first).
+ */
+export const codaCardDebugFeed = onRequest(async (request, response) => {
+  setCodaCors(response);
+
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+
+  if (!isDebugPanelEnabled()) {
+    response.status(404).json({
+      error: "Debug panel disabled",
+      hint: "Set CODA_DEBUG_PANEL_ENABLED=true to enable",
+    });
+    return;
+  }
+
+  if (request.method !== "GET" && request.method !== "POST") {
+    response.status(405).json({error: "Method not allowed"});
+    return;
+  }
+
+  const token = debugAccessToken();
+  if (token) {
+    const provided = String(
+      request.get("X-Coda-Debug-Token") ||
+        (request.query.token as string) ||
+        ""
+    );
+    if (provided !== token) {
+      response.status(401).json({error: "Unauthorized debug token"});
+      return;
+    }
+  }
+
+  const orderId = String(
+    request.query.orderId ||
+      (request.body && request.body.orderId) ||
+      ""
+  ).trim() || undefined;
+  const txnId = String(
+    request.query.txnId ||
+      (request.body && request.body.txnId) ||
+      ""
+  ).trim() || undefined;
+  const limit = Number(request.query.limit || 100);
+
+  const events = await listDebugEvents({orderId, txnId, limit});
+  response.status(200).json({
+    enabled: true,
+    count: events.length,
+    events,
+  });
+});
+
+/**
+ * PART F stub — Authorize & Capture separation (disabled by default).
+ */
+export const codaCardCapture = onRequest(async (request, response) => {
+  setCodaCors(response);
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+  response.status(501).json({
+    error: "Authorize & Capture separation is disabled",
+    enabled: false,
+    hint: "Requires Coda account enablement + POST notifications",
+  });
+});
+
+/**
+ * PART F stub — Cancel an authorized payment (disabled by default).
+ */
+export const codaCardCancel = onRequest(async (request, response) => {
+  setCodaCors(response);
+  if (request.method === "OPTIONS") {
+    response.status(204).send("");
+    return;
+  }
+  response.status(501).json({
+    error: "Authorize & Capture cancel is disabled",
+    enabled: false,
+  });
+});
 

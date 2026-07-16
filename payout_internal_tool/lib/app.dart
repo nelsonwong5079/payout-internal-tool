@@ -8,6 +8,7 @@ import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
 import 'screens/whitelabel_json_screen.dart';
 import 'screens/payout_renotify_screen.dart';
+import 'screens/coda_hosted_card_screen.dart';
 import 'screens/public_template_library_page.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ambient_background.dart';
@@ -129,6 +130,14 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
       pageTitle: 'Payout Renotify',
       subtitle: 'Resend payout notifications by ID',
     ),
+    _NavDestination(
+      label: 'Hosted Card',
+      shortLabel: 'Cards',
+      icon: Icons.credit_card_outlined,
+      selectedIcon: Icons.credit_card,
+      pageTitle: 'Hosted Card',
+      subtitle: 'Coda Card Hosted Component checkout + inquiry',
+    ),
   ];
 
   final List<Widget> _pages = const [
@@ -137,6 +146,7 @@ class _AuthenticatedAppState extends State<AuthenticatedApp> {
     WhitelabelJsonScreen(),
     CodaPayoutJwtGeneratorScreen(),
     PayoutRenotifyScreen(),
+    CodaHostedCardScreen(),
   ];
 
   void _selectIndex(int index) {
