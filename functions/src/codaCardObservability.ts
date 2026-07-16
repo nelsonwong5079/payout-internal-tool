@@ -115,36 +115,76 @@ function isSensitiveKey(key: string): boolean {
   return false;
 }
 
+/** Keys that are long digit IDs, not card PANs — never digit-mask these. */
+const SAFE_DIGIT_KEYS = new Set([
+  "txnid",
+  "orderid",
+  "projectid",
+  "correlationid",
+]);
+
 /**
  * Deep-clone and redact secrets / card-like fields for safe panel display.
  * @param {unknown} input Arbitrary JSON-like value
+ * @param {string=} parentKey Parent object key (used to skip ID digit-masking)
  * @return {unknown} Redacted clone
  */
-export function redactForDebug(input: unknown): unknown {
+export function redactForDebug(input: unknown, parentKey?: string): unknown {
   if (input === null || input === undefined) return input;
   if (typeof input === "string") {
     // JWT-shaped client secrets
     if (input.startsWith("eyJ") && input.length > 40) {
       return maskSecret(input);
     }
-    // Long digit sequences that look like PANs
-    if (/^\d{12,19}$/.test(input.replace(/\s+/g, ""))) {
+    const normalizedParent = (parentKey || "")
+      .replace(/[^a-z0-9]/gi, "")
+      .toLowerCase();
+    // Long digit sequences that look like PANs — but not txnId / orderId etc.
+    if (
+      !SAFE_DIGIT_KEYS.has(normalizedParent) &&
+      /^\d{12,19}$/.test(input.replace(/\s+/g, ""))
+    ) {
       return "••••••••••••";
     }
     return input;
   }
   if (typeof input !== "object") return input;
-  if (Array.isArray(input)) return input.map((v) => redactForDebug(v));
+  if (Array.isArray(input)) {
+    return input.map((v) => redactForDebug(v, parentKey));
+  }
 
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
     if (isSensitiveKey(key)) {
       out[key] = maskSecret(value);
     } else {
-      out[key] = redactForDebug(value);
+      out[key] = redactForDebug(value, key);
     }
   }
   return out;
+}
+
+/**
+ * Quote oversized integer JSON fields so JSON.parse does not lose precision.
+ * Coda txnIds (~19 digits) exceed Number.MAX_SAFE_INTEGER (2^53-1).
+ * @param {string} raw Raw JSON text from Coda
+ * @return {string} JSON text with large IDs quoted as strings
+ */
+export function preserveLargeIntegerFields(raw: string): string {
+  return raw.replace(
+    /"(txnId|TxnId)"\s*:\s*(\d{16,})/g,
+    "\"$1\":\"$2\"",
+  );
+}
+
+/**
+ * Extract the exact txnId digit string from raw Coda JSON (before parse).
+ * @param {string} raw Raw JSON text
+ * @return {string|null} txnId digits or null
+ */
+export function extractTxnIdFromRaw(raw: string): string | null {
+  const match = raw.match(/"txnId"\s*:\s*"?(\d+)"?/i);
+  return match ? match[1] : null;
 }
 
 /**
@@ -354,7 +394,13 @@ export async function observedCodaFetch(args: {
     interpretedResult: string;
     badge: DebugBadge;
   };
-}): Promise<{status: number; text: string; json: unknown; latencyMs: number}> {
+}): Promise<{
+  status: number;
+  text: string;
+  json: unknown;
+  latencyMs: number;
+  txnId: string | null;
+}> {
   const started = Date.now();
   try {
     const upstream = await fetch(args.url, {
@@ -364,9 +410,11 @@ export async function observedCodaFetch(args: {
     });
     const text = await upstream.text();
     const latencyMs = Date.now() - started;
+    const extractedTxnId = text ? extractTxnIdFromRaw(text) : null;
     let json: unknown = null;
     try {
-      json = text ? JSON.parse(text) : null;
+      // Quote large txnIds before parse — JSON.parse would round them.
+      json = text ? JSON.parse(preserveLargeIntegerFields(text)) : null;
     } catch {
       json = {raw: text};
     }
@@ -378,10 +426,12 @@ export async function observedCodaFetch(args: {
         badge: (upstream.ok ? "info" : "error") as DebugBadge,
       };
 
+    const resolvedTxnId = args.txnId ? String(args.txnId) : extractedTxnId;
+
     await recordDebugEvent({
       correlationId: args.correlationId,
       orderId: args.orderId,
-      txnId: args.txnId,
+      txnId: resolvedTxnId,
       direction: "OUTBOUND",
       step: args.step,
       method: args.method,
@@ -396,7 +446,13 @@ export async function observedCodaFetch(args: {
       error: upstream.ok ? null : `Upstream HTTP ${upstream.status}`,
     });
 
-    return {status: upstream.status, text, json, latencyMs};
+    return {
+      status: upstream.status,
+      text,
+      json,
+      latencyMs,
+      txnId: resolvedTxnId,
+    };
   } catch (error) {
     const latencyMs = Date.now() - started;
     const detail = (error as Error).message;

@@ -270,20 +270,197 @@
       gap: 8px;
       margin-bottom: 12px;
     }
+    .title-row {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 4px;
+    }
+    .title-row h1 { margin: 0; }
+    .btn-guide {
+      background: rgba(99, 102, 241, 0.15);
+      color: var(--accent-hover);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      white-space: nowrap;
+    }
+    .btn-guide:hover { background: rgba(99, 102, 241, 0.25); }
+    .guide-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      background: rgba(9, 9, 11, 0.72);
+      backdrop-filter: blur(4px);
+      padding: 24px 16px;
+      overflow: auto;
+    }
+    .guide-overlay.open { display: block; }
+    .guide-modal {
+      max-width: 860px;
+      margin: 0 auto 40px;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+    }
+    .guide-header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(28, 28, 31, 0.96);
+      backdrop-filter: blur(8px);
+      border-radius: 14px 14px 0 0;
+    }
+    .guide-header h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .guide-header .sub {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .guide-body {
+      padding: 8px 20px 28px;
+      font-size: 13px;
+      line-height: 1.55;
+      color: var(--text-secondary);
+    }
+    .guide-body h3 {
+      margin: 22px 0 8px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .guide-body h4 {
+      margin: 16px 0 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .guide-body p { margin: 0 0 10px; }
+    .guide-body ul, .guide-body ol {
+      margin: 0 0 12px;
+      padding-left: 18px;
+    }
+    .guide-body li { margin-bottom: 4px; }
+    .guide-body strong { color: var(--text); font-weight: 600; }
+    .guide-body code {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: var(--void);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 5px;
+      color: #c7d2fe;
+    }
+    .guide-body pre {
+      margin: 0 0 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: var(--void);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #d4d4d8;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .guide-callout {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      background: rgba(99, 102, 241, 0.1);
+      color: #c7d2fe;
+      font-size: 12px;
+    }
+    .guide-warn {
+      border-color: rgba(245, 158, 11, 0.3);
+      background: rgba(245, 158, 11, 0.1);
+      color: #fbbf24;
+    }
+    .guide-table-wrap {
+      overflow-x: auto;
+      margin: 0 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .guide-body table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .guide-body th, .guide-body td {
+      padding: 8px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .guide-body th {
+      background: var(--surface);
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .guide-body tr:last-child td { border-bottom: none; }
+    .guide-body td:first-child { color: var(--text); font-weight: 500; }
+    .guide-toc {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 12px 0 4px;
+    }
+    .guide-toc a {
+      font-size: 11px;
+      color: var(--accent-hover);
+      text-decoration: none;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(99, 102, 241, 0.08);
+    }
+    .guide-toc a:hover { background: rgba(99, 102, 241, 0.18); }
+    .guide-mono {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #d4d4d8;
+      white-space: pre-wrap;
+    }
+    body.guide-open { overflow: hidden; }
   </style>
 </head>
 <body>
   <div class="layout">
     <section class="panel">
-      <h1>Coda Hosted Card</h1>
+      <div class="title-row">
+        <h1>Coda Hosted Card</h1>
+        <button class="btn-guide" id="guideOpenBtn" type="button">0 → 100 Guide</button>
+      </div>
       <p class="subtitle">
         Initiate a Hosted Component session, mount the PCI card form, submit the charge,
         then reconcile via status inquiry. Backend activity streams into the debug panel below.
+        Unsure of the flow? Open the guide.
       </p>
 
       <div class="banner">
         Frontend success is not final. Use <strong>Check status</strong> (inquiry API) to confirm
-        success / failed / pending. Keep env consistent with your API key (sandbox vs production).
+        success / failed / pending. Switching env auto-fills the matching API key.
+        For this project use <strong>country 458 / currency 458</strong> (Malaysia). Country 485 is invalid.
         Secrets are redacted in the debug panel.
       </div>
 
@@ -298,7 +475,7 @@
         </div>
         <div class="field">
           <label for="apiKey">API key</label>
-          <input id="apiKey" type="password" value="live_OvTIrY6j0HZkia7k6B5SnEkxjYq" autocomplete="off" />
+          <input id="apiKey" type="password" autocomplete="off" />
         </div>
       </div>
       <div class="grid-2">
@@ -314,11 +491,11 @@
       <div class="grid-2">
         <div class="field">
           <label for="country">Country (numeric)</label>
-          <input id="country" value="485" />
+          <input id="country" value="458" />
         </div>
         <div class="field">
           <label for="currency">Currency (numeric)</label>
-          <input id="currency" value="840" />
+          <input id="currency" value="458" />
         </div>
       </div>
 
@@ -447,6 +624,372 @@
     </section>
   </div>
 
+  <div class="guide-overlay" id="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
+    <div class="guide-modal">
+      <div class="guide-header">
+        <div>
+          <h2 id="guideTitle">Coda Hosted Card API — 0 → 100</h2>
+          <p class="sub">Card Hosted Component flow · init + inquiry · webhook optional</p>
+        </div>
+        <button class="btn-secondary" id="guideCloseBtn" type="button">Close</button>
+      </div>
+      <div class="guide-body">
+        <p>
+          This is the Card Hosted Component flow: your page stays put, Coda’s SDK collects card data,
+          your backend only does <strong>init + status inquiry</strong> (webhook optional).
+        </p>
+        <div class="guide-callout">
+          In our tool, the browser never calls Coda’s init/inquiry directly (CORS). It calls
+          <code>codaCardInit</code> → proxies Coda init, and
+          <code>codaCardInquiry</code> → proxies Coda inquiry. Same Coda APIs underneath.
+        </div>
+
+        <nav class="guide-toc">
+          <a href="#g0">0 Mental model</a>
+          <a href="#g1">1 Config</a>
+          <a href="#g2">2 Init</a>
+          <a href="#g3">3 Mount</a>
+          <a href="#g4">4 Submit</a>
+          <a href="#g5">5 Webhook</a>
+          <a href="#g6">6 Inquiry</a>
+          <a href="#g7">7 Checklist</a>
+          <a href="#g8">8 In PE Ops</a>
+          <a href="#g9">9 Traps</a>
+        </nav>
+
+        <h3 id="g0">0. Mental model (1 minute)</h3>
+        <pre class="guide-mono">You (merchant)                  Coda
+─────────────────               ────
+1. Backend INIT  ─────────────► txnId + clientSecret
+2. Frontend mounts card form with clientSecret
+3. User pays; SDK talks to Coda (card data never hits your server)
+4. Backend INQUIRY ────────────► success / pending / failed</pre>
+        <div class="guide-callout guide-warn">
+          <strong>Rule:</strong> Frontend “Pay succeeded” is not final.
+          Inquiry (or verified webhook + inquiry) is authoritative.
+        </div>
+
+        <h3 id="g1">1. Configuration first (do this before any endpoint)</h3>
+        <h4>1.1 Environment (most important)</h4>
+        <p>Pick one and keep it consistent everywhere:</p>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Setting</th><th>Sandbox</th><th>Production</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>API key prefix</td><td><code>test_…</code></td><td><code>live_…</code></td></tr>
+              <tr>
+                <td>Init URL</td>
+                <td><code>https://sandbox.codapayments.com/.../Payment/Component/init.json</code></td>
+                <td><code>https://airtime.codapayments.com/.../Payment/Component/init.json</code></td>
+              </tr>
+              <tr>
+                <td>Inquiry URL</td>
+                <td><code>https://sandbox.codapayments.com/.../Payment/inquiryPaymentResult.json</code></td>
+                <td><code>https://airtime.codapayments.com/.../Payment/inquiryPaymentResult.json</code></td>
+              </tr>
+              <tr>
+                <td>Frontend SDK</td>
+                <td colspan="2"><code>https://js.codapayments.com/8.0.0/coda-card.min.js</code> (same for both)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="guide-callout guide-warn">
+          Mismatch that always hurts: sandbox env + <code>live_</code> key (or reverse) → weird failures / NPEs / 400 on charge.
+        </div>
+
+        <h4>1.2 Credentials from Coda Portal</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Config</th><th>Where</th><th>Notes</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>apiKey</code></td><td>Portal</td><td>Server-side only in real apps</td></tr>
+              <tr><td><code>projectId</code></td><td>Portal (per title/product)</td><td>e.g. <code>31</code> for your setup</td></tr>
+              <tr><td><code>payType</code></td><td>Card channel ID from Coda</td><td>e.g. <code>421</code> (not 0/1)</td></tr>
+              <tr><td><code>country</code></td><td>ISO 3166 numeric</td><td>Must be enabled for that project</td></tr>
+              <tr><td><code>currency</code></td><td>ISO 4217 numeric</td><td>Must match market</td></tr>
+              <tr><td>Complete Notification URL</td><td>Portal (optional)</td><td>Webhook; optional if you only use inquiry</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>What worked for this project/key in our probing:</p>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Working value</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>country</td><td><code>458</code> (Malaysia)</td></tr>
+              <tr><td>currency</td><td><code>458</code> (MYR)</td></tr>
+              <tr><td>projectId</td><td><code>31</code></td></tr>
+              <tr><td>payType</td><td><code>421</code></td></tr>
+              <tr><td>sandbox key</td><td><code>test_7tWZbBFlOna8RmH6zU5MfE8yylg</code></td></tr>
+              <tr><td>live key</td><td><code>live_OvTIrY6j0HZkia7k6B5SnEkxjYq</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="guide-callout guide-warn">
+          <code>country=485</code> is invalid here → region lookup NPE (no JSON <code>initResult</code>).
+        </div>
+
+        <h4>1.3 Frontend prerequisite</h4>
+        <ul>
+          <li>Page on HTTPS (TLS 1.2+)</li>
+          <li>Load SDK: <code>coda-card.min.js</code></li>
+          <li>Container: <code>&lt;div id="payment-form"&gt;&lt;/div&gt;</code></li>
+          <li>Your own Pay button (disabled until form is ready)</li>
+        </ul>
+
+        <h3 id="g2">2. Step A — Initiate payment (POST …/init.json)</h3>
+        <p>
+          <strong>Sandbox:</strong>
+          <code>POST https://sandbox.codapayments.com/airtime/api/restful/v2.0/Payment/Component/init.json</code><br />
+          <strong>Production:</strong>
+          <code>POST https://airtime.codapayments.com/airtime/api/restful/v2.0/Payment/Component/init.json</code><br />
+          <strong>In PE Ops:</strong> <code>POST …/codaCardInit</code> with env, credentials, order fields.
+        </p>
+        <h4>Request (what Coda expects)</h4>
+        <pre>{
+  "initRequest": {
+    "country": 458,
+    "payType": 421,
+    "apiKey": "test_… or live_…",
+    "projectId": 31,
+    "orderId": "ord_unique_per_attempt",
+    "currency": 458,
+    "items": [
+      { "code": "SKU001", "price": 1.0, "name": "Test Item" }
+    ],
+    "profile": {
+      "entry": [{ "key": "user_id", "value": "ops-user-1" }]
+    }
+  }
+}</pre>
+        <ul>
+          <li>Use <strong>numbers</strong> for country/currency/payType/projectId (as in Coda samples).</li>
+          <li><code>orderId</code> = your unique ID (new every checkout attempt).</li>
+          <li><code>user_id</code> in profile is required.</li>
+        </ul>
+        <h4>Expected success response</h4>
+        <pre>{
+  "initResult": {
+    "resultCode": 0,
+    "resultDesc": "Success",
+    "txnId": 7841…,
+    "clientSecret": "eyJ…"
+  }
+}</pre>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Meaning</th><th>What you do</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>resultCode: 0</code></td><td>Init OK</td><td>Continue</td></tr>
+              <tr><td><code>txnId</code></td><td>Coda’s transaction id</td><td>Store with your <code>orderId</code> (keep as <strong>string</strong> — too large for JS Number)</td></tr>
+              <tr><td><code>clientSecret</code></td><td>Short-lived JWT for SDK</td><td>Pass to frontend once; do not cache/reuse</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Init errors &amp; root causes</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>What you see</th><th>Likely root cause</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>XML fault / NullPointerException / getRemoteServiceByRegion … null</td><td>Invalid country (e.g. 485), or key/project not mapped to that region</td></tr>
+              <tr><td>XML not allowed</td><td>Country/project not permitted for that key</td></tr>
+              <tr><td>HTTP 500 + XML, no initResult</td><td>Same class — Coda failed before returning JSON</td></tr>
+              <tr><td><code>initResult.resultCode ≠ 0</code> (e.g. 103)</td><td>Business rejection: channel/project/country/currency not enabled or misconfigured</td></tr>
+              <tr><td><code>txnId: 0</code></td><td>Init failed; do not mount SDK</td></tr>
+              <tr><td>Empty / missing clientSecret</td><td>Can’t mount Hosted Card; fix init first</td></tr>
+              <tr><td>Sandbox + <code>live_</code> key (or prod + <code>test_</code>)</td><td>Environment mismatch</td></tr>
+              <tr><td>Reused old clientSecret</td><td>Later charge 400 — mint fresh per checkout</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>After success: backend returns to UI only <code>{ orderId, txnId, clientSecret, env }</code> (never expose long-term apiKey in production apps).</p>
+
+        <h3 id="g3">3. Step B — Load SDK &amp; mount card form</h3>
+        <ol>
+          <li>Load <code>https://js.codapayments.com/8.0.0/coda-card.min.js</code></li>
+          <li><code>const codaCard = CodaCard()</code></li>
+          <li><code>codaCard.components({ clientSecret, appearance })</code></li>
+          <li><code>components.create('charge', { withCardHolderName, locale, … })</code></li>
+          <li><code>chargeComponent.mount('#payment-form')</code></li>
+        </ol>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Event</th><th>Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>userLoaded</code></td><td>Form finished loading</td></tr>
+              <tr><td><code>readyStateChange(true)</code></td><td>Fields valid → enable Pay</td></tr>
+              <tr><td><code>readyStateChange(false)</code></td><td>Incomplete/invalid → keep Pay disabled</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Mount errors</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Symptom</th><th>Root cause</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Blank form / SDK undefined</td><td>Script blocked, not HTTPS, or script failed to load</td></tr>
+              <tr><td>Immediate charge 400</td><td>Stale/wrong-env clientSecret, or init env ≠ charge host</td></tr>
+              <tr><td>Form never becomes ready</td><td>Incomplete fields, or validation failing</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="g4">4. Step C — Submit payment (frontend → Coda directly)</h3>
+        <p><code>chargeComponent.submit();</code> — only when <code>readyStateChange === true</code>. Card data goes to Coda only, not your backend.</p>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Event</th><th>Success path</th><th>Failure / nuance</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>shopperActionRequired(true)</code></td><td>3DS modal will open</td><td>Show “authenticating…”</td></tr>
+              <tr><td><code>shopperActionCompleted</code></td><td>3DS done</td><td>Resume processing UI</td></tr>
+              <tr><td><code>processingCard(true, …)</code></td><td>SDK thinks charge accepted</td><td><strong>Still not final</strong> — run inquiry</td></tr>
+              <tr><td><code>processingCard(false, errorMessage)</code></td><td>—</td><td>Declined / error; real reason often in charge body / inquiry</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Submit errors</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Symptom</th><th>Root cause</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>400 Bad Request on charge</td><td>Env mismatch, expired clientSecret, wrong secret</td></tr>
+              <tr><td><code>processingCard(false)</code></td><td>Card declined, auth failed, issuer reject</td></tr>
+              <tr><td>Stuck after 3DS</td><td>Wait for <code>shopperActionCompleted</code> then inquiry</td></tr>
+              <tr><td>User closes 3DS</td><td>Treat as failed/pending → inquiry</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="g5">5. Step D — (Optional) Webhook notification</h3>
+        <p>Coda can notify your Complete Notification URL when status becomes Successful/Failed (not always for Pending).</p>
+        <p>Typical params: <code>TxnId</code>, <code>OrderId</code>, <code>ResultCode</code>, <code>Checksum</code>, amounts, etc.</p>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>ResultCode</th><th>Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>0</code></td><td>Success</td></tr>
+              <tr><td><code>431</code> / <code>481</code> / <code>216</code></td><td>Pending</td></tr>
+              <tr><td>Other</td><td>Failed</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li>Verify checksum before trusting it.</li>
+          <li>Do <strong>not</strong> fulfill on webhook alone — still call inquiry.</li>
+          <li>In our tool, primary path skips webhook and goes straight to inquiry.</li>
+        </ul>
+
+        <h3 id="g6">6. Step E — Status inquiry (authoritative)</h3>
+        <p>
+          <strong>Sandbox:</strong>
+          <code>POST …/sandbox…/Payment/inquiryPaymentResult.json</code><br />
+          <strong>Production:</strong>
+          <code>POST …/airtime…/Payment/inquiryPaymentResult.json</code><br />
+          <strong>In PE Ops:</strong> <code>POST …/codaCardInquiry</code>
+        </p>
+        <pre>{
+  "inquiryPaymentRequest": {
+    "apiKey": "same key as init",
+    "country": 458,
+    "projectId": "31",
+    "txnId": "7841…",
+    "needStatusFinal": "true"
+  }
+}</pre>
+        <p>Use the <code>txnId</code> from init. Same env/key/country/project as init. Keep <code>txnId</code> as a <strong>string</strong>.</p>
+        <h4>How to interpret</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Signal</th><th>Meaning</th><th>Action</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>resultCode = 0</code> and/or <code>profile.status = "success"</code></td><td>Paid</td><td>Fulfill if final (<code>isStatusFinal</code> ideally true)</td></tr>
+              <tr><td><code>431</code> / <code>216</code> / <code>481</code> or status pending</td><td>Not final</td><td>Poll again / wait for webhook</td></tr>
+              <tr><td>Other / status failed</td><td>Failed</td><td>Do not fulfill</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>Inquiry errors</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Symptom</th><th>Root cause</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Missing paymentResult</td><td>Wrong env URL, bad key, or non-JSON error</td></tr>
+              <tr><td>Unknown txnId</td><td>Wrong txn, wrong env, or init never succeeded</td></tr>
+              <tr><td>Forever pending</td><td>Issuer/3DS slow; poll with backoff</td></tr>
+              <tr><td>UI success but inquiry pending/failed</td><td>Trusted frontend too early</td></tr>
+              <tr><td>Inquiry env ≠ init env</td><td>Looking up txn in the wrong Coda environment</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="g7">7. End-to-end checklist</h3>
+        <ol>
+          <li>Configure: sandbox or prod; matching <code>test_</code>/<code>live_</code> key; projectId; card payType; valid country/currency (<strong>458/458</strong>).</li>
+          <li>INIT → expect <code>resultCode=0</code>, store <code>txnId</code>, take <code>clientSecret</code>.</li>
+          <li>Mount SDK with that <code>clientSecret</code>.</li>
+          <li>Wait for <code>readyStateChange(true)</code> → enable Pay.</li>
+          <li><code>submit()</code> → handle 3DS events.</li>
+          <li>On <code>processingCard</code> (or after 3DS) → INQUIRY by <code>txnId</code>.</li>
+          <li>Fulfill only on inquiry success (ideally final).</li>
+          <li>On decline/error → show retry; never fulfill.</li>
+        </ol>
+
+        <h3 id="g8">8. How to learn it inside PE Ops</h3>
+        <ol>
+          <li>Set env (sandbox/production) — key auto-fills.</li>
+          <li>Confirm country/currency <code>458</code>.</li>
+          <li>Start payment session → debug should show Out to Coda: init.</li>
+          <li>Fill card → Pay now.</li>
+          <li>Check status → debug shows inquiry.</li>
+          <li>Open request/response on each step to see real payloads.</li>
+        </ol>
+        <p>
+          Timeline direction legend:
+          <strong>Out to Coda</strong> = backend → Coda (init / inquiry);
+          <strong>In from Coda</strong> = webhook;
+          <strong>App event</strong> = frontend SDK lifecycle.
+        </p>
+
+        <h3 id="g9">9. Common “new to this API” traps</h3>
+        <ul>
+          <li>Treating SDK success as paid.</li>
+          <li>Reusing <code>clientSecret</code>.</li>
+          <li>Mixing sandbox/prod hosts and keys.</li>
+          <li>Wrong country code (<code>485</code> vs <code>458</code>).</li>
+          <li>Using channel <code>0</code>/<code>1</code> instead of real card payType.</li>
+          <li>Fulfilling from webhook without checksum + inquiry.</li>
+          <li>Putting <code>apiKey</code> in the browser in a real customer app (OK only for this internal ops tool).</li>
+          <li>Parsing <code>txnId</code> as a JS Number (loses precision — keep as string).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
   <script>
     const BASE = 'https://us-central1-codapay-webhook.cloudfunctions.net';
     const INIT_URL = BASE + '/codaCardInit';
@@ -473,6 +1016,24 @@
       checkBoxDeactiveBackgroundColor: '#27272A',
       checkBoxBorderWidth: '1px',
       checkMarkColor: '#FAFAFA',
+    };
+
+    // Verified working against Coda for this merchant project.
+    const ENV_PRESETS = {
+      production: {
+        apiKey: 'live_OvTIrY6j0HZkia7k6B5SnEkxjYq',
+        projectId: '31',
+        payType: '421',
+        country: '458',
+        currency: '458',
+      },
+      sandbox: {
+        apiKey: 'test_7tWZbBFlOna8RmH6zU5MfE8yylg',
+        projectId: '31',
+        payType: '421',
+        country: '458',
+        currency: '458',
+      },
     };
 
     let chargeComponent = null;
@@ -615,6 +1176,20 @@
       return cfg;
     }
 
+    function applyEnvPreset(env, opts) {
+      const preset = ENV_PRESETS[env] || ENV_PRESETS.production;
+      const force = !opts || opts.force !== false;
+      els.apiKey.value = preset.apiKey;
+      if (force || !els.projectId.value.trim()) els.projectId.value = preset.projectId;
+      if (force || !els.payType.value.trim()) els.payType.value = preset.payType;
+      if (force || els.country.value.trim() === '485' || !els.country.value.trim()) {
+        els.country.value = preset.country;
+      }
+      if (force || els.currency.value.trim() === '840' || !els.currency.value.trim()) {
+        els.currency.value = preset.currency;
+      }
+    }
+
     function validateConfig(cfg) {
       if (!cfg.apiKey) return 'API key is required';
       if (!cfg.projectId) return 'Project ID is required';
@@ -626,6 +1201,15 @@
       if (!cfg.items[0].name) return 'Item name is required';
       if (!Number.isFinite(cfg.items[0].price) || cfg.items[0].price <= 0) {
         return 'Item price must be a positive number';
+      }
+      if (String(cfg.country) === '485') {
+        return 'Country 485 is invalid for Coda. Use 458 (Malaysia) for this project.';
+      }
+      if (cfg.env === 'sandbox' && cfg.apiKey.startsWith('live_')) {
+        return 'Sandbox env requires a test_ API key (not live_).';
+      }
+      if (cfg.env === 'production' && cfg.apiKey.startsWith('test_')) {
+        return 'Production env requires a live_ API key (not test_).';
       }
       return null;
     }
@@ -668,6 +1252,8 @@
       }
 
       clearMount();
+      session.txnId = null;
+      session.clientSecret = null;
       session.correlationId = cfg.orderId;
       session.orderId = cfg.orderId;
       session.env = cfg.env;
@@ -677,6 +1263,7 @@
       els.metaTxn.textContent = '—';
       els.metaStatus.textContent = 'initiating…';
       els.filterOrder.value = cfg.orderId;
+      els.filterTxn.value = '';
       setTxnBadge('pending', 'pending');
       setState('submitting');
 
@@ -687,22 +1274,36 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(cfg),
         });
-        const data = await res.json();
+        // Parse as text first so a numeric txnId in JSON cannot lose precision.
+        const rawText = await res.text();
+        let data;
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch (e) {
+          throw new Error('Init returned non-JSON: ' + rawText.slice(0, 200));
+        }
+        const txnIdMatch = rawText.match(/"txnId"\s*:\s*"?(\d+)"?/);
+        if (txnIdMatch) data.txnId = txnIdMatch[1];
         if (!res.ok) {
-          throw new Error(data.error || data.resultDesc || ('Init failed (' + res.status + ')'));
+          const parts = [
+            data.error || data.resultDesc || ('Init failed (' + res.status + ')'),
+            data.hint,
+            data.resultCode != null ? ('resultCode=' + data.resultCode) : null,
+          ].filter(Boolean);
+          throw new Error(parts.join(' | '));
         }
 
         session.orderId = data.orderId;
-        session.txnId = data.txnId;
+        session.txnId = data.txnId != null ? String(data.txnId) : null;
         session.clientSecret = data.clientSecret;
         session.env = data.env;
         session.correlationId = data.correlationId || session.correlationId;
         els.metaCorr.textContent = session.correlationId;
-        els.metaTxn.textContent = String(data.txnId);
+        els.metaTxn.textContent = session.txnId || '—';
         els.metaStatus.textContent = 'pending mount';
-        els.filterTxn.value = String(data.txnId);
+        els.filterTxn.value = session.txnId || '';
         await ingestFrontend('frontend: init ok', 'Received txnId + clientSecret', {
-          txnId: data.txnId,
+          txnId: session.txnId,
           resultCode: data.resultCode,
         }, 'info');
 
@@ -1061,8 +1662,41 @@
       autoPoll = !autoPoll;
       els.autoPollBtn.textContent = 'Auto-poll: ' + (autoPoll ? 'on' : 'off');
     });
+    els.env.addEventListener('change', function () {
+      applyEnvPreset(els.env.value, { force: true });
+      resetAll();
+      newOrderId();
+    });
+
+    const guideOverlay = document.getElementById('guideOverlay');
+    const guideOpenBtn = document.getElementById('guideOpenBtn');
+    const guideCloseBtn = document.getElementById('guideCloseBtn');
+
+    function openGuide() {
+      guideOverlay.hidden = false;
+      guideOverlay.classList.add('open');
+      document.body.classList.add('guide-open');
+      guideCloseBtn.focus();
+    }
+
+    function closeGuide() {
+      guideOverlay.classList.remove('open');
+      guideOverlay.hidden = true;
+      document.body.classList.remove('guide-open');
+      guideOpenBtn.focus();
+    }
+
+    guideOpenBtn.addEventListener('click', openGuide);
+    guideCloseBtn.addEventListener('click', closeGuide);
+    guideOverlay.addEventListener('click', function (e) {
+      if (e.target === guideOverlay) closeGuide();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && guideOverlay.classList.contains('open')) closeGuide();
+    });
 
     els.themeJson.value = JSON.stringify(DEFAULT_THEME, null, 2);
+    applyEnvPreset(els.env.value, { force: true });
     newOrderId();
     setState('idle');
     setTxnBadge('info', 'no txn');

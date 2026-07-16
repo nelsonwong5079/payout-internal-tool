@@ -1489,13 +1489,14 @@ export const codaCardInit = onRequest(async (request, response) => {
       }
     }
 
+    // Coda samples use numeric country/currency/payType/projectId.
     const initRequest: Record<string, unknown> = {
-      country: String(country),
-      payType: String(payType),
+      country: Number(country),
+      payType: Number(payType),
       apiKey,
-      projectId: String(projectId),
+      projectId: Number(projectId),
       orderId,
-      currency: String(currency),
+      currency: Number(currency),
       items: items.map((item) => ({
         ...(item.code ? {code: String(item.code)} : {}),
         price: item.price,
@@ -1518,7 +1519,7 @@ export const codaCardInit = onRequest(async (request, response) => {
     }
 
     const {initUrl} = codaUrls(env);
-    const {status, json} = await observedCodaFetch({
+    const {status, json, text, txnId: extractedTxnId} = await observedCodaFetch({
       env,
       step: "Coda init",
       method: "POST",
@@ -1551,8 +1552,19 @@ export const codaCardInit = onRequest(async (request, response) => {
     })?.initResult;
 
     if (!initResult) {
+      const rawBody = (json as {raw?: string})?.raw ?? text;
+      const faultMatch = typeof rawBody === "string" ?
+        rawBody.match(/<ns1:faultstring[^>]*>([\s\S]*?)<\/ns1:faultstring>/i) :
+        null;
+      const faultText = faultMatch?.[1]?.trim();
+      const hint =
+        Number(country) === 485 ?
+          "Country 485 is not a valid Coda region code. Use country=458, currency=458 (Malaysia)." :
+          "Coda did not return initResult. Check country/currency/payType/projectId for this API key.";
+
       response.status(502).json({
-        error: "Missing initResult from Coda",
+        error: faultText || "Missing initResult from Coda",
+        hint,
         status,
         body: json,
         correlationId,
@@ -1572,10 +1584,17 @@ export const codaCardInit = onRequest(async (request, response) => {
       return;
     }
 
+    // Always return txnId as a string — numeric JSON would lose precision in browsers.
+    const txnId =
+      extractedTxnId ||
+      (initResult.txnId !== undefined && initResult.txnId !== null ?
+        String(initResult.txnId) :
+        null);
+
     response.status(200).json({
       orderId,
       env,
-      txnId: initResult.txnId,
+      txnId,
       clientSecret: initResult.clientSecret,
       resultCode: initResult.resultCode,
       resultDesc: initResult.resultDesc || "Success",
@@ -1712,7 +1731,9 @@ export const codaCardInquiry = onRequest(async (request, response) => {
 
     response.status(200).json({
       env,
-      txnId: paymentResult.txnId ?? String(txnId),
+      txnId: paymentResult.txnId != null ?
+        String(paymentResult.txnId) :
+        String(txnId),
       orderId: paymentResult.orderId ?? orderId,
       resultCode,
       resultDesc: paymentResult.resultDesc,
