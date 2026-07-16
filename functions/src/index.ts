@@ -1407,8 +1407,7 @@ export const triggerMockFail = onRequest({
 
 /**
  * Apply CORS headers for the hosted-card tooling endpoints.
- * @param {{set: (k: string, v: string) => void}} response HTTP response
- * @return {void}
+ * @param {Object} response HTTP response
  */
 function setCodaCors(response: {
   set: (k: string, v: string) => void;

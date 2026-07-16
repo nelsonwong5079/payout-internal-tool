@@ -33,26 +33,46 @@ const COLLECTION = "coda_card_debug_events";
 /** In-process fallback when Firestore is unavailable. */
 const memoryRing: CodaDebugEvent[] = [];
 
+/**
+ * Ensure firebase-admin is initialized once per instance.
+ */
 function ensureAdmin(): void {
   if (!getApps().length) {
     initializeApp();
   }
 }
 
+/**
+ * Whether the in-app debug panel / feed is enabled.
+ * @return {boolean} True when enabled
+ */
 export function isDebugPanelEnabled(): boolean {
   const raw = (process.env.CODA_DEBUG_PANEL_ENABLED || "true").toLowerCase();
   return raw === "1" || raw === "true" || raw === "yes";
 }
 
+/**
+ * Max retained debug events.
+ * @return {number} Retention limit
+ */
 export function debugMaxEvents(): number {
   const n = Number(process.env.CODA_DEBUG_MAX_EVENTS || "200");
   return Number.isFinite(n) && n > 0 ? Math.min(Math.floor(n), 2000) : 200;
 }
 
+/**
+ * Optional shared access token for the debug feed.
+ * @return {string} Token or empty string
+ */
 export function debugAccessToken(): string {
   return (process.env.CODA_DEBUG_ACCESS_TOKEN || "").trim();
 }
 
+/**
+ * Mask a secret for display (first/last 4 chars).
+ * @param {unknown} value Secret value
+ * @return {string} Masked string
+ */
 export function maskSecret(value: unknown): string {
   const s = value === undefined || value === null ? "" : String(value);
   if (!s) return "";
@@ -80,6 +100,11 @@ const SENSITIVE_KEYS = new Set([
   "pan",
 ]);
 
+/**
+ * Check whether a JSON key should be redacted.
+ * @param {string} key Object key
+ * @return {boolean} True when sensitive
+ */
 function isSensitiveKey(key: string): boolean {
   const normalized = key.replace(/[^a-z0-9]/gi, "").toLowerCase();
   if (SENSITIVE_KEYS.has(normalized)) return true;
@@ -122,6 +147,11 @@ export function redactForDebug(input: unknown): unknown {
   return out;
 }
 
+/**
+ * Resolve Coda base URLs from a single env flag.
+ * @param {string} env sandbox or production
+ * @return {Object} initUrl and inquiryUrl
+ */
 export function codaUrls(env: CodaEnv): {initUrl: string; inquiryUrl: string} {
   if (env === "production") {
     return {
@@ -139,6 +169,11 @@ export function codaUrls(env: CodaEnv): {initUrl: string; inquiryUrl: string} {
   };
 }
 
+/**
+ * Map a Coda resultCode to a human label and badge.
+ * @param {unknown} resultCode Coda result code
+ * @return {Object} label and badge
+ */
 export function interpretResultCode(resultCode: unknown): {
   label: string;
   badge: DebugBadge;
@@ -155,10 +190,8 @@ export function interpretResultCode(resultCode: unknown): {
 }
 
 /**
- * Common Codapay complete-notification checksum:
- * md5(TxnId + apiKey + OrderId + ResultCode + merchantSecret)
- * Field order may vary by account — panel records pass/fail either way.
- * @param {Record<string, string>} params Notification params
+ * Verify common Codapay complete-notification checksum variants.
+ * @param {Object} params Notification params
  * @param {string} apiKey API key
  * @param {string} merchantSecret Merchant secret
  * @return {boolean} Whether checksum matches
@@ -194,6 +227,10 @@ export function verifyCodaChecksum(
   return false;
 }
 
+/**
+ * Trim memory ring and delete older Firestore docs beyond retention.
+ * @return {Promise<void>}
+ */
 async function trimRetention(): Promise<void> {
   const max = debugMaxEvents();
   while (memoryRing.length > max) memoryRing.pop();
@@ -218,8 +255,8 @@ async function trimRetention(): Promise<void> {
 
 /**
  * Persist a debug event (always logs; stores when possible).
- * @param {Omit<CodaDebugEvent, "timestamp"|"id"> & {timestamp?: string}} partial Event
- * @return {Promise<CodaDebugEvent>} Stored event
+ * @param {Object} partial Event fields
+ * @return {Promise<Object>} Stored event
  */
 export async function recordDebugEvent(
   partial: Omit<CodaDebugEvent, "timestamp" | "id"> & {timestamp?: string}
@@ -257,8 +294,8 @@ export async function recordDebugEvent(
 
 /**
  * Fetch recent debug events, newest first.
- * @param {{orderId?: string, txnId?: string, limit?: number}} filters Filters
- * @return {Promise<CodaDebugEvent[]>} Events
+ * @param {Object} filters Optional orderId/txnId/limit filters
+ * @return {Promise<Array>} Events
  */
 export async function listDebugEvents(filters: {
   orderId?: string;
@@ -270,7 +307,7 @@ export async function listDebugEvents(filters: {
   try {
     ensureAdmin();
     const db = getFirestore();
-    let query = db.collection(COLLECTION).orderBy("timestamp", "desc");
+    const query = db.collection(COLLECTION).orderBy("timestamp", "desc");
 
     // Firestore inequality/compound limits: filter in memory when needed.
     const snap = await query.limit(Math.min(limit * 3, debugMaxEvents())).get();
@@ -301,8 +338,8 @@ export async function listDebugEvents(filters: {
 
 /**
  * Execute an outbound Coda HTTP call with full observability.
- * @param {object} args Call args
- * @return {Promise<{status: number, text: string, json: unknown, latencyMs: number}>}
+ * @param {Object} args Call args
+ * @return {Promise<Object>} status, text, json, latencyMs
  */
 export async function observedCodaFetch(args: {
   env: CodaEnv;
