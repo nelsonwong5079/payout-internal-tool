@@ -270,6 +270,87 @@
       gap: 8px;
       margin-bottom: 12px;
     }
+    .progress-section {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .progress-section .section-label { margin-top: 0; }
+    .progress-detail {
+      margin: 0 0 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-height: 1.4em;
+    }
+    .progress-detail strong { color: var(--text); font-weight: 600; }
+    .progress-track {
+      position: relative;
+      height: 4px;
+      background: var(--muted);
+      border-radius: 999px;
+      margin: 0 10px 18px;
+    }
+    .progress-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 0%;
+      border-radius: 999px;
+      background: var(--accent);
+      transition: width 0.35s ease, background 0.25s ease;
+    }
+    .progress-fill.success { background: var(--success); }
+    .progress-fill.error { background: var(--error); }
+    .progress-steps {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+    .progress-step {
+      text-align: center;
+      position: relative;
+    }
+    .progress-step .dot {
+      width: 12px;
+      height: 12px;
+      margin: 0 auto 6px;
+      border-radius: 50%;
+      border: 2px solid var(--border-strong);
+      background: var(--elevated);
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .progress-step .label {
+      font-size: 10px;
+      line-height: 1.25;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .progress-step.done .dot {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+    .progress-step.active .dot {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+    }
+    .progress-step.active .label { color: var(--text); }
+    .progress-step.done .label { color: var(--text-secondary); }
+    .progress-step.success .dot {
+      background: var(--success);
+      border-color: var(--success);
+    }
+    .progress-step.error .dot {
+      background: var(--error);
+      border-color: var(--error);
+    }
+    @media (max-width: 640px) {
+      .progress-steps { grid-template-columns: repeat(4, 1fr); gap: 10px 4px; }
+      .progress-step:nth-child(n+5) { grid-column: span 1; }
+    }
     .title-row {
       display: flex;
       align-items: flex-start;
@@ -469,8 +550,8 @@
         <div class="field">
           <label for="env">Coda env</label>
           <select id="env">
-            <option value="production" selected>production</option>
-            <option value="sandbox">sandbox</option>
+            <option value="sandbox" selected>sandbox</option>
+            <option value="production">production</option>
           </select>
         </div>
         <div class="field">
@@ -581,7 +662,24 @@
         <div class="meta-row"><span>Correlation</span><span id="metaCorr">—</span></div>
         <div class="meta-row"><span>Order ID</span><span id="metaOrder">—</span></div>
         <div class="meta-row"><span>Txn ID</span><span id="metaTxn">—</span></div>
-        <div class="meta-row"><span>Inquiry status</span><span id="metaStatus">—</span></div>
+        <div class="meta-row"><span>Current status</span><span id="metaStatus">Ready</span></div>
+      </div>
+
+      <div class="progress-section" id="progressSection" aria-live="polite">
+        <div class="section-label">Session progress</div>
+        <p class="progress-detail" id="progressDetail"><strong>Ready</strong> — start a payment session to begin.</p>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+        <div class="progress-steps" id="progressSteps">
+          <div class="progress-step active" data-step="idle"><div class="dot"></div><div class="label">Ready</div></div>
+          <div class="progress-step" data-step="init"><div class="dot"></div><div class="label">Init</div></div>
+          <div class="progress-step" data-step="mount"><div class="dot"></div><div class="label">Mount</div></div>
+          <div class="progress-step" data-step="ready"><div class="dot"></div><div class="label">Card ready</div></div>
+          <div class="progress-step" data-step="pay"><div class="dot"></div><div class="label">Pay / 3DS</div></div>
+          <div class="progress-step" data-step="inquiry"><div class="dot"></div><div class="label">Inquiry</div></div>
+          <div class="progress-step" data-step="done"><div class="dot"></div><div class="label">Done</div></div>
+        </div>
       </div>
     </section>
 
@@ -1089,7 +1187,54 @@
       debugList: document.getElementById('debugList'),
       txnBadge: document.getElementById('txnBadge'),
       txnSummary: document.getElementById('txnSummary'),
+      progressDetail: document.getElementById('progressDetail'),
+      progressFill: document.getElementById('progressFill'),
+      progressSteps: document.getElementById('progressSteps'),
     };
+
+    const PROGRESS_ORDER = ['idle', 'init', 'mount', 'ready', 'pay', 'inquiry', 'done'];
+    const PROGRESS_LABELS = {
+      idle: 'Ready',
+      init: 'Init',
+      mount: 'Mount',
+      ready: 'Card ready',
+      pay: 'Pay / 3DS',
+      inquiry: 'Inquiry',
+      done: 'Done',
+    };
+
+    function setProgress(step, detail, outcome) {
+      const idx = PROGRESS_ORDER.indexOf(step);
+      const safeIdx = idx < 0 ? 0 : idx;
+      const pct = (safeIdx / (PROGRESS_ORDER.length - 1)) * 100;
+      els.progressFill.style.width = pct + '%';
+      els.progressFill.classList.remove('success', 'error');
+      if (outcome === 'success') els.progressFill.classList.add('success');
+      if (outcome === 'error') els.progressFill.classList.add('error');
+
+      const nodes = els.progressSteps.querySelectorAll('.progress-step');
+      nodes.forEach(function (node) {
+        const key = node.getAttribute('data-step');
+        const nodeIdx = PROGRESS_ORDER.indexOf(key);
+        node.classList.remove('active', 'done', 'success', 'error');
+        if (nodeIdx < safeIdx) node.classList.add('done');
+        if (nodeIdx === safeIdx) {
+          node.classList.add('active');
+          if (outcome === 'success') node.classList.add('success');
+          if (outcome === 'error') node.classList.add('error');
+        }
+      });
+
+      const title = PROGRESS_LABELS[step] || step;
+      const text = detail || title;
+      els.progressDetail.textContent = '';
+      const strong = document.createElement('strong');
+      strong.textContent = title;
+      els.progressDetail.appendChild(strong);
+      els.progressDetail.appendChild(document.createTextNode(' — ' + text));
+      // Keep the status row in sync with the latest progress message.
+      els.metaStatus.textContent = text;
+    }
 
     function setTxnBadge(badge, label) {
       session.badge = badge;
@@ -1247,6 +1392,7 @@
       const error = validateConfig(cfg);
       if (error) {
         setState('error');
+        setProgress('done', error, 'error');
         alert(error);
         return;
       }
@@ -1261,11 +1407,11 @@
       els.metaCorr.textContent = session.correlationId;
       els.metaOrder.textContent = cfg.orderId;
       els.metaTxn.textContent = '—';
-      els.metaStatus.textContent = 'initiating…';
       els.filterOrder.value = cfg.orderId;
       els.filterTxn.value = '';
       setTxnBadge('pending', 'pending');
       setState('submitting');
+      setProgress('init', 'Calling codaCardInit…');
 
       try {
         parseTheme();
@@ -1300,8 +1446,8 @@
         session.correlationId = data.correlationId || session.correlationId;
         els.metaCorr.textContent = session.correlationId;
         els.metaTxn.textContent = session.txnId || '—';
-        els.metaStatus.textContent = 'pending mount';
         els.filterTxn.value = session.txnId || '';
+        setProgress('mount', 'Init OK — mounting card form…');
         await ingestFrontend('frontend: init ok', 'Received txnId + clientSecret', {
           txnId: session.txnId,
           resultCode: data.resultCode,
@@ -1326,11 +1472,17 @@
 
         chargeComponent.on('userLoaded', function () {
           ingestFrontend('frontend: userLoaded', 'Card form finished loading');
+          setProgress('mount', 'Form loaded — fill card details');
         });
 
         chargeComponent.on('readyStateChange', function (isReady) {
           session.formReady = !!isReady;
           ingestFrontend('frontend: readyStateChange', 'Form ready=' + !!isReady, { isReady: !!isReady });
+          if (isReady) {
+            setProgress('ready', 'Card fields valid — you can Pay now');
+          } else if (session.state !== 'submitting' && session.state !== 'tds' && session.state !== 'success') {
+            setProgress('mount', 'Waiting for valid card details');
+          }
           if (session.state !== 'submitting' && session.state !== 'tds' && session.state !== 'success') {
             setState(isReady ? 'ready' : 'idle');
           } else {
@@ -1342,7 +1494,7 @@
           ingestFrontend('frontend: shopperActionRequired', '3DS required=' + !!required, { required: !!required }, 'pending');
           if (required) {
             setState('tds');
-            els.metaStatus.textContent = '3DS in progress';
+            setProgress('pay', '3DS authentication in progress');
             setTxnBadge('pending', '3DS');
           }
         });
@@ -1350,7 +1502,7 @@
         chargeComponent.on('shopperActionCompleted', function () {
           ingestFrontend('frontend: shopperActionCompleted', '3DS completed');
           setState('submitting');
-          els.metaStatus.textContent = 'processing after 3DS';
+          setProgress('pay', '3DS completed — processing charge');
         });
 
         chargeComponent.on('processingCard', async function (isSuccess, errorMessage) {
@@ -1363,12 +1515,12 @@
           if (!isSuccess) {
             setState('error');
             setTxnBadge('failed', 'failed');
-            els.metaStatus.textContent = errorMessage || 'card processing failed';
+            setProgress('done', errorMessage || 'Card processing failed', 'error');
             refreshDebug();
             return;
           }
           setState('submitting');
-          els.metaStatus.textContent = 'charge accepted by SDK — reconciling…';
+          setProgress('inquiry', 'Charge accepted by SDK — reconciling via inquiry…');
           setTxnBadge('pending', 'reconciling');
           await pollInquiry({ attempts: 8, delayMs: 2500 });
           refreshDebug();
@@ -1376,13 +1528,13 @@
 
         chargeComponent.mount('#payment-form');
         setState('idle');
-        els.metaStatus.textContent = 'form mounted — fill card details';
+        setProgress('mount', 'Form mounted — fill card details');
         await ingestFrontend('frontend: mounted', 'Charge component mounted');
         refreshDebug();
       } catch (err) {
         setState('error');
         setTxnBadge('failed', 'failed');
-        els.metaStatus.textContent = err.message || String(err);
+        setProgress('done', err.message || String(err), 'error');
         await ingestFrontend('frontend: error', err.message || String(err), null, 'error');
         alert(err.message || String(err));
         refreshDebug();
@@ -1394,7 +1546,7 @@
     async function submitPayment() {
       if (!chargeComponent || !session.formReady) return;
       setState('submitting');
-      els.metaStatus.textContent = 'submitting card…';
+      setProgress('pay', 'Submitting card to Coda…');
       setTxnBadge('pending', 'submitting');
       await ingestFrontend('frontend: submit', 'Calling chargeComponent.submit()');
       try {
@@ -1402,7 +1554,7 @@
       } catch (err) {
         setState('error');
         setTxnBadge('failed', 'failed');
-        els.metaStatus.textContent = err.message || String(err);
+        setProgress('done', err.message || String(err), 'error');
         await ingestFrontend('frontend: submit error', err.message || String(err), null, 'error');
       }
       refreshDebug();
@@ -1433,21 +1585,24 @@
 
     async function checkStatus() {
       try {
-        els.metaStatus.textContent = 'inquiring…';
+        setProgress('inquiry', 'Checking payment status…');
         const data = await inquireOnce();
-        els.metaStatus.textContent = data.status + ' (code ' + data.resultCode + ')';
+        const statusText = data.status + ' (code ' + data.resultCode + ')';
         if (data.status === 'success') {
           setState('success');
           setTxnBadge('success', 'success');
+          setProgress('done', 'Inquiry success — ' + statusText, 'success');
         } else if (data.status === 'failed') {
           setState('error');
           setTxnBadge('failed', 'failed');
+          setProgress('done', 'Inquiry failed — ' + statusText, 'error');
         } else {
           setTxnBadge('pending', 'pending');
+          setProgress('inquiry', 'Still pending — ' + statusText + ' — poll again if needed');
           setState(session.formReady ? 'ready' : session.state);
         }
       } catch (err) {
-        els.metaStatus.textContent = err.message || String(err);
+        setProgress('inquiry', err.message || String(err), 'error');
         alert(err.message || String(err));
       }
       refreshDebug();
@@ -1456,24 +1611,29 @@
     async function pollInquiry(opts) {
       for (var i = 0; i < opts.attempts; i++) {
         try {
+          setProgress('inquiry', 'Inquiry attempt ' + (i + 1) + ' of ' + opts.attempts + '…');
           var data = await inquireOnce();
-          els.metaStatus.textContent = data.status + ' (code ' + data.resultCode + ')';
+          var statusText = data.status + ' (code ' + data.resultCode + ')';
           if (data.status === 'success') {
             setState('success');
             setTxnBadge('success', 'success');
+            setProgress('done', 'Inquiry success — ' + statusText, 'success');
             return;
           }
           if (data.status === 'failed' && (data.isStatusFinal === true || data.isStatusFinal === 'true')) {
             setState('error');
             setTxnBadge('failed', 'failed');
+            setProgress('done', 'Inquiry failed — final — ' + statusText, 'error');
             return;
           }
           if (data.status === 'failed' && i === opts.attempts - 1) {
             setState('error');
             setTxnBadge('failed', 'failed');
+            setProgress('done', 'Inquiry failed — ' + statusText, 'error');
             return;
           }
           setTxnBadge('pending', 'pending');
+          setProgress('inquiry', 'Pending — ' + statusText + ' — retrying…');
         } catch (err) {
           // continue polling
         }
@@ -1482,7 +1642,7 @@
         }
       }
       setState(session.formReady ? 'ready' : 'idle');
-      els.metaStatus.textContent = 'still pending — use Check status';
+      setProgress('inquiry', 'Still pending — use Check status');
       setTxnBadge('pending', 'pending');
     }
 
@@ -1630,9 +1790,9 @@
       els.metaCorr.textContent = '—';
       els.metaOrder.textContent = '—';
       els.metaTxn.textContent = '—';
-      els.metaStatus.textContent = '—';
       setTxnBadge('info', 'no txn');
       setState('idle');
+      setProgress('idle', 'start a payment session to begin');
     }
 
     function startPolling() {
@@ -1700,6 +1860,7 @@
     newOrderId();
     setState('idle');
     setTxnBadge('info', 'no txn');
+    setProgress('idle', 'start a payment session to begin');
     refreshDebug();
     startPolling();
   </script>
