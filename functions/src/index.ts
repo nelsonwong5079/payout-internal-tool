@@ -23,7 +23,6 @@ import {
   listDebugEvents,
   observedCodaFetch,
   recordDebugEvent,
-  verifyCodaChecksum,
 } from "./codaCardObservability";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const ArchiverZipEncrypted = require("archiver-zip-encrypted");
@@ -1752,76 +1751,6 @@ export const codaCardInquiry = onRequest(async (request, response) => {
       correlationId,
     });
   }
-});
-
-/**
- * Optional complete-notification webhook (GET query params).
- * Always records an INBOUND debug event. Checksum verified when merchant secret
- * + apiKey are provided (query/body/env). Primary PE Ops flow still uses inquiry.
- */
-export const codaCardWebhook = onRequest(async (request, response) => {
-  setCodaCors(response);
-
-  if (request.method === "OPTIONS") {
-    response.status(204).send("");
-    return;
-  }
-
-  const params: Record<string, string> = {};
-  const source = {
-    ...((request.query || {}) as Record<string, unknown>),
-    ...((request.body || {}) as Record<string, unknown>),
-  };
-  for (const [k, v] of Object.entries(source)) {
-    if (v !== undefined && v !== null) params[k] = String(v);
-  }
-
-  const orderId = params.OrderId || params.orderId || null;
-  const txnId = params.TxnId || params.txnId || null;
-  const resultCode = params.ResultCode || params.resultCode;
-  const correlationId = orderId || txnId || `wh_${Date.now()}`;
-  const apiKey =
-    params.apiKey ||
-    process.env.CODA_API_KEY ||
-    "";
-  const merchantSecret =
-    params.merchantSecret ||
-    process.env.CODA_MERCHANT_SECRET ||
-    "";
-
-  let checksumVerified: boolean | null = null;
-  if (merchantSecret && apiKey && (params.Checksum || params.checksum)) {
-    checksumVerified = verifyCodaChecksum(params, apiKey, merchantSecret);
-  }
-
-  const mapped = interpretResultCode(resultCode);
-  await recordDebugEvent({
-    correlationId,
-    orderId,
-    txnId,
-    direction: "INBOUND",
-    step: "webhook received",
-    method: request.method,
-    url: request.originalUrl || "/codaCardWebhook",
-    requestPayload: params,
-    responseStatus: checksumVerified === false ? 401 : 200,
-    responseBody: {
-      ack: checksumVerified === false ? "checksum_failed" : "ResultCode=0",
-    },
-    latencyMs: 0,
-    interpretedResult: mapped.label,
-    badge: checksumVerified === false ? "error" : mapped.badge,
-    checksumVerified,
-    error: checksumVerified === false ? "Checksum verification failed" : null,
-  });
-
-  if (checksumVerified === false) {
-    response.status(401).send("checksum_failed");
-    return;
-  }
-
-  // Quick ack so Coda stops retrying. Fulfillment still gated on inquiry.
-  response.status(200).send("ResultCode=0");
 });
 
 /**

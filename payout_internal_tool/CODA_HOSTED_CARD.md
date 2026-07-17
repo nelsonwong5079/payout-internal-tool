@@ -7,7 +7,7 @@ Internal PE Ops tool for exercising Coda’s **Card Payment Hosted Component** e
 1. **Init** — UI calls Firebase `codaCardInit` → `POST …/Payment/Component/init.json`.
 2. **Mount** — Browser loads `coda-card.min.js`, initializes with `clientSecret`, mounts `#payment-form`.
 3. **Pay** — Pay enables on `readyStateChange`; `submit()` sends card data to Coda (3DS handled by SDK).
-4. **Reconcile** — Primary path uses **inquiry** (`codaCardInquiry`). Optional `codaCardWebhook` exists for portal complete-notifications and always writes an INBOUND debug event.
+4. **Reconcile** — Primary path uses **inquiry** (`codaCardInquiry`). Frontend SDK success is not final.
 5. **Debug panel** — Live backend activity stream (PART G) on the same page.
 
 Authoritative status = inquiry result (`success` / `pending` / `failed`), not the frontend SDK alone.
@@ -39,11 +39,10 @@ Collapsible full-width panel on the Hosted Card page. Polls `codaCardDebugFeed` 
 Each entry includes:
 
 - Timestamp (ISO, ms) + correlation / order / txn IDs
-- Direction + step (`→ OUTBOUND: Coda init`, `← INBOUND: webhook received`, …)
+- Direction + step (`→ OUTBOUND: Coda init`, …)
 - Method + full URL (exposes env/host mismatches)
 - Redacted request + response JSON, HTTP status, latency ms
 - Interpreted `resultCode` (SUCCESS / PENDING / FAILED)
-- Webhook checksum pass/fail when secret is available
 - Copy request / response / full entry
 
 ### Security
@@ -68,7 +67,6 @@ Every Coda call goes through `observedCodaFetch` / `recordDebugEvent` in `functi
 | --- | --- |
 | `codaCardInit` | Init proxy + debug log |
 | `codaCardInquiry` | Inquiry proxy + debug log |
-| `codaCardWebhook` | Optional complete notification + checksum check + debug log |
 | `codaCardDebugFeed` | GET live events (newest first) |
 | `codaCardDebugIngest` | POST frontend lifecycle summaries |
 | `codaCardCapture` / `codaCardCancel` | Auth/capture stubs (`501`) |
@@ -82,7 +80,6 @@ cd /Users/nelson/Development/payout-internal-tool
 firebase deploy --only \
   functions:codaCardInit,\
 functions:codaCardInquiry,\
-functions:codaCardWebhook,\
 functions:codaCardDebugFeed,\
 functions:codaCardDebugIngest,\
 functions:codaCardCapture,\
@@ -102,7 +99,6 @@ firebase functions:config:set coda.debug_panel_enabled="true"
 # CODA_DEBUG_PANEL_ENABLED=true
 # CODA_DEBUG_MAX_EVENTS=200
 # CODA_DEBUG_ACCESS_TOKEN=<optional>
-# CODA_MERCHANT_SECRET=<for webhook checksum>
 ```
 
 ## Sandbox tip

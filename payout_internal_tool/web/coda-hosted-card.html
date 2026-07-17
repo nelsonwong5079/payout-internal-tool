@@ -4,7 +4,358 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Coda Hosted Card</title>
-  <script src="https://js.codapayments.com/8.0.0/coda-card.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <!-- SDK loaded dynamically (default 8.0.0). Free-text version via ?sdk= when diagnostics on. -->
+  <script>
+    (function () {
+      var DEFAULT_SDK = '8.0.0';
+      var params = new URLSearchParams(window.location.search);
+      var diagOn = params.get('diagnostics') === '1' || params.get('diag') === '1';
+      var rawVer = (params.get('sdk') || params.get('sdkVersion') || '').trim();
+
+      /**
+       * Sanitize only enough for a safe single URL path segment.
+       * Empty → default 8.0.0. Unsafe chars → reject (do NOT rewrite to default).
+       * Otherwise return the typed value exactly (after trim).
+       */
+      function sanitizeSdkVersion(raw) {
+        var trimmed = (raw == null ? '' : String(raw)).trim();
+        if (!trimmed) {
+          return { ok: true, version: DEFAULT_SDK, usedDefault: true, reason: null };
+        }
+        if (/[\/\\?\s#&%]/.test(trimmed) || trimmed.indexOf('..') !== -1) {
+          return {
+            ok: false,
+            version: trimmed,
+            usedDefault: false,
+            reason: 'Version contains characters that are not safe in a URL path segment (slashes, spaces, .., ?, #, &, %).',
+          };
+        }
+        // Allow arbitrary version-like tokens; do not require a fixed list / semver shape.
+        if (!/^[A-Za-z0-9._+-]+$/.test(trimmed)) {
+          return {
+            ok: false,
+            version: trimmed,
+            usedDefault: false,
+            reason: 'Version may only contain letters, digits, dots, underscores, plus, and hyphens.',
+          };
+        }
+        return { ok: true, version: trimmed, usedDefault: false, reason: null };
+      }
+
+      // When diagnostics is off, always use the hardcoded default build.
+      var resolved = diagOn ? sanitizeSdkVersion(rawVer) : sanitizeSdkVersion('');
+      var ver = resolved.ok ? resolved.version : null;
+      var sdkUrl = ver ? ('https://js.codapayments.com/' + ver + '/coda-card.min.js') : null;
+
+      window.__CODA_DIAG__ = {
+        enabled: diagOn,
+        defaultSdkVersion: DEFAULT_SDK,
+        sdkVersion: ver || (rawVer || DEFAULT_SDK),
+        sdkUrl: sdkUrl || ('https://js.codapayments.com/' + DEFAULT_SDK + '/coda-card.min.js'),
+        sdkStatus: resolved.ok ? 'loading' : 'failed',
+        sdkSanitizeOk: resolved.ok,
+        sdkSanitizeReason: resolved.reason,
+        sdkUsedDefault: !!resolved.usedDefault,
+        entries: [],
+        networkInstalled: false,
+        consoleInstalled: false,
+        sanitizeSdkVersion: sanitizeSdkVersion,
+      };
+
+      function maskSecret(value) {
+        var s = value == null ? '' : String(value);
+        if (!s) return '';
+        if (s.length <= 8) return '••••';
+        return s.slice(0, 4) + '…' + s.slice(-4);
+      }
+
+      function redactText(input) {
+        if (input == null) return input;
+        var s = typeof input === 'string' ? input : (function () {
+          try { return JSON.stringify(input); } catch (e) { return String(input); }
+        })();
+        return s
+          .replace(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, function (m) {
+            return '[JWT ' + maskSecret(m) + ']';
+          })
+          .replace(/\b(live_|test_)[A-Za-z0-9]+/g, function (m) {
+            return maskSecret(m);
+          })
+          .replace(/("?(?:apiKey|clientSecret|authorization|cardNumber|cvv|cvc)"?\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,}\]]+)/gi, function (_, p, v) {
+            return p + '"' + maskSecret(String(v).replace(/^["']|["']$/g, '')) + '"';
+          });
+      }
+
+      window.__CODA_DIAG__.maskSecret = maskSecret;
+      window.__CODA_DIAG__.redactText = redactText;
+
+      function shouldCaptureNetwork(url) {
+        var u = String(url || '');
+        if (/codaCardDebug(Feed|Ingest)/i.test(u)) return false;
+        if (/\/charges\b/i.test(u) || /\/v1\/pub\/direct\/charges/i.test(u)) return true;
+        if (/codapayments\.com/i.test(u)) return true;
+        if (/codaCard(Init|Inquiry|Capture|Cancel)/i.test(u)) return true;
+        return false;
+      }
+
+      function pushEntry(entry) {
+        if (!window.__CODA_DIAG__.enabled) return;
+        window.__CODA_DIAG__.entries.push(entry);
+        if (typeof window.__CODA_DIAG__.onEntry === 'function') {
+          try { window.__CODA_DIAG__.onEntry(entry); } catch (e) { /* ignore */ }
+        }
+      }
+
+      window.__CODA_DIAG__.pushEntry = pushEntry;
+
+      if (diagOn) {
+        // Passive network interceptor — observe only, never modify requests.
+        var origFetch = window.fetch;
+        if (typeof origFetch === 'function') {
+          window.fetch = function () {
+            var args = arguments;
+            var input = args[0];
+            var init = args[1] || {};
+            var url = '';
+            try {
+              if (typeof input === 'string') url = input;
+              else if (input && typeof input.url === 'string') url = input.url;
+              else url = String(input);
+            } catch (e) { url = ''; }
+            var method = (init.method || (input && input.method) || 'GET').toUpperCase();
+            var started = Date.now();
+            var capture = shouldCaptureNetwork(url);
+            return origFetch.apply(this, args).then(function (res) {
+              if (!capture) return res;
+              var latencyMs = Date.now() - started;
+              var host = '';
+              try { host = new URL(url, window.location.href).host; } catch (e) { host = ''; }
+              var isCharge = /\/charges\b/i.test(url) || /\/v1\/pub\/direct\/charges/i.test(url);
+              var clone = res.clone();
+              var base = {
+                kind: 'network',
+                severity: isCharge ? (res.ok ? 'warning' : 'error') : 'info',
+                ts: Date.now(),
+                tsIso: new Date().toISOString(),
+                message: isCharge
+                  ? ('CHARGE request → host=' + host + ' status=' + res.status)
+                  : (method + ' ' + host + ' → ' + res.status),
+                data: {
+                  url: redactText(url),
+                  host: host,
+                  method: method,
+                  status: res.status,
+                  latencyMs: latencyMs,
+                  isCharge: isCharge,
+                  chargeHost: isCharge ? host : null,
+                  responseBody: null,
+                  bodyReadable: false,
+                },
+              };
+              return clone.text().then(function (text) {
+                base.data.bodyReadable = true;
+                base.data.responseBody = redactText(text ? text.slice(0, 8000) : '');
+                if (isCharge && !res.ok) {
+                  base.severity = 'error';
+                  base.message += ' — inspect responseBody for real decline/400 cause';
+                }
+                pushEntry(base);
+                return res;
+              }).catch(function () {
+                base.data.bodyReadable = false;
+                base.data.responseBody = '[body not readable — likely CORS; URL/host/status still captured]';
+                pushEntry(base);
+                return res;
+              });
+            }).catch(function (err) {
+              if (!capture) throw err;
+              var host = '';
+              try { host = new URL(url, window.location.href).host; } catch (e2) { host = ''; }
+              pushEntry({
+                kind: 'network',
+                severity: 'error',
+                ts: Date.now(),
+                tsIso: new Date().toISOString(),
+                message: 'Network failure: ' + method + ' ' + (host || url),
+                data: {
+                  url: redactText(url),
+                  host: host,
+                  method: method,
+                  status: null,
+                  latencyMs: Date.now() - started,
+                  isCharge: /\/charges\b/i.test(url),
+                  chargeHost: /\/charges\b/i.test(url) ? host : null,
+                  error: String(err && err.message ? err.message : err),
+                },
+              });
+              throw err;
+            });
+          };
+          window.__CODA_DIAG__.networkInstalled = true;
+        }
+
+        var OrigXHR = window.XMLHttpRequest;
+        if (OrigXHR) {
+          function WrappedXHR() {
+            var xhr = new OrigXHR();
+            var _url = '';
+            var _method = 'GET';
+            var _started = 0;
+            var open = xhr.open;
+            xhr.open = function (method, url) {
+              _method = String(method || 'GET').toUpperCase();
+              _url = String(url || '');
+              return open.apply(xhr, arguments);
+            };
+            xhr.addEventListener('loadend', function () {
+              if (!shouldCaptureNetwork(_url)) return;
+              var latencyMs = Date.now() - _started;
+              var host = '';
+              try { host = new URL(_url, window.location.href).host; } catch (e) { host = ''; }
+              var isCharge = /\/charges\b/i.test(_url);
+              var body = null;
+              var readable = false;
+              try {
+                body = redactText(xhr.responseText ? String(xhr.responseText).slice(0, 8000) : '');
+                readable = true;
+              } catch (e2) {
+                body = '[body not readable]';
+              }
+              pushEntry({
+                kind: 'network',
+                severity: isCharge ? (xhr.status >= 200 && xhr.status < 300 ? 'warning' : 'error') : 'info',
+                ts: Date.now(),
+                tsIso: new Date().toISOString(),
+                message: isCharge
+                  ? ('CHARGE XHR → host=' + host + ' status=' + xhr.status)
+                  : (_method + ' (XHR) ' + host + ' → ' + xhr.status),
+                data: {
+                  url: redactText(_url),
+                  host: host,
+                  method: _method,
+                  status: xhr.status,
+                  latencyMs: latencyMs,
+                  isCharge: isCharge,
+                  chargeHost: isCharge ? host : null,
+                  responseBody: body,
+                  bodyReadable: readable,
+                },
+              });
+            });
+            var send = xhr.send;
+            xhr.send = function () {
+              _started = Date.now();
+              return send.apply(xhr, arguments);
+            };
+            return xhr;
+          }
+          WrappedXHR.prototype = OrigXHR.prototype;
+          window.XMLHttpRequest = WrappedXHR;
+          window.__CODA_DIAG__.networkInstalled = true;
+        }
+
+        window.addEventListener('error', function (ev) {
+          pushEntry({
+            kind: 'console',
+            severity: 'error',
+            ts: Date.now(),
+            tsIso: new Date().toISOString(),
+            message: 'Uncaught error: ' + (ev.message || 'unknown'),
+            data: {
+              filename: ev.filename || null,
+              lineno: ev.lineno || null,
+              colno: ev.colno || null,
+              stack: ev.error && ev.error.stack ? redactText(String(ev.error.stack).slice(0, 2000)) : null,
+            },
+          });
+        });
+        window.addEventListener('unhandledrejection', function (ev) {
+          var reason = ev.reason;
+          var msg = reason && reason.message ? reason.message : String(reason);
+          pushEntry({
+            kind: 'console',
+            severity: 'error',
+            ts: Date.now(),
+            tsIso: new Date().toISOString(),
+            message: 'Unhandled rejection: ' + redactText(msg),
+            data: {
+              stack: reason && reason.stack ? redactText(String(reason.stack).slice(0, 2000)) : null,
+            },
+          });
+        });
+        window.__CODA_DIAG__.consoleInstalled = true;
+      }
+
+      // Dynamic SDK load — exactly one build per page (clean reload swaps versions).
+      function removeExistingCodaSdkScripts() {
+        var nodes = document.querySelectorAll('script[data-coda-card-sdk="1"], script[src*="coda-card.min.js"]');
+        for (var i = 0; i < nodes.length; i++) {
+          try { nodes[i].parentNode.removeChild(nodes[i]); } catch (e) { /* ignore */ }
+        }
+        try {
+          if (typeof window.CodaCard !== 'undefined') {
+            try { delete window.CodaCard; } catch (e2) { window.CodaCard = undefined; }
+          }
+        } catch (e3) { /* ignore */ }
+      }
+
+      if (!resolved.ok) {
+        pushEntry({
+          kind: 'sdk',
+          severity: 'error',
+          ts: Date.now(),
+          tsIso: new Date().toISOString(),
+          message: 'Rejected SDK version "' + resolved.version + '": ' + resolved.reason,
+          data: {
+            version: resolved.version,
+            status: 'failed',
+            reason: resolved.reason,
+          },
+        });
+        window.dispatchEvent(new Event('coda-sdk-failed'));
+      } else {
+        removeExistingCodaSdkScripts();
+        var script = document.createElement('script');
+        script.src = sdkUrl;
+        script.async = true;
+        script.setAttribute('data-coda-card-sdk', '1');
+        script.setAttribute('data-coda-card-version', ver);
+        script.onload = function () {
+          window.__CODA_DIAG__.sdkStatus = 'loaded';
+          pushEntry({
+            kind: 'sdk',
+            severity: 'info',
+            ts: Date.now(),
+            tsIso: new Date().toISOString(),
+            message: 'SDK loaded: ' + sdkUrl,
+            data: {
+              version: ver,
+              url: sdkUrl,
+              status: 'loaded',
+              usedDefault: !!resolved.usedDefault,
+            },
+          });
+          window.dispatchEvent(new Event('coda-sdk-ready'));
+        };
+        script.onerror = function () {
+          window.__CODA_DIAG__.sdkStatus = 'failed';
+          pushEntry({
+            kind: 'sdk',
+            severity: 'error',
+            ts: Date.now(),
+            tsIso: new Date().toISOString(),
+            message: 'SDK failed to load: ' + sdkUrl + ' (non-existent version is a useful finding)',
+            data: { version: ver, url: sdkUrl, status: 'failed' },
+          });
+          window.dispatchEvent(new Event('coda-sdk-failed'));
+        };
+        document.head.appendChild(script);
+      }
+    })();
+  </script>
   <style>
     :root {
       --void: #09090b;
@@ -351,6 +702,550 @@
       .progress-steps { grid-template-columns: repeat(4, 1fr); gap: 10px 4px; }
       .progress-step:nth-child(n+5) { grid-column: span 1; }
     }
+
+    /* —— Payment sheet (Direction A: clean light checkout) —— */
+    .checkout-flow {
+      --pay-bg: #e8eaef;
+      --pay-bg-accent: #dfe3ea;
+      --pay-sheet: #ffffff;
+      --pay-raised: #f7f8fa;
+      --pay-ink: #0f1218;
+      --pay-muted: #5c6570;
+      --pay-faint: #8b939e;
+      --pay-line: rgba(15, 18, 24, 0.08);
+      --pay-accent: #0d6e6e;
+      --pay-accent-soft: rgba(13, 110, 110, 0.12);
+      --pay-success: #1a7f4b;
+      --pay-success-soft: rgba(26, 127, 75, 0.12);
+      --pay-error: #b42318;
+      --pay-error-soft: rgba(180, 35, 24, 0.1);
+      --pay-radius: 20px;
+      --pay-radius-sm: 12px;
+      --pay-font: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+      --pay-display: "Fraunces", ui-serif, Georgia, serif;
+      --pay-ease: cubic-bezier(0.22, 1, 0.36, 1);
+      --pay-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+
+      margin-top: 16px;
+      padding: 14px 12px 16px;
+      border-radius: 24px;
+      background:
+        radial-gradient(120% 80% at 10% 0%, #f2f4f8 0%, transparent 55%),
+        radial-gradient(90% 70% at 100% 20%, #dde7e6 0%, transparent 50%),
+        linear-gradient(165deg, var(--pay-bg) 0%, var(--pay-bg-accent) 100%);
+      font-family: var(--pay-font);
+      color: var(--pay-ink);
+    }
+    .pay-sheet {
+      background: var(--pay-sheet);
+      border-radius: var(--pay-radius);
+      box-shadow:
+        0 1px 1px rgba(15, 18, 24, 0.04),
+        0 8px 24px rgba(15, 18, 24, 0.06),
+        0 24px 48px rgba(15, 18, 24, 0.08);
+      padding: 22px 20px 18px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+    .pay-sheet::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.9), transparent);
+      pointer-events: none;
+    }
+    .pay-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .pay-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(145deg, #0d6e6e 0%, #0a4f52 100%);
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-family: var(--pay-display);
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      box-shadow: 0 4px 12px rgba(13, 110, 110, 0.28);
+      flex-shrink: 0;
+    }
+    .pay-brand-meta { min-width: 0; }
+    .pay-brand-name {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: -0.01em;
+      color: var(--pay-ink);
+    }
+    .pay-brand-sub {
+      margin: 1px 0 0;
+      font-size: 12px;
+      color: var(--pay-faint);
+      font-weight: 500;
+    }
+    .pay-amount-block {
+      text-align: center;
+      margin-bottom: 14px;
+    }
+    .pay-amount-label {
+      margin: 0 0 4px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--pay-faint);
+    }
+    .pay-amount {
+      margin: 0;
+      font-family: var(--pay-display);
+      font-size: clamp(32px, 8vw, 40px);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--pay-ink);
+      font-variant-numeric: tabular-nums lining-nums;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      transition: color 0.35s var(--pay-ease), transform 0.45s var(--pay-spring);
+    }
+    .checkout-flow.is-waiting .pay-amount {
+      animation: pay-amount-shimmer 2.2s ease-in-out infinite;
+    }
+    .checkout-flow[data-state="complete"] .pay-amount,
+    .checkout-flow[data-state="delivered"] .pay-amount {
+      color: var(--pay-success);
+      transform: scale(1.02);
+    }
+    .checkout-flow[data-state="failed"] .pay-amount {
+      color: var(--pay-muted);
+    }
+    .pay-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 18px;
+      border-radius: var(--pay-radius-sm);
+      background: var(--pay-raised);
+      border: 1px solid var(--pay-line);
+    }
+    .pay-thumb {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background:
+        linear-gradient(135deg, rgba(13, 110, 110, 0.18), rgba(13, 110, 110, 0.05)),
+        var(--pay-sheet);
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      color: var(--pay-accent);
+    }
+    .pay-thumb svg { width: 20px; height: 20px; }
+    .pay-item-body { min-width: 0; flex: 1; text-align: left; }
+    .pay-item-name {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--pay-ink);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pay-item-meta {
+      margin: 2px 0 0;
+      font-size: 12px;
+      color: var(--pay-faint);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .pay-status { text-align: center; padding: 4px 4px 0; }
+    .checkout-visual {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 12px;
+      position: relative;
+      display: grid;
+      place-items: center;
+    }
+    .checkout-visual svg { width: 64px; height: 64px; overflow: visible; }
+    .pay-glow {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--pay-success-soft) 0%, transparent 70%);
+      opacity: 0;
+      transform: scale(0.7);
+      pointer-events: none;
+    }
+    .checkout-flow[data-state="complete"] .pay-glow,
+    .checkout-flow[data-state="delivered"] .pay-glow {
+      animation: pay-glow-bloom 0.7s var(--pay-spring) forwards;
+    }
+    .checkout-title {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      color: var(--pay-ink);
+    }
+    .checkout-copy {
+      margin: 6px auto 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--pay-muted);
+      max-width: 260px;
+    }
+    .checkout-reason {
+      margin: 8px auto 0;
+      font-size: 12px;
+      line-height: 1.4;
+      color: var(--pay-error);
+      max-width: 260px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: var(--pay-error-soft);
+    }
+    .checkout-receipt {
+      width: 100%;
+      margin-top: 0;
+      padding: 0 14px;
+      border-radius: var(--pay-radius-sm);
+      background: var(--pay-success-soft);
+      border: 1px solid rgba(26, 127, 75, 0.18);
+      text-align: left;
+      opacity: 0;
+      max-height: 0;
+      overflow: hidden;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition:
+        opacity 0.45s var(--pay-ease),
+        transform 0.5s var(--pay-spring),
+        max-height 0.5s var(--pay-ease),
+        margin 0.35s var(--pay-ease),
+        padding 0.35s var(--pay-ease);
+    }
+    .checkout-flow[data-state="delivered"] .checkout-receipt {
+      opacity: 1;
+      max-height: 160px;
+      transform: translateY(0);
+      pointer-events: auto;
+      margin-top: 14px;
+      padding: 12px 14px;
+    }
+    .checkout-receipt .r-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 12px;
+      margin: 4px 0;
+    }
+    .checkout-receipt .r-row span:first-child { color: var(--pay-faint); }
+    .checkout-receipt .r-row span:last-child {
+      color: var(--pay-ink);
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+    .checkout-receipt .r-unlock {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(26, 127, 75, 0.2);
+      font-size: 12px;
+      color: var(--pay-success);
+      font-weight: 650;
+    }
+    .pay-stepper-wrap {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--pay-line);
+    }
+    .flow-track {
+      position: relative;
+      height: 3px;
+      margin: 0 10px 12px;
+      border-radius: 999px;
+      background: rgba(15, 18, 24, 0.06);
+      overflow: hidden;
+    }
+    .flow-track-fill {
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 0%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--pay-accent), #149494);
+      transition: width 0.55s var(--pay-ease), background 0.35s var(--pay-ease);
+    }
+    .checkout-flow[data-state="complete"] .flow-track-fill,
+    .checkout-flow[data-state="delivered"] .flow-track-fill {
+      background: linear-gradient(90deg, var(--pay-success), #2d9b63);
+    }
+    .checkout-flow[data-state="failed"] .flow-track-fill {
+      background: var(--pay-error);
+    }
+    .checkout-flow.is-waiting .flow-track-fill::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+      animation: pay-bar-shine 1.4s ease-in-out infinite;
+    }
+    .flow-stepper {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 2px;
+    }
+    .flow-step { text-align: center; padding: 0 1px; }
+    .flow-step .f-dot {
+      width: 18px;
+      height: 18px;
+      margin: 0 auto 6px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(15, 18, 24, 0.12);
+      background: var(--pay-sheet);
+      display: grid;
+      place-items: center;
+      transition:
+        background 0.35s var(--pay-ease),
+        border-color 0.35s var(--pay-ease),
+        box-shadow 0.35s var(--pay-ease),
+        transform 0.4s var(--pay-spring);
+    }
+    .flow-step .f-dot svg {
+      width: 10px;
+      height: 10px;
+      opacity: 0;
+      transform: scale(0.5);
+      transition: opacity 0.25s var(--pay-ease), transform 0.35s var(--pay-spring);
+    }
+    .flow-step .f-label {
+      font-size: 10px;
+      line-height: 1.2;
+      color: var(--pay-faint);
+      font-weight: 550;
+      letter-spacing: -0.01em;
+    }
+    .flow-step.done .f-dot {
+      background: var(--pay-accent);
+      border-color: var(--pay-accent);
+    }
+    .flow-step.done .f-dot svg,
+    .flow-step.success .f-dot svg {
+      opacity: 1;
+      transform: scale(1);
+      stroke: #fff;
+    }
+    .flow-step.active .f-dot {
+      border-color: var(--pay-accent);
+      box-shadow: 0 0 0 4px var(--pay-accent-soft);
+      transform: scale(1.08);
+      animation: pay-dot-pulse 1.8s ease-in-out infinite;
+    }
+    .flow-step.active .f-label { color: var(--pay-ink); font-weight: 650; }
+    .flow-step.done .f-label { color: var(--pay-muted); }
+    .flow-step.success .f-dot {
+      background: var(--pay-success);
+      border-color: var(--pay-success);
+      box-shadow: 0 0 0 4px var(--pay-success-soft);
+      animation: none;
+    }
+    .flow-step.failed .f-dot {
+      background: var(--pay-error);
+      border-color: var(--pay-error);
+      box-shadow: 0 0 0 4px var(--pay-error-soft);
+      animation: none;
+    }
+    .checkout-actions {
+      display: flex;
+      justify-content: center;
+      margin-top: 14px;
+    }
+    .checkout-actions[hidden] { display: none !important; }
+    .btn-pay-retry {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      font-family: var(--pay-font);
+      font-size: 14px;
+      font-weight: 650;
+      color: #fff;
+      background: var(--pay-ink);
+      border-radius: 999px;
+      padding: 11px 22px;
+      min-width: 160px;
+      box-shadow: 0 6px 16px rgba(15, 18, 24, 0.18);
+      transition: transform 0.2s var(--pay-spring), box-shadow 0.2s var(--pay-ease);
+    }
+    .btn-pay-retry:hover {
+      transform: translateY(-1px) scale(1.02);
+      box-shadow: 0 10px 22px rgba(15, 18, 24, 0.22);
+    }
+    .btn-pay-retry:active { transform: scale(0.98); }
+    .btn-pay-retry:focus-visible {
+      outline: 2px solid var(--pay-accent);
+      outline-offset: 3px;
+    }
+    .pay-trust {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 16px;
+      font-size: 11px;
+      color: var(--pay-faint);
+      font-weight: 500;
+    }
+    .pay-trust svg { width: 12px; height: 12px; flex-shrink: 0; opacity: 0.75; }
+    .cv-ring { fill: none; stroke: rgba(13, 110, 110, 0.2); stroke-width: 2.5; }
+    .cv-ring-spin {
+      fill: none;
+      stroke: var(--pay-accent);
+      stroke-width: 2.75;
+      stroke-linecap: round;
+      stroke-dasharray: 56 110;
+      transform-origin: 32px 32px;
+      animation: flow-spin 0.95s linear infinite;
+    }
+    .cv-pulse {
+      fill: var(--pay-accent-soft);
+      animation: flow-pulse 1.5s ease-in-out infinite;
+      transform-origin: 32px 32px;
+    }
+    .cv-check-bg {
+      fill: var(--pay-success);
+      opacity: 0;
+      transform-origin: 32px 32px;
+      transform: scale(0.6);
+    }
+    .checkout-flow[data-state="complete"] .cv-check-bg,
+    .checkout-flow[data-state="delivered"] .cv-check-bg {
+      animation: pay-check-pop 0.55s var(--pay-spring) forwards;
+    }
+    .cv-check {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 3.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 40;
+      stroke-dashoffset: 40;
+    }
+    .checkout-flow[data-state="complete"] .cv-check,
+    .checkout-flow[data-state="delivered"] .cv-check {
+      animation: flow-draw 0.45s var(--pay-ease) 0.18s forwards;
+    }
+    .cv-cross-bg {
+      fill: var(--pay-error-soft);
+      stroke: rgba(180, 35, 24, 0.35);
+      stroke-width: 1.5;
+    }
+    .cv-cross {
+      fill: none;
+      stroke: var(--pay-error);
+      stroke-width: 3;
+      stroke-linecap: round;
+      opacity: 0;
+    }
+    .checkout-flow[data-state="failed"] .checkout-visual {
+      animation: flow-shake 0.5s var(--pay-ease);
+    }
+    .checkout-flow[data-state="failed"] .cv-cross {
+      animation: flow-fade-in 0.25s var(--pay-ease) 0.08s forwards;
+    }
+    .cv-shield {
+      fill: rgba(13, 110, 110, 0.1);
+      stroke: var(--pay-accent);
+      stroke-width: 1.75;
+      transform-origin: 32px 32px;
+      animation: flow-pulse 1.35s ease-in-out infinite;
+    }
+    .cv-idle-ring { fill: none; stroke: rgba(15, 18, 24, 0.1); stroke-width: 2; }
+    .cv-idle-dot { fill: var(--pay-faint); }
+    .cv-pkg {
+      fill: none;
+      stroke: #fff;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0;
+    }
+    .checkout-flow[data-state="delivered"] .cv-pkg {
+      animation: flow-fade-in 0.35s var(--pay-ease) 0.28s forwards;
+    }
+    .checkout-flow[data-state="delivered"] .cv-check { opacity: 0; }
+    @keyframes flow-spin { to { transform: rotate(360deg); } }
+    @keyframes flow-pulse {
+      0%, 100% { transform: scale(0.94); opacity: 0.65; }
+      50% { transform: scale(1.06); opacity: 1; }
+    }
+    @keyframes flow-draw { to { stroke-dashoffset: 0; } }
+    @keyframes flow-fade-in { to { opacity: 1; } }
+    @keyframes flow-shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      50% { transform: translateX(5px); }
+      75% { transform: translateX(-3px); }
+    }
+    @keyframes pay-check-pop {
+      0% { opacity: 0; transform: scale(0.55); }
+      70% { opacity: 1; transform: scale(1.08); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pay-glow-bloom {
+      0% { opacity: 0; transform: scale(0.6); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pay-amount-shimmer {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.72; }
+    }
+    @keyframes pay-bar-shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(200%); }
+    }
+    @keyframes pay-dot-pulse {
+      0%, 100% { box-shadow: 0 0 0 4px var(--pay-accent-soft); }
+      50% { box-shadow: 0 0 0 6px rgba(13, 110, 110, 0.08); }
+    }
+    @media (max-width: 480px) {
+      .checkout-flow { padding: 10px 8px 12px; border-radius: 18px; }
+      .pay-sheet { padding: 18px 16px 14px; border-radius: 16px; }
+      .pay-amount { font-size: 34px; }
+      .flow-step .f-label { font-size: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .cv-ring-spin, .cv-pulse, .cv-shield,
+      .checkout-flow.is-waiting .pay-amount,
+      .checkout-flow.is-waiting .flow-track-fill::after,
+      .flow-step.active .f-dot,
+      .checkout-flow[data-state="complete"] .cv-check,
+      .checkout-flow[data-state="delivered"] .cv-check,
+      .checkout-flow[data-state="complete"] .cv-check-bg,
+      .checkout-flow[data-state="delivered"] .cv-check-bg,
+      .checkout-flow[data-state="failed"] .checkout-visual,
+      .checkout-flow[data-state="complete"] .pay-glow,
+      .checkout-flow[data-state="delivered"] .pay-glow {
+        animation: none !important;
+      }
+      .cv-check { stroke-dashoffset: 0; }
+      .cv-check-bg, .cv-cross, .cv-pkg, .pay-glow { opacity: 1; transform: none; }
+      .checkout-receipt { transition: none; }
+      .checkout-flow[data-state="delivered"] .checkout-receipt {
+        opacity: 1; max-height: none; transform: none;
+      }
+      .btn-pay-retry:hover { transform: none; }
+    }
+
     .title-row {
       display: flex;
       align-items: flex-start;
@@ -523,6 +1418,109 @@
       white-space: pre-wrap;
     }
     body.guide-open { overflow: hidden; }
+    .diag-panel { display: none; }
+    .diag-panel.visible { display: block; }
+    .diag-sdk-url {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #c7d2fe;
+      word-break: break-all;
+      margin: 0 0 8px;
+    }
+    .diag-log {
+      display: grid;
+      gap: 8px;
+      max-height: 420px;
+      overflow: auto;
+      margin-top: 10px;
+    }
+    .diag-entry {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      padding: 10px 12px;
+      border-left: 3px solid var(--border-strong);
+    }
+    .diag-entry.info { border-left-color: var(--accent); }
+    .diag-entry.event { border-left-color: #38bdf8; }
+    .diag-entry.warning { border-left-color: var(--warning); }
+    .diag-entry.error { border-left-color: var(--error); }
+    .diag-entry .diag-top {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    .diag-entry .diag-kind {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .diag-entry .diag-ts {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .diag-entry .diag-msg {
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .diag-entry pre {
+      margin: 0;
+      padding: 8px;
+      border-radius: 6px;
+      background: var(--void);
+      border: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 140px;
+      overflow: auto;
+    }
+    .diag-gate {
+      margin: 12px 0;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .diag-quickpicks {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 0 0 10px;
+    }
+    .diag-quickpicks button {
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      background: transparent;
+      color: var(--accent-hover);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 999px;
+    }
+    .diag-quickpicks button:hover {
+      background: rgba(99, 102, 241, 0.15);
+    }
+    .diag-quickpicks button.active {
+      background: rgba(99, 102, 241, 0.25);
+      border-color: var(--accent);
+      color: var(--text);
+    }
+    .diag-sdk-status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin: 0 0 10px;
+    }
   </style>
 </head>
 <body>
@@ -543,6 +1541,17 @@
         success / failed / pending. Switching env auto-fills the matching API key.
         For this project use <strong>country 458 / currency 458</strong> (Malaysia). Country 485 is invalid.
         Secrets are redacted in the debug panel.
+      </div>
+
+      <div class="diag-gate">
+        <label class="toggle-row" style="margin:0;">
+          <input type="checkbox" id="diagnosticsEnabled" />
+          Enable SDK diagnostics (events + network + version switch)
+        </label>
+        <p class="note" style="margin-top:8px;margin-bottom:0;">
+          Off by default. When enabled, the page reloads with diagnostics tools.
+          Changing SDK version also reloads so the global SDK build swaps cleanly.
+        </p>
       </div>
 
       <div class="section-label">Environment & credentials</div>
@@ -681,6 +1690,129 @@
           <div class="progress-step" data-step="done"><div class="dot"></div><div class="label">Done</div></div>
         </div>
       </div>
+
+      <div class="checkout-flow" id="checkoutFlow" data-state="idle" aria-live="polite" aria-atomic="true">
+        <div class="pay-sheet">
+          <div class="pay-brand">
+            <div class="pay-logo" aria-hidden="true">N</div>
+            <div class="pay-brand-meta">
+              <p class="pay-brand-name">Northline Store</p>
+              <p class="pay-brand-sub">Secure checkout</p>
+            </div>
+          </div>
+
+          <div class="pay-amount-block">
+            <p class="pay-amount-label" id="payAmountLabel">Total due</p>
+            <p class="pay-amount" id="payAmount">RM&nbsp;0.00</p>
+          </div>
+
+          <div class="pay-item">
+            <div class="pay-thumb" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path d="M6 7h12l-1 13H7L6 7z" />
+                <path d="M9 7a3 3 0 0 1 6 0" />
+              </svg>
+            </div>
+            <div class="pay-item-body">
+              <p class="pay-item-name" id="payItemName">Test Item ×1</p>
+              <p class="pay-item-meta" id="payItemMeta">Order —</p>
+            </div>
+          </div>
+
+          <div class="pay-status" id="checkoutStage">
+            <div class="checkout-visual" id="checkoutVisual" aria-hidden="true">
+              <span class="pay-glow"></span>
+            </div>
+            <h2 class="checkout-title" id="checkoutTitle">Ready to pay</h2>
+            <p class="checkout-copy" id="checkoutCopy">Confirm your card details, then tap Pay now.</p>
+            <p class="checkout-reason" id="checkoutReason" hidden></p>
+            <div class="checkout-receipt" id="checkoutReceipt" aria-hidden="true">
+              <div class="r-row"><span>Item</span><span id="receiptItem">—</span></div>
+              <div class="r-row"><span>Amount</span><span id="receiptAmount">—</span></div>
+              <div class="r-row"><span>Order</span><span id="receiptOrder">—</span></div>
+              <div class="r-unlock">Unlocked — order confirmed</div>
+            </div>
+          </div>
+
+          <div class="pay-stepper-wrap">
+            <div class="flow-track" aria-hidden="true">
+              <div class="flow-track-fill" id="flowTrackFill"></div>
+            </div>
+            <div class="flow-stepper" id="flowStepper" role="list" aria-label="Payment progress">
+              <div class="flow-step" data-flow="paying" role="listitem">
+                <div class="f-dot"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.2 2.2 4.8-5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="f-label">Paying</div>
+              </div>
+              <div class="flow-step" data-flow="processing" role="listitem">
+                <div class="f-dot"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.2 2.2 4.8-5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="f-label">Processing</div>
+              </div>
+              <div class="flow-step" data-flow="verifying" role="listitem">
+                <div class="f-dot"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.2 2.2 4.8-5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="f-label">Verifying</div>
+              </div>
+              <div class="flow-step" data-flow="complete" role="listitem">
+                <div class="f-dot"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.2 2.2 4.8-5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="f-label">Complete</div>
+              </div>
+              <div class="flow-step" data-flow="delivered" role="listitem">
+                <div class="f-dot"><svg viewBox="0 0 12 12" fill="none"><path d="M2.5 6.5l2.2 2.2 4.8-5" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="f-label">Delivered</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="checkout-actions" id="checkoutRetryRow" hidden>
+            <button type="button" class="btn-pay-retry" id="flowRetryBtn">Try again</button>
+          </div>
+
+          <div class="pay-trust">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+            </svg>
+            <span>Payments secured · 256-bit encryption</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel full diag-panel" id="diagPanel">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <h1>SDK diagnostics</h1>
+          <p class="subtitle" style="margin-bottom:0;">
+            Timestamped SDK events, charge network capture, and console errors.
+            Secrets are redacted. Passive observe-only interceptor.
+          </p>
+        </div>
+        <span id="diagSdkStatusPill" class="status-pill info">sdk …</span>
+      </div>
+
+      <div class="section-label">SDK version</div>
+      <p class="note" style="margin-top:0;">
+        Type any version string and load it. Empty input defaults to <strong>8.0.0</strong>.
+        Typed values are not auto-corrected — a bad version should fail to load.
+      </p>
+      <div class="field">
+        <label for="sdkVersionInput">SDK version (free text)</label>
+        <input id="sdkVersionInput" placeholder="e.g. 8.0.0, 8.1.0, 8.2.1" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="diag-quickpicks" id="sdkQuickPicks" aria-label="Quick-pick SDK versions">
+        <button type="button" data-sdk="8.0.0">8.0.0</button>
+        <button type="button" data-sdk="8.1.0">8.1.0</button>
+        <button type="button" data-sdk="8.2.1">8.2.1</button>
+      </div>
+      <p class="diag-sdk-url" id="diagSdkUrl">—</p>
+      <div class="row-actions" style="margin-top:0;">
+        <button class="btn-primary" id="sdkReloadBtn" type="button">Load this version</button>
+        <button class="btn-secondary" id="diagCopyBtn" type="button">Copy full session log</button>
+        <button class="btn-secondary" id="diagDownloadBtn" type="button">Download JSON</button>
+        <button class="btn-secondary" id="diagClearBtn" type="button">Clear / reset log</button>
+      </div>
+      <div class="diag-log" id="diagLog">
+        <div class="empty-debug">Diagnostics enabled — waiting for SDK activity…</div>
+      </div>
     </section>
 
     <section class="panel full" id="debugPanel">
@@ -688,7 +1820,7 @@
         <div>
           <h1>Backend activity / debug</h1>
           <p class="subtitle" style="margin-bottom:0;">
-            Live view of outbound Coda calls, inbound webhooks, and frontend summaries.
+            Live view of outbound Coda calls and frontend summaries.
             Secrets are masked. Newest first.
           </p>
         </div>
@@ -727,14 +1859,14 @@
       <div class="guide-header">
         <div>
           <h2 id="guideTitle">Coda Hosted Card API — 0 → 100</h2>
-          <p class="sub">Card Hosted Component flow · init + inquiry · webhook optional</p>
+          <p class="sub">Card Hosted Component flow · init + inquiry</p>
         </div>
         <button class="btn-secondary" id="guideCloseBtn" type="button">Close</button>
       </div>
       <div class="guide-body">
         <p>
           This is the Card Hosted Component flow: your page stays put, Coda’s SDK collects card data,
-          your backend only does <strong>init + status inquiry</strong> (webhook optional).
+          your backend only does <strong>init + status inquiry</strong>.
         </p>
         <div class="guide-callout">
           In our tool, the browser never calls Coda’s init/inquiry directly (CORS). It calls
@@ -748,11 +1880,10 @@
           <a href="#g2">2 Init</a>
           <a href="#g3">3 Mount</a>
           <a href="#g4">4 Submit</a>
-          <a href="#g5">5 Webhook</a>
-          <a href="#g6">6 Inquiry</a>
-          <a href="#g7">7 Checklist</a>
-          <a href="#g8">8 In PE Ops</a>
-          <a href="#g9">9 Traps</a>
+          <a href="#g5">5 Inquiry</a>
+          <a href="#g6">6 Checklist</a>
+          <a href="#g7">7 In PE Ops</a>
+          <a href="#g8">8 Traps</a>
         </nav>
 
         <h3 id="g0">0. Mental model (1 minute)</h3>
@@ -764,7 +1895,7 @@
 4. Backend INQUIRY ────────────► success / pending / failed</pre>
         <div class="guide-callout guide-warn">
           <strong>Rule:</strong> Frontend “Pay succeeded” is not final.
-          Inquiry (or verified webhook + inquiry) is authoritative.
+          Inquiry is authoritative.
         </div>
 
         <h3 id="g1">1. Configuration first (do this before any endpoint)</h3>
@@ -810,7 +1941,6 @@
               <tr><td><code>payType</code></td><td>Card channel ID from Coda</td><td>e.g. <code>421</code> (not 0/1)</td></tr>
               <tr><td><code>country</code></td><td>ISO 3166 numeric</td><td>Must be enabled for that project</td></tr>
               <tr><td><code>currency</code></td><td>ISO 4217 numeric</td><td>Must match market</td></tr>
-              <tr><td>Complete Notification URL</td><td>Portal (optional)</td><td>Webhook; optional if you only use inquiry</td></tr>
             </tbody>
           </table>
         </div>
@@ -977,28 +2107,7 @@
           </table>
         </div>
 
-        <h3 id="g5">5. Step D — (Optional) Webhook notification</h3>
-        <p>Coda can notify your Complete Notification URL when status becomes Successful/Failed (not always for Pending).</p>
-        <p>Typical params: <code>TxnId</code>, <code>OrderId</code>, <code>ResultCode</code>, <code>Checksum</code>, amounts, etc.</p>
-        <div class="guide-table-wrap">
-          <table>
-            <thead>
-              <tr><th>ResultCode</th><th>Meaning</th></tr>
-            </thead>
-            <tbody>
-              <tr><td><code>0</code></td><td>Success</td></tr>
-              <tr><td><code>431</code> / <code>481</code> / <code>216</code></td><td>Pending</td></tr>
-              <tr><td>Other</td><td>Failed</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <ul>
-          <li>Verify checksum before trusting it.</li>
-          <li>Do <strong>not</strong> fulfill on webhook alone — still call inquiry.</li>
-          <li>In our tool, primary path skips webhook and goes straight to inquiry.</li>
-        </ul>
-
-        <h3 id="g6">6. Step E — Status inquiry (authoritative)</h3>
+        <h3 id="g5">5. Step D — Status inquiry (authoritative)</h3>
         <p>
           <strong>Sandbox:</strong>
           <code>POST …/sandbox…/Payment/inquiryPaymentResult.json</code><br />
@@ -1024,7 +2133,7 @@
             </thead>
             <tbody>
               <tr><td><code>resultCode = 0</code> and/or <code>profile.status = "success"</code></td><td>Paid</td><td>Fulfill if final (<code>isStatusFinal</code> ideally true)</td></tr>
-              <tr><td><code>431</code> / <code>216</code> / <code>481</code> or status pending</td><td>Not final</td><td>Poll again / wait for webhook</td></tr>
+              <tr><td><code>431</code> / <code>216</code> / <code>481</code> or status pending</td><td>Not final</td><td>Poll inquiry again with backoff</td></tr>
               <tr><td>Other / status failed</td><td>Failed</td><td>Do not fulfill</td></tr>
             </tbody>
           </table>
@@ -1045,7 +2154,7 @@
           </table>
         </div>
 
-        <h3 id="g7">7. End-to-end checklist</h3>
+        <h3 id="g6">6. End-to-end checklist</h3>
         <ol>
           <li>Configure: sandbox or prod; matching <code>test_</code>/<code>live_</code> key; projectId; card payType; valid country/currency (<strong>458/458</strong>).</li>
           <li>INIT → expect <code>resultCode=0</code>, store <code>txnId</code>, take <code>clientSecret</code>.</li>
@@ -1057,7 +2166,7 @@
           <li>On decline/error → show retry; never fulfill.</li>
         </ol>
 
-        <h3 id="g8">8. How to learn it inside PE Ops</h3>
+        <h3 id="g7">7. How to learn it inside PE Ops</h3>
         <ol>
           <li>Set env (sandbox/production) — key auto-fills.</li>
           <li>Confirm country/currency <code>458</code>.</li>
@@ -1069,18 +2178,16 @@
         <p>
           Timeline direction legend:
           <strong>Out to Coda</strong> = backend → Coda (init / inquiry);
-          <strong>In from Coda</strong> = webhook;
           <strong>App event</strong> = frontend SDK lifecycle.
         </p>
 
-        <h3 id="g9">9. Common “new to this API” traps</h3>
+        <h3 id="g8">8. Common “new to this API” traps</h3>
         <ul>
           <li>Treating SDK success as paid.</li>
           <li>Reusing <code>clientSecret</code>.</li>
           <li>Mixing sandbox/prod hosts and keys.</li>
           <li>Wrong country code (<code>485</code> vs <code>458</code>).</li>
           <li>Using channel <code>0</code>/<code>1</code> instead of real card payType.</li>
-          <li>Fulfilling from webhook without checksum + inquiry.</li>
           <li>Putting <code>apiKey</code> in the browser in a real customer app (OK only for this internal ops tool).</li>
           <li>Parsing <code>txnId</code> as a JS Number (loses precision — keep as string).</li>
         </ul>
@@ -1094,6 +2201,190 @@
     const INQUIRY_URL = BASE + '/codaCardInquiry';
     const DEBUG_FEED_URL = BASE + '/codaCardDebugFeed';
     const DEBUG_INGEST_URL = BASE + '/codaCardDebugIngest';
+
+    const DIAG = window.__CODA_DIAG__ || {
+      enabled: false,
+      sdkVersion: '8.0.0',
+      sdkUrl: 'https://js.codapayments.com/8.0.0/coda-card.min.js',
+      sdkStatus: 'unknown',
+      entries: [],
+      pushEntry: function () {},
+      redactText: function (s) { return s; },
+      maskSecret: function (s) { return s; },
+    };
+
+    const SDK_DIAG_EVENTS = [
+      'readyStateChange',
+      'userLoaded',
+      'savedCardSelected',
+      'savedCardLoaded',
+      'allSavedCardsRemoved',
+      'savedCardLoadingFailed',
+      'processingCard',
+      'shopperActionRequired',
+      'shopperActionCompleted',
+    ];
+
+    function diagEnabled() {
+      return !!DIAG.enabled;
+    }
+
+    function diagLog(kind, severity, message, data) {
+      if (!diagEnabled()) return;
+      var safeData = null;
+      if (data != null) {
+        try {
+          safeData = JSON.parse(DIAG.redactText(JSON.stringify(data)));
+        } catch (e) {
+          safeData = { redacted: DIAG.redactText(String(data)) };
+        }
+      }
+      DIAG.pushEntry({
+        kind: kind,
+        severity: severity || 'info',
+        ts: Date.now(),
+        tsIso: new Date().toISOString(),
+        message: message,
+        data: safeData,
+      });
+    }
+
+    function renderDiagLog() {
+      const panel = document.getElementById('diagPanel');
+      const list = document.getElementById('diagLog');
+      if (!panel || !list || !diagEnabled()) return;
+      const entries = DIAG.entries.slice().reverse();
+      if (!entries.length) {
+        list.innerHTML = '<div class="empty-debug">Diagnostics enabled — waiting for SDK activity…</div>';
+        return;
+      }
+      list.innerHTML = '';
+      entries.forEach(function (e) {
+        const el = document.createElement('div');
+        el.className = 'diag-entry ' + (e.severity || 'info');
+        const top = document.createElement('div');
+        top.className = 'diag-top';
+        const kind = document.createElement('span');
+        kind.className = 'diag-kind';
+        kind.textContent = (e.kind || 'log') + ' · ' + (e.severity || 'info');
+        const ts = document.createElement('span');
+        ts.className = 'diag-ts';
+        ts.textContent = e.tsIso || String(e.ts);
+        top.appendChild(kind);
+        top.appendChild(ts);
+        const msg = document.createElement('div');
+        msg.className = 'diag-msg';
+        msg.textContent = e.message || '';
+        el.appendChild(top);
+        el.appendChild(msg);
+        if (e.data != null) {
+          const pre = document.createElement('pre');
+          try {
+            pre.textContent = typeof e.data === 'string' ? e.data : JSON.stringify(e.data, null, 2);
+          } catch (err) {
+            pre.textContent = String(e.data);
+          }
+          el.appendChild(pre);
+        }
+        list.appendChild(el);
+      });
+    }
+
+    function updateDiagSdkUi() {
+      const urlEl = document.getElementById('diagSdkUrl');
+      const pill = document.getElementById('diagSdkStatusPill');
+      const statusLabel =
+        DIAG.sdkStatus === 'loaded' ? 'loaded' :
+        DIAG.sdkStatus === 'failed' ? 'failed-to-load' :
+        DIAG.sdkStatus === 'loading' ? 'loading' :
+        String(DIAG.sdkStatus || 'unknown');
+      if (urlEl) {
+        urlEl.textContent =
+          'Script URL: ' + DIAG.sdkUrl +
+          '  ·  version=' + DIAG.sdkVersion +
+          '  ·  status=' + statusLabel;
+      }
+      if (pill) {
+        pill.textContent = statusLabel;
+        pill.className = 'status-pill ' + (
+          DIAG.sdkStatus === 'loaded' ? 'success' :
+          DIAG.sdkStatus === 'failed' ? 'error' :
+          'pending'
+        );
+      }
+    }
+
+    function setDiagnosticsUrl(enabled, sdkVersion) {
+      const url = new URL(window.location.href);
+      if (enabled) url.searchParams.set('diagnostics', '1');
+      else {
+        url.searchParams.delete('diagnostics');
+        url.searchParams.delete('diag');
+        url.searchParams.delete('sdk');
+        url.searchParams.delete('sdkVersion');
+      }
+      if (enabled) {
+        const sanitize = DIAG.sanitizeSdkVersion || function (raw) {
+          var t = (raw || '').trim();
+          return { ok: true, version: t || '8.0.0', usedDefault: !t };
+        };
+        const typed = sdkVersion == null ? '' : String(sdkVersion);
+        const resolved = sanitize(typed);
+        if (!resolved.ok) {
+          alert('Cannot load version "' + resolved.version + '":\n' + resolved.reason);
+          return;
+        }
+        // Persist exactly the resolved path segment (trimmed typed value, or 8.0.0 if blank).
+        url.searchParams.set('sdk', resolved.version);
+      }
+      // Clean reload so only one SDK global is present.
+      window.location.replace(url.toString());
+    }
+
+    function attachSdkDiagnosticListeners(component) {
+      if (!diagEnabled() || !component || typeof component.on !== 'function') return;
+      SDK_DIAG_EVENTS.forEach(function (eventName) {
+        try {
+          component.on(eventName, function () {
+            var args = Array.prototype.slice.call(arguments);
+            var severity = 'event';
+            var message = 'SDK event: ' + eventName;
+            var data = { event: eventName, args: args };
+
+            if (eventName === 'processingCard') {
+              var isSuccess = !!args[0];
+              var errorMessage = args[1];
+              if (!isSuccess) {
+                severity = 'error';
+                message =
+                  'SDK event: processingCard(false) — errorMessage is GENERIC; ' +
+                  'real cause is in NETWORK entries for /charges (host + status + body)';
+                data.note =
+                  'Do not trust the on-screen error alone. Inspect charge host vs clientSecret env.';
+                data.errorMessage = errorMessage == null ? null : String(errorMessage);
+                data.isSuccess = false;
+              } else {
+                severity = 'warning';
+                message = 'SDK event: processingCard(true) — still not final; run inquiry';
+                data.isSuccess = true;
+              }
+            } else if (eventName === 'savedCardLoadingFailed') {
+              severity = 'error';
+            } else if (eventName === 'shopperActionRequired') {
+              severity = args[0] ? 'warning' : 'event';
+            }
+
+            diagLog('sdk-event', severity, message, data);
+          });
+          diagLog('sdk', 'info', 'Subscribed to SDK event: ' + eventName, { event: eventName });
+        } catch (err) {
+          diagLog('sdk', 'warning', 'Could not subscribe to SDK event: ' + eventName, {
+            event: eventName,
+            error: err && err.message ? err.message : String(err),
+          });
+        }
+      });
+    }
 
     const DEFAULT_THEME = {
       backgroundColor: '#18181B',
@@ -1190,7 +2481,295 @@
       progressDetail: document.getElementById('progressDetail'),
       progressFill: document.getElementById('progressFill'),
       progressSteps: document.getElementById('progressSteps'),
+      checkoutFlow: document.getElementById('checkoutFlow'),
+      checkoutVisual: document.getElementById('checkoutVisual'),
+      checkoutTitle: document.getElementById('checkoutTitle'),
+      checkoutCopy: document.getElementById('checkoutCopy'),
+      checkoutReason: document.getElementById('checkoutReason'),
+      checkoutReceipt: document.getElementById('checkoutReceipt'),
+      receiptItem: document.getElementById('receiptItem'),
+      receiptAmount: document.getElementById('receiptAmount'),
+      receiptOrder: document.getElementById('receiptOrder'),
+      payAmount: document.getElementById('payAmount'),
+      payAmountLabel: document.getElementById('payAmountLabel'),
+      payItemName: document.getElementById('payItemName'),
+      payItemMeta: document.getElementById('payItemMeta'),
+      flowTrackFill: document.getElementById('flowTrackFill'),
+      flowStepper: document.getElementById('flowStepper'),
+      checkoutRetryRow: document.getElementById('checkoutRetryRow'),
+      flowRetryBtn: document.getElementById('flowRetryBtn'),
     };
+
+    // —— Payment flow state machine (UI-agnostic) ——
+    // idle → paying → processing ↔ verifying → complete → delivered
+    // failed reachable from processing/verifying; retry → paying
+    function createPaymentFlow(options) {
+      const min = Object.assign({
+        paying: 700,
+        processing: 900,
+        verifying: 1100,
+        complete: 900,
+      }, (options && options.minDurations) || {});
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const scale = reduceMotion ? 0.35 : 1;
+
+      let state = 'idle';
+      let reason = '';
+      let pendingOutcome = null; // 'success' | 'failed' | null
+      let pendingFailReason = '';
+      let generation = 0;
+      let draining = false;
+      const listeners = [];
+
+      function emit() {
+        const snapshot = { state: state, reason: reason, pendingOutcome: pendingOutcome };
+        listeners.forEach(function (fn) {
+          try { fn(snapshot); } catch (_) { /* ignore */ }
+        });
+      }
+
+      function sleep(ms) {
+        return new Promise(function (resolve) {
+          setTimeout(resolve, Math.max(0, Math.round(ms * scale)));
+        });
+      }
+
+      function applyState(next, failReason) {
+        state = next;
+        reason = next === 'failed'
+          ? (failReason || pendingFailReason || 'Payment could not be completed')
+          : '';
+        emit();
+      }
+
+      async function drainOutcome(gen) {
+        if (draining) return;
+        draining = true;
+        try {
+          while (gen === generation) {
+            if (pendingOutcome === 'success') {
+              pendingOutcome = null;
+              applyState('complete');
+              await sleep(min.complete);
+              if (gen !== generation) return;
+              applyState('delivered');
+              return;
+            }
+            if (pendingOutcome === 'failed') {
+              const failReason = pendingFailReason || reason;
+              pendingOutcome = null;
+              applyState('failed', failReason);
+              return;
+            }
+            await sleep(180);
+            if (gen !== generation) return;
+            if (state === 'idle' || state === 'delivered' || state === 'failed') return;
+          }
+        } finally {
+          draining = false;
+        }
+      }
+
+      async function runSequence(gen) {
+        applyState('paying');
+        await sleep(min.paying);
+        if (gen !== generation) return;
+
+        applyState('processing');
+        await sleep(min.processing);
+        if (gen !== generation) return;
+
+        // Optional verifying beat when branch not chosen yet (mock demo feel).
+        // Skipped if success/fail already queued, or if real 3DS already drove verifying.
+        if (!pendingOutcome && state === 'processing') {
+          applyState('verifying');
+          await sleep(min.verifying);
+          if (gen !== generation) return;
+          if (!pendingOutcome && state === 'verifying') {
+            applyState('processing');
+          }
+        }
+
+        await drainOutcome(gen);
+      }
+
+      return {
+        getState: function () { return state; },
+        getReason: function () { return reason; },
+        onChange: function (fn) {
+          listeners.push(fn);
+          return function () {
+            const i = listeners.indexOf(fn);
+            if (i >= 0) listeners.splice(i, 1);
+          };
+        },
+        start: function () {
+          generation += 1;
+          pendingOutcome = null;
+          pendingFailReason = '';
+          reason = '';
+          draining = false;
+          runSequence(generation);
+        },
+        enterVerifying: function () {
+          if (state === 'paying' || state === 'processing' || state === 'verifying') {
+            applyState('verifying');
+          }
+        },
+        resumeProcessing: function () {
+          if (state === 'verifying' || state === 'paying') {
+            applyState('processing');
+          }
+        },
+        markSuccess: function () {
+          if (state === 'idle' || state === 'failed' || state === 'complete' || state === 'delivered') return;
+          pendingOutcome = 'success';
+          pendingFailReason = '';
+          emit();
+        },
+        markFailed: function (failReason) {
+          if (state === 'idle' || state === 'complete' || state === 'delivered') return;
+          pendingOutcome = 'failed';
+          pendingFailReason = failReason || 'Payment could not be completed';
+          emit();
+        },
+        reset: function () {
+          generation += 1;
+          pendingOutcome = null;
+          pendingFailReason = '';
+          draining = false;
+          applyState('idle');
+        },
+      };
+    }
+
+    const CURRENCY_ISO = {
+      '458': 'MYR', '840': 'USD', '702': 'SGD', '360': 'IDR',
+      '764': 'THB', '704': 'VND', '608': 'PHP', '156': 'CNY',
+      '392': 'JPY', '410': 'KRW', '344': 'HKD', '978': 'EUR', '826': 'GBP',
+    };
+
+    function formatPayAmount(price, currencyNumeric) {
+      const n = Number(price);
+      const code = CURRENCY_ISO[String(currencyNumeric)] || 'MYR';
+      if (!isFinite(n)) return code + ' —';
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: 'currency',
+          currency: code,
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(n);
+      } catch (_) {
+        return code + ' ' + n.toFixed(2);
+      }
+    }
+
+    function syncPayContext() {
+      const amount = formatPayAmount(els.itemPrice.value, els.currency.value);
+      const item = (els.itemName.value || 'Item').trim();
+      const order = session.orderId || els.orderId.value || '—';
+      els.payAmount.textContent = amount;
+      els.payItemName.textContent = item + ' ×1';
+      els.payItemMeta.textContent = 'Order ' + order;
+      els.receiptItem.textContent = item + ' ×1';
+      els.receiptAmount.textContent = amount;
+      els.receiptOrder.textContent = order;
+    }
+
+    const FLOW_VISUAL = {
+      idle: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-idle-ring" cx="32" cy="32" r="24"/><circle class="cv-idle-dot" cx="32" cy="32" r="4.5"/></svg>',
+      paying: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-pulse" cx="32" cy="32" r="18"/><circle class="cv-ring" cx="32" cy="32" r="24"/><circle class="cv-ring-spin" cx="32" cy="32" r="24"/></svg>',
+      processing: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-ring" cx="32" cy="32" r="24"/><circle class="cv-ring-spin" cx="32" cy="32" r="24"/></svg>',
+      verifying: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><path class="cv-shield" d="M32 10l18 7v13c0 12.5-7.6 19.8-18 23.5C21.6 49.8 14 42.5 14 30V17l18-7z"/><circle class="cv-ring-spin" cx="32" cy="32" r="26" style="opacity:0.45"/></svg>',
+      complete: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-check-bg" cx="32" cy="32" r="26"/><path class="cv-check" d="M20 33l8 8 16-17"/></svg>',
+      delivered: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-check-bg" cx="32" cy="32" r="26"/><path class="cv-check" d="M20 33l8 8 16-17"/><path class="cv-pkg" d="M20 40h24v8H20zM24 40v-5h16v5"/></svg>',
+      failed: '<span class="pay-glow"></span><svg viewBox="0 0 64 64"><circle class="cv-cross-bg" cx="32" cy="32" r="26"/><path class="cv-cross" d="M23 23l18 18M41 23L23 41"/></svg>',
+    };
+
+    const FLOW_COPY = {
+      idle: { title: 'Ready to pay', copy: 'Confirm your card details, then tap Pay now.', amountLabel: 'Total due' },
+      paying: { title: 'Starting your payment…', copy: 'Encrypting and sending your card details.', amountLabel: 'Total due' },
+      processing: { title: 'Securely processing…', copy: 'This usually takes just a few seconds.', amountLabel: 'Charging' },
+      verifying: { title: 'Connecting to your bank…', copy: 'Complete any bank check if prompted.', amountLabel: 'Verifying' },
+      complete: { title: 'Payment complete', copy: 'Your payment went through. Preparing your order…', amountLabel: 'Paid' },
+      delivered: { title: 'Order confirmed', copy: 'You are all set — your item is unlocked.', amountLabel: 'Paid' },
+      failed: { title: 'Payment unsuccessful', copy: 'Nothing was charged. You can try again safely.', amountLabel: 'Total due' },
+    };
+
+    const FLOW_STEP_ORDER = ['paying', 'processing', 'verifying', 'complete', 'delivered'];
+
+    const paymentFlow = createPaymentFlow();
+
+    function renderCheckoutFlow(snapshot) {
+      const st = snapshot.state;
+      const cfg = FLOW_COPY[st] || FLOW_COPY.idle;
+      els.checkoutFlow.setAttribute('data-state', st);
+      const waiting = st === 'paying' || st === 'processing' || st === 'verifying';
+      els.checkoutFlow.classList.toggle('is-waiting', waiting);
+
+      syncPayContext();
+      if (els.payAmountLabel) els.payAmountLabel.textContent = cfg.amountLabel;
+
+      els.checkoutVisual.innerHTML = FLOW_VISUAL[st] || FLOW_VISUAL.idle;
+      els.checkoutTitle.textContent = cfg.title;
+      els.checkoutCopy.textContent = cfg.copy;
+
+      if (st === 'failed') {
+        els.checkoutReason.hidden = false;
+        els.checkoutReason.textContent = snapshot.reason || 'Payment could not be completed';
+        els.checkoutRetryRow.hidden = false;
+      } else {
+        els.checkoutReason.hidden = true;
+        els.checkoutReason.textContent = '';
+        els.checkoutRetryRow.hidden = true;
+      }
+
+      els.checkoutReceipt.setAttribute('aria-hidden', st === 'delivered' ? 'false' : 'true');
+
+      const activeIdx = FLOW_STEP_ORDER.indexOf(st === 'failed' ? 'processing' : st);
+      const trackPct = st === 'idle'
+        ? 0
+        : st === 'failed'
+          ? 35
+          : ((Math.max(activeIdx, 0) + (st === 'delivered' ? 1 : 0.35)) / FLOW_STEP_ORDER.length) * 100;
+      if (els.flowTrackFill) {
+        els.flowTrackFill.style.width = Math.min(100, Math.max(0, trackPct)) + '%';
+      }
+
+      const nodes = els.flowStepper.querySelectorAll('.flow-step');
+      nodes.forEach(function (node) {
+        const key = node.getAttribute('data-flow');
+        const idx = FLOW_STEP_ORDER.indexOf(key);
+        node.classList.remove('active', 'done', 'success', 'failed');
+        if (st === 'idle') return;
+        if (st === 'failed') {
+          if (idx < 1) node.classList.add('done');
+          if (key === 'processing') node.classList.add('active', 'failed');
+          return;
+        }
+        if (idx < activeIdx) node.classList.add('done');
+        if (idx === activeIdx) {
+          node.classList.add('active');
+          if (st === 'complete' || st === 'delivered') node.classList.add('success');
+        }
+        if (st === 'delivered') {
+          if (idx <= activeIdx) node.classList.add('done', 'success');
+          if (key === 'delivered') {
+            node.classList.add('active', 'success');
+          }
+        }
+      });
+    }
+
+    paymentFlow.onChange(renderCheckoutFlow);
+    ['input', 'change'].forEach(function (evt) {
+      els.itemPrice.addEventListener(evt, syncPayContext);
+      els.itemName.addEventListener(evt, syncPayContext);
+      els.currency.addEventListener(evt, syncPayContext);
+      els.orderId.addEventListener(evt, syncPayContext);
+    });
+    renderCheckoutFlow({ state: 'idle', reason: '' });
 
     const PROGRESS_ORDER = ['idle', 'init', 'mount', 'ready', 'pay', 'inquiry', 'done'];
     const PROGRESS_LABELS = {
@@ -1253,13 +2832,16 @@
       const canPay = session.state === 'ready' && session.formReady && !!chargeComponent;
       els.payBtn.disabled = !canPay || session.state === 'submitting' || session.state === 'tds';
       els.inquiryBtn.disabled = !session.txnId;
-      els.startBtn.disabled = session.state === 'submitting' || session.state === 'tds';
+      const sdkReady = typeof CodaCard === 'function';
+      els.startBtn.disabled =
+        !sdkReady || session.state === 'submitting' || session.state === 'tds';
     }
 
     function newOrderId() {
       const stamp = Date.now().toString(36);
       const rand = Math.random().toString(36).slice(2, 8);
       els.orderId.value = 'ord_' + stamp + '_' + rand;
+      syncPayContext();
     }
 
     function clearMount() {
@@ -1409,6 +2991,7 @@
       els.metaTxn.textContent = '—';
       els.filterOrder.value = cfg.orderId;
       els.filterTxn.value = '';
+      syncPayContext();
       setTxnBadge('pending', 'pending');
       setState('submitting');
       setProgress('init', 'Calling codaCardInit…');
@@ -1470,6 +3053,9 @@
           locale: 'en',
         });
 
+        // Diagnostics listeners first (before mount) so early events are not missed.
+        attachSdkDiagnosticListeners(chargeComponent);
+
         chargeComponent.on('userLoaded', function () {
           ingestFrontend('frontend: userLoaded', 'Card form finished loading');
           setProgress('mount', 'Form loaded — fill card details');
@@ -1496,6 +3082,7 @@
             setState('tds');
             setProgress('pay', '3DS authentication in progress');
             setTxnBadge('pending', '3DS');
+            paymentFlow.enterVerifying();
           }
         });
 
@@ -1503,6 +3090,7 @@
           ingestFrontend('frontend: shopperActionCompleted', '3DS completed');
           setState('submitting');
           setProgress('pay', '3DS completed — processing charge');
+          paymentFlow.resumeProcessing();
         });
 
         chargeComponent.on('processingCard', async function (isSuccess, errorMessage) {
@@ -1516,17 +3104,20 @@
             setState('error');
             setTxnBadge('failed', 'failed');
             setProgress('done', errorMessage || 'Card processing failed', 'error');
+            paymentFlow.markFailed(errorMessage || 'Card processing failed');
             refreshDebug();
             return;
           }
           setState('submitting');
           setProgress('inquiry', 'Charge accepted by SDK — reconciling via inquiry…');
           setTxnBadge('pending', 'reconciling');
+          paymentFlow.resumeProcessing();
           await pollInquiry({ attempts: 8, delayMs: 2500 });
           refreshDebug();
         });
 
         chargeComponent.mount('#payment-form');
+        diagLog('sdk', 'info', 'chargeComponent.mount(#payment-form)');
         setState('idle');
         setProgress('mount', 'Form mounted — fill card details');
         await ingestFrontend('frontend: mounted', 'Charge component mounted');
@@ -1548,6 +3139,7 @@
       setState('submitting');
       setProgress('pay', 'Submitting card to Coda…');
       setTxnBadge('pending', 'submitting');
+      paymentFlow.start();
       await ingestFrontend('frontend: submit', 'Calling chargeComponent.submit()');
       try {
         chargeComponent.submit();
@@ -1555,6 +3147,7 @@
         setState('error');
         setTxnBadge('failed', 'failed');
         setProgress('done', err.message || String(err), 'error');
+        paymentFlow.markFailed(err.message || String(err));
         await ingestFrontend('frontend: submit error', err.message || String(err), null, 'error');
       }
       refreshDebug();
@@ -1586,16 +3179,19 @@
     async function checkStatus() {
       try {
         setProgress('inquiry', 'Checking payment status…');
+        paymentFlow.resumeProcessing();
         const data = await inquireOnce();
         const statusText = data.status + ' (code ' + data.resultCode + ')';
         if (data.status === 'success') {
           setState('success');
           setTxnBadge('success', 'success');
           setProgress('done', 'Inquiry success — ' + statusText, 'success');
+          paymentFlow.markSuccess();
         } else if (data.status === 'failed') {
           setState('error');
           setTxnBadge('failed', 'failed');
           setProgress('done', 'Inquiry failed — ' + statusText, 'error');
+          paymentFlow.markFailed('Inquiry failed — ' + statusText);
         } else {
           setTxnBadge('pending', 'pending');
           setProgress('inquiry', 'Still pending — ' + statusText + ' — poll again if needed');
@@ -1618,18 +3214,21 @@
             setState('success');
             setTxnBadge('success', 'success');
             setProgress('done', 'Inquiry success — ' + statusText, 'success');
+            paymentFlow.markSuccess();
             return;
           }
           if (data.status === 'failed' && (data.isStatusFinal === true || data.isStatusFinal === 'true')) {
             setState('error');
             setTxnBadge('failed', 'failed');
             setProgress('done', 'Inquiry failed — final — ' + statusText, 'error');
+            paymentFlow.markFailed('Inquiry failed — ' + statusText);
             return;
           }
           if (data.status === 'failed' && i === opts.attempts - 1) {
             setState('error');
             setTxnBadge('failed', 'failed');
             setProgress('done', 'Inquiry failed — ' + statusText, 'error');
+            paymentFlow.markFailed('Inquiry failed — ' + statusText);
             return;
           }
           setTxnBadge('pending', 'pending');
@@ -1793,6 +3392,7 @@
       setTxnBadge('info', 'no txn');
       setState('idle');
       setProgress('idle', 'start a payment session to begin');
+      paymentFlow.reset();
     }
 
     function startPolling() {
@@ -1807,6 +3407,13 @@
     els.inquiryBtn.addEventListener('click', checkStatus);
     els.resetBtn.addEventListener('click', resetAll);
     els.newOrderBtn.addEventListener('click', newOrderId);
+    els.flowRetryBtn.addEventListener('click', function () {
+      if (session.formReady && chargeComponent) {
+        submitPayment();
+      } else {
+        paymentFlow.reset();
+      }
+    });
     els.refreshDebugBtn.addEventListener('click', refreshDebug);
     els.filterSessionBtn.addEventListener('click', function () {
       if (session.orderId) els.filterOrder.value = session.orderId;
@@ -1827,6 +3434,149 @@
       resetAll();
       newOrderId();
     });
+
+    // --- SDK diagnostics UI wiring (gated) ---
+    const diagnosticsEnabled = document.getElementById('diagnosticsEnabled');
+    const diagPanel = document.getElementById('diagPanel');
+    const sdkVersionInput = document.getElementById('sdkVersionInput');
+    const sdkQuickPicks = document.getElementById('sdkQuickPicks');
+    const sdkReloadBtn = document.getElementById('sdkReloadBtn');
+    const diagCopyBtn = document.getElementById('diagCopyBtn');
+    const diagDownloadBtn = document.getElementById('diagDownloadBtn');
+    const diagClearBtn = document.getElementById('diagClearBtn');
+
+    if (diagnosticsEnabled) {
+      diagnosticsEnabled.checked = diagEnabled();
+      diagnosticsEnabled.addEventListener('change', function () {
+        if (diagnosticsEnabled.checked) {
+          setDiagnosticsUrl(true, sdkVersionInput ? sdkVersionInput.value : '');
+        } else {
+          setDiagnosticsUrl(false);
+        }
+      });
+    }
+
+    if (diagEnabled() && diagPanel) {
+      diagPanel.classList.add('visible');
+      DIAG.onEntry = function () { renderDiagLog(); };
+      updateDiagSdkUi();
+      renderDiagLog();
+
+      if (sdkVersionInput) {
+        // Show the active session version (URL/default). Blank field would mean "use default on next load".
+        sdkVersionInput.value = DIAG.sdkUsedDefault ? '' : String(DIAG.sdkVersion || '');
+      }
+
+      function syncQuickPickActive() {
+        if (!sdkQuickPicks) return;
+        var current = (sdkVersionInput && sdkVersionInput.value.trim()) || DIAG.sdkVersion || '8.0.0';
+        var buttons = sdkQuickPicks.querySelectorAll('button[data-sdk]');
+        buttons.forEach(function (btn) {
+          btn.classList.toggle('active', btn.getAttribute('data-sdk') === current);
+        });
+      }
+      syncQuickPickActive();
+
+      function chosenSdkVersion() {
+        return sdkVersionInput ? sdkVersionInput.value : '';
+      }
+
+      if (sdkQuickPicks) {
+        sdkQuickPicks.addEventListener('click', function (e) {
+          var btn = e.target.closest('button[data-sdk]');
+          if (!btn) return;
+          var v = btn.getAttribute('data-sdk');
+          if (sdkVersionInput) sdkVersionInput.value = v;
+          syncQuickPickActive();
+        });
+      }
+
+      if (sdkVersionInput) {
+        sdkVersionInput.addEventListener('input', syncQuickPickActive);
+        sdkVersionInput.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            setDiagnosticsUrl(true, chosenSdkVersion());
+          }
+        });
+      }
+
+      sdkReloadBtn.addEventListener('click', function () {
+        setDiagnosticsUrl(true, chosenSdkVersion());
+      });
+
+      diagClearBtn.addEventListener('click', function () {
+        DIAG.entries.length = 0;
+        diagLog('session', 'info', 'Diagnostics log cleared', {
+          sdkUrl: DIAG.sdkUrl,
+          sdkVersion: DIAG.sdkVersion,
+          sdkStatus: DIAG.sdkStatus,
+        });
+        renderDiagLog();
+      });
+
+      diagCopyBtn.addEventListener('click', function () {
+        var payload = {
+          exportedAt: new Date().toISOString(),
+          sdkVersion: DIAG.sdkVersion,
+          sdkUrl: DIAG.sdkUrl,
+          sdkStatus: DIAG.sdkStatus,
+          session: {
+            orderId: session.orderId,
+            txnId: session.txnId,
+            correlationId: session.correlationId,
+            env: session.env,
+            state: session.state,
+          },
+          entries: DIAG.entries,
+        };
+        var text = JSON.stringify(payload, null, 2);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(function () {
+            alert('Session diagnostics log copied to clipboard.');
+          }).catch(function () {
+            prompt('Copy diagnostics log:', text);
+          });
+        } else {
+          prompt('Copy diagnostics log:', text);
+        }
+      });
+
+      diagDownloadBtn.addEventListener('click', function () {
+        var payload = {
+          exportedAt: new Date().toISOString(),
+          sdkVersion: DIAG.sdkVersion,
+          sdkUrl: DIAG.sdkUrl,
+          sdkStatus: DIAG.sdkStatus,
+          session: {
+            orderId: session.orderId,
+            txnId: session.txnId,
+            correlationId: session.correlationId,
+            env: session.env,
+            state: session.state,
+          },
+          entries: DIAG.entries,
+        };
+        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'coda-sdk-diagnostics-' + Date.now() + '.json';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      });
+
+      if (DIAG.sdkStatus === 'failed') {
+        updateDiagSdkUi();
+      }
+      window.addEventListener('coda-sdk-ready', function () {
+        updateDiagSdkUi();
+        renderDiagLog();
+      });
+      window.addEventListener('coda-sdk-failed', function () {
+        updateDiagSdkUi();
+        renderDiagLog();
+      });
+    }
 
     const guideOverlay = document.getElementById('guideOverlay');
     const guideOpenBtn = document.getElementById('guideOpenBtn');
@@ -1851,6 +3601,7 @@
     guideOverlay.addEventListener('click', function (e) {
       if (e.target === guideOverlay) closeGuide();
     });
+
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && guideOverlay.classList.contains('open')) closeGuide();
     });
@@ -1861,6 +3612,20 @@
     setState('idle');
     setTxnBadge('info', 'no txn');
     setProgress('idle', 'start a payment session to begin');
+    els.startBtn.disabled = true;
+    function onSdkSettled() {
+      updateDiagSdkUi();
+      updateButtons();
+      if (typeof CodaCard !== 'function') {
+        setProgress('done', 'Coda SDK failed to load (' + DIAG.sdkUrl + ')', 'error');
+      }
+    }
+    if (DIAG.sdkStatus === 'loaded' || DIAG.sdkStatus === 'failed') {
+      onSdkSettled();
+    } else {
+      window.addEventListener('coda-sdk-ready', onSdkSettled, { once: true });
+      window.addEventListener('coda-sdk-failed', onSdkSettled, { once: true });
+    }
     refreshDebug();
     startPolling();
   </script>
