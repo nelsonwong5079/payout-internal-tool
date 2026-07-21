@@ -34,7 +34,7 @@ Env drives both init and inquiry base URLs together.
 
 ## PART G — Backend activity / debug panel
 
-Collapsible full-width panel on the Hosted Card page. Polls `codaCardDebugFeed` every 2.5s.
+Full-width panel on the Hosted Card page. Fetches `codaCardDebugFeed` only when the user clicks **Load debug events**; there is no automatic polling.
 
 Each entry includes:
 

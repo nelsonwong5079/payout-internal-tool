@@ -358,25 +358,36 @@
   </script>
   <style>
     :root {
-      /* 古风·烟云 ink-wash palette (applied page-wide) */
-      --void: #e7ded0;          /* deep 宣纸 — page + code panels */
-      --surface: #f1ebde;        /* paper accents */
-      --elevated: #f6f1e6;       /* raised paper panels */
-      --muted: #e3dccb;          /* inputs, tracks */
-      --border: rgba(30, 27, 24, 0.12);
-      --border-strong: rgba(30, 27, 24, 0.24);
-      --text: #1e1b18;           /* 墨色 */
-      --text-secondary: #3c4448; /* 墨灰 */
-      --text-muted: rgba(30, 27, 24, 0.5);
-      --accent: #2e4756;         /* 黛青 */
-      --accent-hover: #3a5b6e;
-      --success: #4a6353;        /* 青碧 */
+      /* 中式美学 · 意境 · 江南 (water-town) */
+      --wall: #faf8f3;           /* 粉墙白 */
+      --wall-2: #f5f2ea;
+      --void: #e8ecea;           /* misty code panels */
+      --surface: #f3f0e8;
+      --elevated: #faf8f3;
+      --muted: #eef1ef;          /* watery input wash */
+      --mist: #c7d0d1;           /* 烟雨灰 */
+      --mist-2: #b4c0c2;
+      --border: rgba(62, 74, 80, 0.14);
+      --border-strong: rgba(62, 74, 80, 0.28);
+      --text: #3e4a50;           /* 黛瓦青 */
+      --text-secondary: #4e5a60;
+      --text-muted: rgba(62, 74, 80, 0.55);
+      --accent: #5f8078;         /* 水色/青瓷 deepened for contrast */
+      --accent-hover: #4a6b64;
+      --celadon: #a7c4bc;
+      --celadon-deep: #8fb0a9;
+      --success: #5f7354;        /* 竹青 deepened */
+      --bamboo: #7a8c6e;
+      --lotus: #e4c1c1;          /* 荷粉 — sparingly */
       --error: #a6302b;          /* 朱砂 */
-      --warning: #9c7b33;        /* 描金 (darkened for text contrast) */
-      --gold-line: rgba(183, 146, 78, 0.4);
+      --warning: #9c7b33;
+      --gold-line: rgba(183, 146, 78, 0.35);
       --radius: 6px;
       --font: "Noto Serif SC", "Noto Serif", ui-serif, Georgia, serif;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      --ease-water: cubic-bezier(0.33, 0.9, 0.28, 1);
+      --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+      --focus-halo: 0 0 0 3px rgba(167, 196, 188, 0.55);
     }
     * { box-sizing: border-box; }
     html, body {
@@ -385,21 +396,37 @@
       color: var(--text);
       font-family: var(--font);
       background:
-        radial-gradient(120% 70% at 8% 0%, rgba(255, 255, 255, 0.55) 0%, transparent 46%),
-        radial-gradient(120% 80% at 100% 4%, #dce1e0 0%, transparent 52%),
-        radial-gradient(100% 60% at 50% 120%, #c6cdd3 0%, transparent 60%),
-        linear-gradient(168deg, #f3eee3 0%, #efe8da 55%, #dce1e0 130%);
+        radial-gradient(110% 70% at 12% -10%, rgba(255,255,255,0.7) 0%, transparent 48%),
+        radial-gradient(90% 60% at 100% 0%, rgba(167, 196, 188, 0.35) 0%, transparent 50%),
+        radial-gradient(100% 50% at 50% 110%, rgba(196, 208, 209, 0.55) 0%, transparent 55%),
+        linear-gradient(172deg, var(--wall) 0%, var(--wall-2) 48%, #e6ecea 100%);
       background-attachment: fixed;
     }
-    /* 宣纸 grain overlay */
+    /* 宣纸 grain */
     body::before {
       content: "";
       position: fixed;
       inset: 0;
       z-index: 0;
       pointer-events: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='150'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
       mix-blend-mode: multiply;
+    }
+    /* 江南 skyline — suggestion, low opacity parallax */
+    body::after {
+      content: "";
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      height: min(28vh, 220px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.14;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 800 160' preserveAspectRatio='xMidYMax meet'%3E%3Cg fill='none' stroke='%233e4a50' stroke-width='1.2'%3E%3Cpath d='M0 140 L40 140 L40 100 L70 100 L70 80 L100 80 L100 140 L140 140 L140 90 L180 70 L210 90 L210 140 L260 140 L260 95 L300 95 L300 75 L340 75 L340 95 L360 95 L360 140 L420 140 L420 100 L450 85 L480 100 L480 140 L540 140 L540 88 L580 60 L610 88 L610 140 L680 140 L680 105 L720 90 L760 105 L760 140 L800 140'/%3E%3Cpath d='M180 70 L195 55 L210 70'/%3E%3Cpath d='M580 60 L595 42 L610 60'/%3E%3Cpath d='M0 148 Q200 138 400 148 T800 148' stroke='%238fb0a9' stroke-width='1' opacity='0.7'/%3E%3Cpath d='M40 148 Q60 130 90 148' stroke='%237a8c6e' stroke-width='0.8' opacity='0.5'/%3E%3C/g%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: center bottom;
+      background-size: min(1100px, 140%) auto;
+      transform: translate3d(0, var(--sky-shift, 0px), 0);
+      will-change: transform;
     }
     body { padding: 20px; position: relative; }
     .layout { position: relative; z-index: 1; }
@@ -414,12 +441,13 @@
     .panel {
       position: relative;
       background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent 12%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 14%),
         var(--elevated);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 18px;
-      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 8px 24px rgba(30, 27, 24, 0.06);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 10px 28px rgba(62, 74, 80, 0.06);
+      transition: transform 0.45s var(--ease-water), box-shadow 0.45s var(--ease-water);
     }
     .panel::before {
       content: "";
@@ -427,10 +455,32 @@
       inset: 5px;
       border: 1px solid var(--gold-line);
       border-radius: 3px;
-      opacity: 0.4;
+      opacity: 0.35;
       pointer-events: none;
+      /* 漏窗 corner suggestion via dashed mid-edges */
+      box-shadow:
+        inset 12px 0 0 -11px rgba(143, 176, 169, 0.35),
+        inset -12px 0 0 -11px rgba(143, 176, 169, 0.35);
     }
-    .panel > * { position: relative; }
+    .panel::after {
+      content: "";
+      position: absolute;
+      left: 12%; right: 12%; bottom: 4px;
+      height: 10px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(167, 196, 188, 0.35), transparent 70%);
+      opacity: 0;
+      transform: scaleX(0.85);
+      transition: opacity 0.45s var(--ease-water), transform 0.45s var(--ease-water);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .panel:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 16px 36px rgba(62, 74, 80, 0.1);
+    }
+    .panel:hover::after { opacity: 1; transform: scaleX(1); }
+    .panel > * { position: relative; z-index: 1; }
     .panel.full { grid-column: 1 / -1; }
     h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: 0.04em; }
     .subtitle {
@@ -461,7 +511,7 @@
     }
     input, select, textarea {
       width: 100%;
-      background: var(--muted);
+      background: rgba(255, 255, 255, 0.55);
       border: 1px solid var(--border-strong);
       color: var(--text);
       border-radius: var(--radius);
@@ -469,19 +519,91 @@
       font-size: 13px;
       outline: none;
       font-family: inherit;
+      transition:
+        border-color 0.35s var(--ease-water),
+        box-shadow 0.4s var(--ease-water),
+        background 0.35s var(--ease-water);
+    }
+    input::placeholder, textarea::placeholder {
+      color: rgba(62, 74, 80, 0.42);
+      font-style: italic;
     }
     textarea { min-height: 110px; font-family: var(--mono); font-size: 11px; }
-    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    input:hover:not(:disabled):not(:focus),
+    select:hover:not(:disabled):not(:focus),
+    textarea:hover:not(:disabled):not(:focus) {
+      border-color: var(--celadon-deep);
+      background: rgba(255, 255, 255, 0.72);
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      background: #fff;
+      box-shadow: var(--focus-halo), inset 0 -1px 0 rgba(143, 176, 169, 0.35);
+    }
+    input:disabled, select:disabled, textarea:disabled {
+      opacity: 0.5;
+      background: rgba(199, 208, 209, 0.25);
+      color: var(--text-muted);
+    }
+    input.field-error, select.field-error, textarea.field-error {
+      border-color: var(--error);
+      animation: willow-sway 0.45s var(--ease-soft);
+    }
     .field { margin-bottom: 10px; }
     .toggle-row {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       margin: 8px 0;
       font-size: 13px;
       color: var(--text-secondary);
+      cursor: pointer;
+      user-select: none;
     }
-    .toggle-row input { width: auto; }
+    .toggle-row input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      margin: 0;
+      flex-shrink: 0;
+      border: 1.5px solid var(--border-strong);
+      border-radius: 3px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.7), rgba(167,196,188,0.15));
+      position: relative;
+      cursor: pointer;
+      transition: background 0.35s var(--ease-water), border-color 0.35s, box-shadow 0.35s, transform 0.25s;
+    }
+    .toggle-row input[type="checkbox"]:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(167, 196, 188, 0.25);
+    }
+    .toggle-row input[type="checkbox"]:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-halo);
+    }
+    .toggle-row input[type="checkbox"]:checked {
+      background: linear-gradient(135deg, #b23a33, #8f2521);
+      border-color: #8f2521;
+      box-shadow: 0 2px 8px rgba(166, 48, 43, 0.28);
+      animation: seal-press 0.35s var(--ease-water);
+    }
+    .toggle-row input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 4px; top: 1px;
+      width: 6px; height: 10px;
+      border: solid #faf8f3;
+      border-width: 0 1.8px 1.8px 0;
+      transform: rotate(40deg);
+      animation: brush-tick 0.3s var(--ease-water);
+    }
+    .toggle-row input[type="checkbox"]:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
     .row-actions {
       display: flex;
       flex-wrap: wrap;
@@ -495,15 +617,100 @@
       padding: 11px 14px;
       font-size: 13px;
       font-weight: 600;
+      font-family: inherit;
+      letter-spacing: 0.04em;
       cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition:
+        transform 0.3s var(--ease-water),
+        box-shadow 0.35s var(--ease-water),
+        background 0.35s var(--ease-water),
+        border-color 0.3s,
+        filter 0.3s;
     }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    .btn-primary { background: var(--accent); color: white; }
-    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      filter: grayscale(0.25);
+      box-shadow: none !important;
+      transform: none !important;
+    }
+    button:focus-visible {
+      outline: none;
+      box-shadow: var(--focus-halo);
+    }
+    .btn-primary {
+      background: linear-gradient(145deg, #6d9189, #4a6b64);
+      color: #faf8f3;
+      border: 1px solid rgba(74, 107, 100, 0.55);
+      box-shadow: 0 4px 14px rgba(74, 107, 100, 0.22);
+    }
+    .btn-primary:hover:not(:disabled) {
+      background: linear-gradient(145deg, #7aa097, #3f5e58);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(74, 107, 100, 0.28);
+    }
+    .btn-primary:active:not(:disabled) {
+      transform: translateY(0) scale(0.985);
+    }
     .btn-secondary {
-      background: transparent;
+      background: rgba(255, 255, 255, 0.4);
       color: var(--text-secondary);
       border: 1px solid var(--border-strong);
+    }
+    .btn-secondary:hover:not(:disabled) {
+      background: rgba(167, 196, 188, 0.22);
+      border-color: var(--celadon-deep);
+      color: var(--accent-hover);
+    }
+    /* 涟漪 — pointer-driven via JS .ripple-ink */
+    .ripple-ink {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      transform: scale(0);
+      background: radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(167,196,188,0.35) 40%, transparent 70%);
+      animation: ripple-expand 0.7s var(--ease-water) forwards;
+    }
+    .btn-secondary .ripple-ink,
+    .btn-guide .ripple-ink {
+      background: radial-gradient(circle, rgba(167,196,188,0.5) 0%, rgba(167,196,188,0.15) 45%, transparent 70%);
+    }
+    a, .linkish {
+      color: var(--accent);
+      text-decoration: none;
+      background-image: linear-gradient(currentColor, currentColor);
+      background-position: 0 100%;
+      background-repeat: no-repeat;
+      background-size: 0% 1px;
+      transition: background-size 0.4s var(--ease-water), color 0.3s;
+    }
+    a:hover, .linkish:hover {
+      color: var(--accent-hover);
+      background-size: 100% 1px;
+    }
+    select {
+      cursor: pointer;
+      background-color: rgba(255, 255, 255, 0.55);
+      background-image:
+        linear-gradient(45deg, transparent 50%, var(--accent) 50%),
+        linear-gradient(135deg, var(--accent) 50%, transparent 50%);
+      background-position:
+        calc(100% - 16px) calc(50% - 2px),
+        calc(100% - 11px) calc(50% - 2px);
+      background-size: 5px 5px, 5px 5px;
+      background-repeat: no-repeat;
+      padding-right: 28px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+    select:hover:not(:disabled):not(:focus) {
+      background-color: rgba(255, 255, 255, 0.72);
+    }
+    select:focus {
+      background-color: #fff;
+      animation: fan-open 0.35s var(--ease-water);
     }
     .status-pill {
       display: inline-flex;
@@ -520,9 +727,9 @@
       letter-spacing: 0.04em;
     }
     .status-pill.idle { color: var(--text-muted); }
-    .status-pill.ready { color: var(--accent); border-color: rgba(46,71,86,0.4); }
+    .status-pill.ready { color: var(--accent); border-color: rgba(143,176,169,0.55); }
     .status-pill.submitting, .status-pill.tds { color: var(--warning); border-color: rgba(156,123,51,0.4); }
-    .status-pill.success { color: var(--success); border-color: rgba(74,99,83,0.45); }
+    .status-pill.success { color: var(--success); border-color: rgba(122,140,110,0.5); }
     .status-pill.error, .status-pill.failed { color: var(--error); border-color: rgba(166,48,43,0.4); }
     .status-pill.pending { color: var(--warning); border-color: rgba(156,123,51,0.4); }
     .status-pill.info { color: var(--accent); }
@@ -718,7 +925,7 @@
     .progress-step.active .dot {
       background: var(--accent-hover);
       border-color: var(--accent-hover);
-      box-shadow: 0 0 0 3px rgba(46, 71, 86, 0.22);
+      box-shadow: 0 0 0 3px rgba(167, 196, 188, 0.45);
     }
     .progress-step.active .label { color: var(--text); }
     .progress-step.done .label { color: var(--text-secondary); }
@@ -737,27 +944,28 @@
 
     /* —— 古风·烟云 ink-wash checkout sheet —— */
     .checkout-flow {
-      /* 宣纸 / 烟云 */
-      --paper: #f3eee3;
-      --paper-2: #efe8da;
-      --paper-raised: #f7f3ea;
-      --mist-1: #dce1e0;
-      --mist-2: #c6cdd3;
-      /* 墨色 */
-      --ink: #1e1b18;
-      --ink-grey: #3c4448;
-      --ink-soft: rgba(30, 27, 24, 0.58);
-      --ink-faint: rgba(30, 27, 24, 0.42);
-      --ink-line: rgba(30, 27, 24, 0.14);
-      /* 朱砂 / 黛青 / 青碧 / 描金 */
+      /* 粉墙 / 烟雨 */
+      --paper: #faf8f3;
+      --paper-2: #f5f2ea;
+      --paper-raised: #fcfbf7;
+      --mist-1: #c7d0d1;
+      --mist-2: #b4c0c2;
+      /* 黛瓦 */
+      --ink: #3e4a50;
+      --ink-grey: #4e5a60;
+      --ink-soft: rgba(62, 74, 80, 0.62);
+      --ink-faint: rgba(62, 74, 80, 0.45);
+      --ink-line: rgba(62, 74, 80, 0.14);
+      /* 朱砂 / 水色 / 竹青 / 描金 */
       --cinnabar: #a6302b;
       --cinnabar-soft: rgba(166, 48, 43, 0.12);
-      --dai: #2e4756;
-      --jade: #6e8b76;
-      --jade-ink: #4a6353;
-      --jade-soft: rgba(110, 139, 118, 0.16);
+      --dai: #5f8078;
+      --jade: #7a8c6e;
+      --jade-ink: #5f7354;
+      --jade-soft: rgba(122, 140, 110, 0.18);
       --gold: #b7924e;
-      --gold-soft: rgba(183, 146, 78, 0.4);
+      --gold-soft: rgba(183, 146, 78, 0.35);
+      --celadon: #a7c4bc;
 
       --gf-serif: "Noto Serif SC", "Noto Serif", ui-serif, Georgia, serif;
       --gf-latin: "Noto Serif", "Noto Serif SC", ui-serif, Georgia, serif;
@@ -774,9 +982,9 @@
       font-family: var(--gf-serif);
       color: var(--ink);
       background:
-        radial-gradient(140% 90% at 12% 4%, rgba(255,255,255,0.6) 0%, transparent 46%),
-        radial-gradient(120% 80% at 100% 0%, var(--mist-1) 0%, transparent 52%),
-        linear-gradient(168deg, var(--paper) 0%, var(--paper-2) 62%, var(--mist-2) 130%);
+        radial-gradient(140% 90% at 12% 4%, rgba(255,255,255,0.7) 0%, transparent 46%),
+        radial-gradient(120% 80% at 100% 0%, rgba(167,196,188,0.35) 0%, transparent 52%),
+        linear-gradient(168deg, var(--paper) 0%, var(--paper-2) 62%, #e8eeec 130%);
     }
     /* 宣纸纹理 + 烟云背景层 */
     .ink-bg {
@@ -810,7 +1018,7 @@
     .ink-mist.m2 {
       width: 66%; height: 54%;
       right: -18%; top: 26%;
-      background: radial-gradient(circle, rgba(198,205,211,0.7), transparent 66%);
+      background: radial-gradient(circle, rgba(167,196,188,0.55), transparent 66%);
       animation: mist-drift-b 32s var(--ease-soft) infinite alternate;
     }
     .ink-mountains {
@@ -985,12 +1193,12 @@
       width: 40px;
       height: 40px;
       border-radius: 4px;
-      background: rgba(46, 71, 86, 0.06);
+      background: rgba(95, 128, 120, 0.06);
       display: grid;
       place-items: center;
       flex-shrink: 0;
       color: var(--dai);
-      border: 1px solid rgba(46, 71, 86, 0.14);
+      border: 1px solid rgba(95, 128, 120, 0.14);
     }
     .pay-thumb svg { width: 20px; height: 20px; }
     .pay-item-body { min-width: 0; flex: 1; text-align: left; }
@@ -1197,7 +1405,7 @@
       width: 7px; height: 7px;
       border-radius: 50%;
       transform: translateY(-50%);
-      background: radial-gradient(circle, rgba(46,71,86,0.9), transparent 70%);
+      background: radial-gradient(circle, rgba(95,128,120,0.9), transparent 70%);
       opacity: 0.9;
     }
     .checkout-flow.is-waiting .flow-track-fill::after {
@@ -1257,7 +1465,7 @@
     }
     .flow-step.active .f-dot {
       border-color: var(--dai);
-      box-shadow: 0 0 0 4px rgba(46, 71, 86, 0.12);
+      box-shadow: 0 0 0 4px rgba(95, 128, 120, 0.12);
       transform: scale(1.1);
       animation: node-glow 2.4s ease-in-out infinite;
     }
@@ -1336,7 +1544,7 @@
       opacity: 0.85;
     }
     .cv-ink-blob {
-      fill: rgba(46, 71, 86, 0.14);
+      fill: rgba(167, 196, 188, 0.35);
       transform-origin: 42px 42px;
       animation: ink-bleed 3s ease-in-out infinite;
     }
@@ -1352,9 +1560,35 @@
       transform-origin: 42px 42px;
       animation: ink-spin 3.4s var(--ease-soft) infinite;
     }
-    .cv-mountain { fill: none; stroke: var(--ink-grey); stroke-width: 2; stroke-linejoin: round; opacity: 0.7; }
-    .cv-mountain-fill { fill: rgba(46, 71, 86, 0.08); }
-    .cv-moon { fill: rgba(183, 146, 78, 0.35); stroke: var(--gold); stroke-width: 1; }
+    .cv-mountain { fill: none; stroke: var(--ink-grey); stroke-width: 1.2; stroke-linejoin: round; opacity: 0.75; }
+    .cv-mountain-fill { fill: rgba(143, 176, 169, 0.2); }
+    .cv-moon { fill: rgba(228, 193, 193, 0.45); stroke: rgba(183, 146, 78, 0.55); stroke-width: 1; }
+    .cv-water {
+      stroke: var(--celadon);
+      stroke-width: 1.4;
+      stroke-linecap: round;
+      opacity: 0.8;
+      animation: water-lilt 3.6s ease-in-out infinite;
+    }
+    .cv-moon-gate {
+      fill: none;
+      stroke: var(--dai);
+      stroke-width: 2.5;
+      stroke-dasharray: 40 140;
+      opacity: 0.55;
+      animation: ink-spin 4.2s var(--ease-soft) infinite;
+      transform-origin: 42px 42px;
+    }
+    .cv-ripple {
+      fill: none;
+      stroke: var(--dai);
+      stroke-width: 1.5;
+      opacity: 0;
+      transform-origin: 42px 42px;
+    }
+    .cv-ripple.r1 { animation: ripple-ring 2.4s var(--ease-soft) infinite; }
+    .cv-ripple.r2 { animation: ripple-ring 2.4s var(--ease-soft) 0.4s infinite; }
+    .cv-ripple.r3 { animation: ripple-ring 2.4s var(--ease-soft) 0.8s infinite; }
 
     @keyframes ink-spin { to { transform: rotate(360deg); } }
     @keyframes ink-bleed {
@@ -1385,8 +1619,8 @@
       50% { opacity: 1; }
     }
     @keyframes node-glow {
-      0%, 100% { box-shadow: 0 0 0 4px rgba(46, 71, 86, 0.1); }
-      50% { box-shadow: 0 0 0 6px rgba(46, 71, 86, 0.05); }
+      0%, 100% { box-shadow: 0 0 0 4px rgba(95, 128, 120, 0.1); }
+      50% { box-shadow: 0 0 0 6px rgba(95, 128, 120, 0.05); }
     }
     @keyframes mist-drift-a {
       0% { transform: translate3d(0,0,0) scale(1); }
@@ -1400,6 +1634,37 @@
       0% { transform: translateX(-3%); }
       100% { transform: translateX(3%); }
     }
+    @keyframes ripple-expand {
+      0% { transform: scale(0); opacity: 0.55; }
+      100% { transform: scale(2.6); opacity: 0; }
+    }
+    @keyframes ripple-ring {
+      0% { transform: scale(0.55); opacity: 0.55; }
+      100% { transform: scale(1.15); opacity: 0; }
+    }
+    @keyframes willow-sway {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-3px); }
+      50% { transform: translateX(3px); }
+      75% { transform: translateX(-2px); }
+    }
+    @keyframes seal-press {
+      0% { transform: scale(1.15); }
+      60% { transform: scale(0.94); }
+      100% { transform: scale(1); }
+    }
+    @keyframes brush-tick {
+      0% { opacity: 0; transform: rotate(40deg) scale(0.4); }
+      100% { opacity: 1; transform: rotate(40deg) scale(1); }
+    }
+    @keyframes fan-open {
+      0% { box-shadow: 0 0 0 0 rgba(167, 196, 188, 0); }
+      100% { box-shadow: var(--focus-halo); }
+    }
+    @keyframes water-lilt {
+      0%, 100% { transform: translateY(0); opacity: 0.75; }
+      50% { transform: translateY(1.5px); opacity: 1; }
+    }
 
     @media (max-width: 480px) {
       .checkout-flow { padding: 16px 8px 18px; }
@@ -1411,7 +1676,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .ink-mist, .ink-mountains,
-      .cv-ink-spin, .cv-ink-blob, .cv-cloud-spin,
+      .cv-ink-spin, .cv-ink-blob, .cv-cloud-spin, .cv-ripple, .cv-moon-gate, .cv-water,
       .checkout-flow.is-waiting .pay-amount,
       .checkout-flow.is-waiting .flow-track-fill::after,
       .flow-step.active .f-dot,
@@ -1419,8 +1684,10 @@
       .checkout-flow[data-state="delivered"] .seal--paid,
       .checkout-flow[data-state="failed"] .seal--faded,
       .checkout-flow[data-state="complete"] .pay-glow,
-      .checkout-flow[data-state="delivered"] .pay-glow {
+      .checkout-flow[data-state="delivered"] .pay-glow,
+      .panel, .panel::after, body::after {
         animation: none !important;
+        transition: none !important;
       }
       .pay-glow { opacity: 1; transform: none; }
       .seal--paid, .seal--faded { opacity: 1; transform: none; filter: none; }
@@ -1428,7 +1695,9 @@
       .checkout-flow[data-state="delivered"] .checkout-receipt {
         opacity: 1; max-height: none; transform: none;
       }
-      .btn-pay-retry:hover { transform: none; }
+      .btn-pay-retry:hover, .btn-primary:hover:not(:disabled), .panel:hover { transform: none; }
+      .ripple-ink { display: none !important; }
+      body::after { transform: none !important; }
     }
 
     .title-row {
@@ -1441,14 +1710,14 @@
     }
     .title-row h1 { margin: 0; }
     .btn-guide {
-      background: rgba(46, 71, 86, 0.12);
+      background: rgba(95, 128, 120, 0.12);
       color: var(--accent);
-      border: 1px solid rgba(46, 71, 86, 0.35);
+      border: 1px solid rgba(95, 128, 120, 0.35);
       white-space: nowrap;
       font-family: var(--font);
       letter-spacing: 0.06em;
     }
-    .btn-guide:hover { background: rgba(46, 71, 86, 0.2); }
+    .btn-guide:hover { background: rgba(95, 128, 120, 0.2); }
     .guide-overlay {
       display: none;
       position: fixed;
@@ -1524,7 +1793,7 @@
     .guide-body code {
       font-family: var(--mono);
       font-size: 11px;
-      background: rgba(46, 71, 86, 0.08);
+      background: rgba(95, 128, 120, 0.08);
       border: 1px solid var(--border);
       border-radius: 4px;
       padding: 1px 5px;
@@ -1547,8 +1816,8 @@
       margin: 0 0 12px;
       padding: 10px 12px;
       border-radius: var(--radius);
-      border: 1px solid rgba(46, 71, 86, 0.28);
-      background: rgba(46, 71, 86, 0.08);
+      border: 1px solid rgba(95, 128, 120, 0.28);
+      background: rgba(95, 128, 120, 0.08);
       color: var(--accent);
       font-size: 12px;
     }
@@ -1594,12 +1863,12 @@
       font-size: 11px;
       color: var(--accent);
       text-decoration: none;
-      border: 1px solid rgba(46, 71, 86, 0.3);
+      border: 1px solid rgba(95, 128, 120, 0.3);
       border-radius: 999px;
       padding: 4px 10px;
-      background: rgba(46, 71, 86, 0.07);
+      background: rgba(95, 128, 120, 0.07);
     }
-    .guide-toc a:hover { background: rgba(46, 71, 86, 0.16); }
+    .guide-toc a:hover { background: rgba(95, 128, 120, 0.16); }
     .guide-mono {
       font-family: var(--mono);
       font-size: 11px;
@@ -1692,14 +1961,14 @@
       font-weight: 600;
       background: transparent;
       color: var(--accent);
-      border: 1px solid rgba(46, 71, 86, 0.35);
+      border: 1px solid rgba(95, 128, 120, 0.35);
       border-radius: 999px;
     }
     .diag-quickpicks button:hover {
-      background: rgba(46, 71, 86, 0.12);
+      background: rgba(95, 128, 120, 0.12);
     }
     .diag-quickpicks button.active {
-      background: rgba(46, 71, 86, 0.2);
+      background: rgba(95, 128, 120, 0.2);
       border-color: var(--accent);
       color: var(--text);
     }
@@ -1885,25 +2154,27 @@
           <span class="ink-mist m1"></span>
           <span class="ink-mist m2"></span>
           <span class="ink-splash s1">
-            <svg viewBox="0 0 120 120"><path d="M20 70c-6-18 8-34 26-36 14-2 22 6 34 4 16-3 28 6 30 20 2 16-14 26-32 28-20 2-52 2-58-16z" fill="#3c4448"/></svg>
+            <svg viewBox="0 0 120 120"><path d="M20 70c-6-18 8-34 26-36 14-2 22 6 34 4 16-3 28 6 30 20 2 16-14 26-32 28-20 2-52 2-58-16z" fill="#8fb0a9"/></svg>
           </span>
           <span class="ink-splash s2">
-            <svg viewBox="0 0 96 96"><path d="M18 52c-4-14 8-26 22-26 12 0 16 8 28 8 12 0 18 8 16 20-2 12-16 18-32 16-14-2-30-4-34-18z" fill="#2e4756"/></svg>
+            <svg viewBox="0 0 96 96"><path d="M18 52c-4-14 8-26 22-26 12 0 16 8 28 8 12 0 18 8 16 20-2 12-16 18-32 16-14-2-30-4-34-18z" fill="#7a8c6e"/></svg>
           </span>
           <div class="ink-mountains">
             <svg viewBox="0 0 400 90" preserveAspectRatio="none">
-              <path class="cv-mountain-fill" d="M0 90 L0 60 L50 34 L92 56 L140 22 L196 58 L250 30 L312 62 L360 40 L400 66 L400 90 Z"/>
-              <path class="cv-mountain" d="M0 60 L50 34 L92 56 L140 22 L196 58 L250 30 L312 62 L360 40 L400 66"/>
+              <path fill="rgba(143,176,169,0.25)" d="M0 90 L0 70 Q60 55 100 68 L140 50 L180 68 L220 42 L260 66 L300 48 L340 66 L380 52 L400 70 L400 90 Z"/>
+              <path fill="none" stroke="#4e5a60" stroke-width="1.1" d="M40 70 L40 48 L70 48 L70 36 L95 36 L95 70 M140 70 L140 44 L175 28 L200 44 L200 70 M250 70 L250 46 L285 30 L310 46 L310 70"/>
+              <path fill="none" stroke="#8fb0a9" stroke-width="0.9" opacity="0.7" d="M0 78 Q100 70 200 78 T400 78"/>
+              <path fill="none" stroke="#7a8c6e" stroke-width="0.8" opacity="0.45" d="M20 78 Q35 60 50 78"/>
             </svg>
           </div>
         </div>
         <div class="pay-sheet">
-          <span class="pay-vert-caption" aria-hidden="true">烟云 · 水墨</span>
+          <span class="pay-vert-caption" aria-hidden="true">烟雨江南</span>
           <div class="pay-rod-bottom" aria-hidden="true"></div>
           <div class="pay-brand">
-            <div class="pay-logo" aria-hidden="true">云</div>
+            <div class="pay-logo" aria-hidden="true">江</div>
             <div class="pay-brand-meta">
-              <p class="pay-brand-name">云山堂</p>
+              <p class="pay-brand-name">江南小筑</p>
               <p class="pay-brand-sub">安 全 支 付</p>
             </div>
           </div>
@@ -2027,8 +2298,8 @@
         <div>
           <h1>Backend activity / debug</h1>
           <p class="subtitle" style="margin-bottom:0;">
-            Live view of outbound Coda calls and frontend summaries.
-            Secrets are masked. Newest first.
+            Loaded only when you click <strong>Load debug events</strong>.
+            No automatic polling. Secrets are masked; newest first.
           </p>
         </div>
         <span id="txnBadge" class="status-pill info">no txn</span>
@@ -2049,14 +2320,13 @@
         </div>
       </div>
       <div class="row-actions" style="margin-top:0;">
-        <button class="btn-secondary" id="refreshDebugBtn" type="button">Refresh</button>
-        <button class="btn-secondary" id="autoPollBtn" type="button">Auto-poll: on</button>
+        <button class="btn-primary" id="refreshDebugBtn" type="button">Load debug events</button>
         <button class="btn-secondary" id="filterSessionBtn" type="button">Filter to session</button>
         <button class="btn-secondary" id="clearFilterBtn" type="button">Clear filters</button>
       </div>
       <div class="txn-badge-row" id="txnSummary"></div>
       <div class="debug-list" id="debugList">
-        <div class="empty-debug">Waiting for backend activity…</div>
+        <div class="empty-debug">Click “Load debug events” to fetch recent backend activity.</div>
       </div>
     </section>
   </div>
@@ -2594,24 +2864,24 @@
     }
 
     const DEFAULT_THEME = {
-      backgroundColor: '#F6F1E6',
+      backgroundColor: '#FAF8F3',
       fontFamily: '"Noto Serif SC", "Noto Serif", ui-serif, Georgia, serif',
       fontWeight: '400',
       fontSize: '14px',
       borderRadius: '4px',
       verticalSpacing: '12px',
       horizontalSpacing: '10px',
-      titleColor: '#1E1B18',
-      fieldBackgroundColor: '#FBF8F1',
-      fieldLabelColor: '#3C4448',
-      fieldTextColor: '#1E1B18',
-      fieldBorderColor: '#CBC3B2',
-      fieldFocusBorderColor: '#2E4756',
-      fieldPlaceholderColor: '#9A9384',
-      checkBoxActiveBackgroundColor: '#2E4756',
-      checkBoxDeactiveBackgroundColor: '#E3DCCB',
+      titleColor: '#3E4A50',
+      fieldBackgroundColor: '#FCFBF7',
+      fieldLabelColor: '#4E5A60',
+      fieldTextColor: '#3E4A50',
+      fieldBorderColor: '#C7D0D1',
+      fieldFocusBorderColor: '#5F8078',
+      fieldPlaceholderColor: '#9AA3A5',
+      checkBoxActiveBackgroundColor: '#A6302B',
+      checkBoxDeactiveBackgroundColor: '#EEF1EF',
       checkBoxBorderWidth: '1px',
-      checkMarkColor: '#F6F1E6',
+      checkMarkColor: '#FAF8F3',
     };
 
     // Verified working against Coda for this merchant project.
@@ -2633,8 +2903,6 @@
     };
 
     let chargeComponent = null;
-    let autoPoll = true;
-    let pollTimer = null;
     let session = {
       orderId: null,
       txnId: null,
@@ -2679,7 +2947,6 @@
       filterTxn: document.getElementById('filterTxn'),
       debugToken: document.getElementById('debugToken'),
       refreshDebugBtn: document.getElementById('refreshDebugBtn'),
-      autoPollBtn: document.getElementById('autoPollBtn'),
       filterSessionBtn: document.getElementById('filterSessionBtn'),
       clearFilterBtn: document.getElementById('clearFilterBtn'),
       debugList: document.getElementById('debugList'),
@@ -2885,22 +3152,22 @@
     }
 
     const FLOW_VISUAL = {
-      idle: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-moon" cx="56" cy="24" r="10"/><path class="cv-mountain-fill" d="M8 66 L26 40 L40 54 L54 30 L70 58 L76 66 Z"/><path class="cv-mountain" d="M8 66 L26 40 L40 54 L54 30 L70 58"/></svg>',
-      paying: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-ink-blob" cx="42" cy="42" r="20"/><circle class="cv-ink-ring" cx="42" cy="42" r="30"/><circle class="cv-ink-spin" cx="42" cy="42" r="30"/></svg>',
-      processing: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-ink-blob" cx="42" cy="42" r="18"/><circle class="cv-ink-ring" cx="42" cy="42" r="30"/><circle class="cv-ink-spin" cx="42" cy="42" r="30"/></svg>',
-      verifying: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><g class="cv-cloud-spin"><circle class="cv-ink-spin" cx="42" cy="42" r="30"/></g><path class="cv-cloud" d="M30 50 q-9 0 -9 -8 q0 -8 9 -8 q1 -9 11 -9 q8 0 10 7 q8 -1 9 7 q7 0 7 7 q0 6 -8 6 z"/></svg>',
+      idle: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-moon" cx="58" cy="22" r="9"/><path class="cv-mountain-fill" d="M6 70 L6 58 L28 58 L28 46 L48 46 L48 58 L62 58 L62 38 L78 58 L78 70 Z"/><path class="cv-mountain" d="M6 58 L28 58 L28 46 L48 46 L48 58 L62 58 L62 38 L78 58"/><path class="cv-water" d="M8 74 Q28 68 42 74 T76 74" fill="none"/></svg>',
+      paying: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-ink-blob" cx="42" cy="42" r="18"/><circle class="cv-ripple r1" cx="42" cy="42" r="16"/><circle class="cv-ripple r2" cx="42" cy="42" r="24"/><circle class="cv-ripple r3" cx="42" cy="42" r="32"/></svg>',
+      processing: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-ink-blob" cx="42" cy="42" r="16"/><circle class="cv-ripple r1" cx="42" cy="42" r="18"/><circle class="cv-ripple r2" cx="42" cy="42" r="26"/><circle class="cv-ripple r3" cx="42" cy="42" r="34"/></svg>',
+      verifying: '<span class="pay-glow"></span><svg viewBox="0 0 84 84"><circle class="cv-moon-gate" cx="42" cy="42" r="28"/><circle class="cv-ink-spin" cx="42" cy="42" r="28"/><path class="cv-cloud" d="M32 48 q-7 0 -7 -6 q0 -6 7 -6 q1 -7 8 -7 q6 0 8 5 q6 -1 7 5 q5 0 5 5 q0 4 -6 4 z"/></svg>',
       complete: '<span class="pay-glow"></span><div class="seal seal--paid"><span class="seal-char">付</span><span class="seal-char">讫</span></div>',
       delivered: '<span class="pay-glow"></span><div class="seal seal--paid"><span class="seal-char">付</span><span class="seal-char">讫</span></div>',
       failed: '<span class="pay-glow"></span><div class="seal seal--faded"><span class="seal-char">未</span><span class="seal-char">付</span></div>',
     };
 
     const FLOW_COPY = {
-      idle: { title: '等待付款', copy: '确认卡片信息后，点击「Pay now」。', amountLabel: '应付金额' },
+      idle: { title: '等待付款', copy: '烟雨初歇，确认卡片信息后点击「Pay now」。', amountLabel: '应付金额' },
       paying: { title: '正在发起付款…', copy: '正在加密并提交您的卡片信息。', amountLabel: '应付金额' },
-      processing: { title: '正在安全处理您的付款…', copy: '烟云缭绕，请稍候片刻。', amountLabel: '处理中' },
-      verifying: { title: '正在验证…', copy: '正在连接您的银行，请完成验证。', amountLabel: '验证中' },
+      processing: { title: '正在安全处理您的付款…', copy: '涟漪轻漾，请稍候片刻。', amountLabel: '处理中' },
+      verifying: { title: '正在验证…', copy: '月洞门外，正在连接您的银行。', amountLabel: '验证中' },
       complete: { title: '付款成功', copy: '款项已确认，正在准备您的订单…', amountLabel: '已付款' },
-      delivered: { title: '订单已确认 · 商品已交付', copy: '一切就绪，商品已解锁。', amountLabel: '已付款' },
+      delivered: { title: '订单已确认 · 商品已交付', copy: '卷轴已展，商品已解锁。', amountLabel: '已付款' },
       failed: { title: '支付未成功 · 未扣款', copy: '未扣除任何款项，您可安心重试。', amountLabel: '应付金额' },
     };
 
@@ -3071,6 +3338,40 @@
         // Do not block checkout on theme typos — fall back and keep going.
         console.warn('Invalid theme JSON, using default:', e.message);
         els.themeJson.value = JSON.stringify(DEFAULT_THEME, null, 2);
+
+    // —— 江南 interaction language: 涟漪 + soft parallax ——
+    (function setupJiangnanInteractions() {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!reduce) {
+        document.addEventListener('click', function (e) {
+          var btn = e.target.closest('button');
+          if (!btn || btn.disabled) return;
+          var rect = btn.getBoundingClientRect();
+          var size = Math.max(rect.width, rect.height) * 1.35;
+          var ink = document.createElement('span');
+          ink.className = 'ripple-ink';
+          ink.style.width = size + 'px';
+          ink.style.height = size + 'px';
+          ink.style.left = (e.clientX - rect.left - size / 2) + 'px';
+          ink.style.top = (e.clientY - rect.top - size / 2) + 'px';
+          btn.appendChild(ink);
+          setTimeout(function () { ink.remove(); }, 720);
+        }, true);
+
+        var ticking = false;
+        window.addEventListener('scroll', function () {
+          if (ticking) return;
+          ticking = true;
+          requestAnimationFrame(function () {
+            var y = window.scrollY || 0;
+            document.body.style.setProperty('--sky-shift', (y * 0.04) + 'px');
+            ticking = false;
+          });
+        }, { passive: true });
+      }
+    })();
+
+
         return Object.assign({}, DEFAULT_THEME);
       }
     }
@@ -3312,7 +3613,6 @@
             setTxnBadge('failed', 'failed');
             setProgress('done', errorMessage || 'Card processing failed', 'error');
             paymentFlow.markFailed(errorMessage || 'Card processing failed');
-            refreshDebug();
             return;
           }
           setState('submitting');
@@ -3320,7 +3620,6 @@
           setTxnBadge('pending', 'reconciling');
           paymentFlow.resumeProcessing();
           await pollInquiry({ attempts: 8, delayMs: 2500 });
-          refreshDebug();
         });
 
         chargeComponent.mount('#payment-form');
@@ -3328,14 +3627,12 @@
         setState('idle');
         setProgress('mount', 'Form mounted — fill card details');
         await ingestFrontend('frontend: mounted', 'Charge component mounted');
-        refreshDebug();
       } catch (err) {
         setState('error');
         setTxnBadge('failed', 'failed');
         setProgress('done', err.message || String(err), 'error');
         await ingestFrontend('frontend: error', err.message || String(err), null, 'error');
         alert(err.message || String(err));
-        refreshDebug();
       } finally {
         updateButtons();
       }
@@ -3357,7 +3654,6 @@
         paymentFlow.markFailed(err.message || String(err));
         await ingestFrontend('frontend: submit error', err.message || String(err), null, 'error');
       }
-      refreshDebug();
     }
 
     async function inquireOnce() {
@@ -3408,7 +3704,6 @@
         setProgress('inquiry', err.message || String(err), 'error');
         alert(err.message || String(err));
       }
-      refreshDebug();
     }
 
     async function pollInquiry(opts) {
@@ -3602,13 +3897,6 @@
       paymentFlow.reset();
     }
 
-    function startPolling() {
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = setInterval(function () {
-        if (autoPoll) refreshDebug();
-      }, 2500);
-    }
-
     els.startBtn.addEventListener('click', startSession);
     els.payBtn.addEventListener('click', submitPayment);
     els.inquiryBtn.addEventListener('click', checkStatus);
@@ -3625,16 +3913,10 @@
     els.filterSessionBtn.addEventListener('click', function () {
       if (session.orderId) els.filterOrder.value = session.orderId;
       if (session.txnId) els.filterTxn.value = String(session.txnId);
-      refreshDebug();
     });
     els.clearFilterBtn.addEventListener('click', function () {
       els.filterOrder.value = '';
       els.filterTxn.value = '';
-      refreshDebug();
-    });
-    els.autoPollBtn.addEventListener('click', function () {
-      autoPoll = !autoPoll;
-      els.autoPollBtn.textContent = 'Auto-poll: ' + (autoPoll ? 'on' : 'off');
     });
     els.env.addEventListener('change', function () {
       applyEnvPreset(els.env.value, { force: true });
@@ -3833,8 +4115,6 @@
       window.addEventListener('coda-sdk-ready', onSdkSettled, { once: true });
       window.addEventListener('coda-sdk-failed', onSdkSettled, { once: true });
     }
-    refreshDebug();
-    startPolling();
   </script>
 </body>
 </html>
