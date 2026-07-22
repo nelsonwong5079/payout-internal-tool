@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Serif:ital,wght@0,400;0,500;0,600;1,400&family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet" />
-  <!-- SDK loaded dynamically (default 8.0.0). Free-text version via ?sdk= when diagnostics on. -->
+  <!-- SDK loaded dynamically (default 8.0.0). Free-text version via ?sdk= / main panel input. -->
   <script>
     (function () {
       var DEFAULT_SDK = '8.0.0';
@@ -45,8 +45,8 @@
         return { ok: true, version: trimmed, usedDefault: false, reason: null };
       }
 
-      // When diagnostics is off, always use the hardcoded default build.
-      var resolved = diagOn ? sanitizeSdkVersion(rawVer) : sanitizeSdkVersion('');
+      // Honor ?sdk= / ?sdkVersion= on every load (not gated on diagnostics).
+      var resolved = sanitizeSdkVersion(rawVer);
       var ver = resolved.ok ? resolved.version : null;
       var sdkUrl = ver ? ('https://js.codapayments.com/' + ver + '/coda-card.min.js') : null;
 
@@ -387,7 +387,16 @@
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       --ease-water: cubic-bezier(0.33, 0.9, 0.28, 1);
       --ease-soft: cubic-bezier(0.4, 0, 0.2, 1);
+      --ease-spring: cubic-bezier(0.22, 1.25, 0.36, 1);
+      --dur-fast: 180ms;
+      --dur-med: 380ms;
+      --dur-slow: 700ms;
       --focus-halo: 0 0 0 3px rgba(167, 196, 188, 0.55);
+      --pointer-x: 50%;
+      --pointer-y: 40%;
+      --sky-shift: 0px;
+      --mist-x: 0px;
+      --mist-y: 0px;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -429,15 +438,119 @@
       will-change: transform;
     }
     body { padding: 20px; position: relative; }
+    /* pointer-reactive ink wash */
+    .ink-cursor-mist {
+      position: fixed;
+      width: 280px;
+      height: 280px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      left: 0; top: 0;
+      transform: translate3d(calc(var(--pointer-x) - 140px), calc(var(--pointer-y) - 140px), 0);
+      background: radial-gradient(circle, rgba(167,196,188,0.22) 0%, rgba(228,193,193,0.08) 42%, transparent 70%);
+      filter: blur(8px);
+      opacity: 0.85;
+      transition: opacity 0.4s var(--ease-soft);
+      will-change: transform;
+    }
     .layout { position: relative; z-index: 1; }
     .layout {
-      max-width: 1200px;
+      max-width: 1480px;
       margin: 0 auto;
       display: grid;
-      grid-template-columns: 1.05fr 0.95fr;
-      gap: 16px;
+      grid-template-columns: minmax(280px, 1fr) minmax(300px, 1.05fr) minmax(300px, 1.05fr);
+      gap: clamp(12px, 2vw, 18px);
+      align-items: start;
     }
-    @media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+    .layout > .panel.pay-status-panel {
+      padding: 12px;
+      position: sticky;
+      top: 12px;
+    }
+    .layout > .panel.pay-status-panel .checkout-flow {
+      margin-top: 0;
+    }
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr 1fr;
+      }
+      .layout > .panel.pay-status-panel {
+        grid-column: 1 / -1;
+      }
+    }
+    @media (max-width: 960px) {
+      .layout { grid-template-columns: 1fr; }
+      .layout > .panel.pay-status-panel { grid-column: auto; }
+    }
+    /* staggered ink-bloom entrance */
+    .panel.ink-enter {
+      opacity: 0;
+      transform: translateY(14px) scale(0.985);
+      filter: blur(2px);
+    }
+    .panel.ink-enter.is-in {
+      opacity: 1;
+      transform: none;
+      filter: none;
+      transition:
+        opacity var(--dur-slow) var(--ease-water),
+        transform var(--dur-slow) var(--ease-spring),
+        filter var(--dur-slow) var(--ease-water),
+        box-shadow 0.45s var(--ease-water);
+    }
+    .panel.ink-enter.is-in:nth-child(1) { transition-delay: 0ms; }
+    .panel.ink-enter.is-in:nth-child(2) { transition-delay: 80ms; }
+    .panel.ink-enter.is-in:nth-child(3) { transition-delay: 140ms; }
+    .panel.ink-enter.is-in:nth-child(4) { transition-delay: 200ms; }
+    h1 {
+      font-size: clamp(17px, 2.2vw, 20px);
+    }
+    .ink-divider {
+      height: 1px;
+      margin: 14px 0;
+      border: 0;
+      background: linear-gradient(90deg, transparent, var(--celadon-deep), var(--gold-line), var(--celadon-deep), transparent);
+      transform: scaleX(0.2);
+      transform-origin: center;
+      opacity: 0.55;
+      transition: transform 0.9s var(--ease-water);
+    }
+    .ink-divider.is-in { transform: scaleX(1); }
+    /* toast 便签 */
+    .ink-toast-host {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+      max-width: min(320px, calc(100vw - 32px));
+    }
+    .ink-toast {
+      pointer-events: auto;
+      padding: 10px 14px;
+      border-radius: 4px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.55), transparent 40%),
+        var(--wall);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(62,74,80,0.12);
+      color: var(--text);
+      font-size: 12.5px;
+      letter-spacing: 0.04em;
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+      transition: opacity 0.35s var(--ease-water), transform 0.45s var(--ease-spring);
+    }
+    .ink-toast.show {
+      opacity: 1;
+      transform: none;
+    }
+    .ink-toast.ok { border-color: rgba(122,140,110,0.45); }
+    .ink-toast.err { border-color: rgba(166,48,43,0.35); color: var(--error); }
     .panel {
       position: relative;
       background:
@@ -475,12 +588,16 @@
       pointer-events: none;
       z-index: 0;
     }
+    .panel {
+      transform-style: preserve-3d;
+    }
     .panel:hover {
-      transform: translateY(-2px);
+      transform: translateY(-2px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
       box-shadow: 0 1px 0 rgba(255, 255, 255, 0.7) inset, 0 16px 36px rgba(62, 74, 80, 0.1);
     }
     .panel:hover::after { opacity: 1; transform: scaleX(1); }
     .panel > * { position: relative; z-index: 1; }
+    .panel.ink-enter:not(.is-in):hover { transform: translateY(14px) scale(0.985); }
     .panel.full { grid-column: 1 / -1; }
     h1 { margin: 0 0 4px; font-size: 18px; font-weight: 600; letter-spacing: 0.04em; }
     .subtitle {
@@ -648,11 +765,26 @@
     }
     .btn-primary:hover:not(:disabled) {
       background: linear-gradient(145deg, #7aa097, #3f5e58);
-      transform: translateY(-1px);
+      transform: translate3d(var(--mag-x, 0px), calc(var(--mag-y, 0px) - 1px), 0);
       box-shadow: 0 8px 20px rgba(74, 107, 100, 0.28);
     }
     .btn-primary:active:not(:disabled) {
-      transform: translateY(0) scale(0.985);
+      transform: translate3d(var(--mag-x, 0px), var(--mag-y, 0px), 0) scale(0.985);
+    }
+    .btn-primary.is-loading {
+      pointer-events: none;
+      color: transparent;
+    }
+    .btn-primary.is-loading::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgba(250,248,243,0.25);
+      border-top-color: #faf8f3;
+      animation: ink-spin 0.8s linear infinite;
     }
     .btn-secondary {
       background: rgba(255, 255, 255, 0.4);
@@ -735,10 +867,18 @@
     .status-pill.info { color: var(--accent); }
     #payment-form {
       min-height: 220px;
-      background: var(--surface);
+      min-height: max(220px, 28vh);
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.45), transparent 30%),
+        var(--surface);
       border: 1px dashed var(--border-strong);
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 12px;
+      transition: border-color 0.35s var(--ease-water), box-shadow 0.4s var(--ease-water);
+    }
+    #payment-form:focus-within {
+      border-color: var(--celadon-deep);
+      box-shadow: var(--focus-halo);
     }
     #payment-form:empty::before {
       content: "Start a payment session to mount the secure card form.";
@@ -806,7 +946,9 @@
       display: grid;
       gap: 10px;
       max-height: 560px;
+      min-height: 0;
       overflow: auto;
+      overscroll-behavior: contain;
     }
     .debug-card {
       border: 1px solid var(--border);
@@ -1167,7 +1309,17 @@
       color: var(--ink);
       font-variant-numeric: tabular-nums lining-nums;
       font-feature-settings: "tnum" 1, "lnum" 1;
-      transition: color 0.6s var(--ease-ink), transform 0.7s var(--ease-ink);
+      transition: color 0.6s var(--ease-ink), transform 0.7s var(--ease-spring);
+      position: relative;
+    }
+    .pay-amount.is-brushing {
+      animation: amount-brush 0.7s var(--ease-spring);
+    }
+    .checkout-title.is-swap {
+      animation: title-ink 0.45s var(--ease-water);
+    }
+    .checkout-visual.is-swap {
+      animation: visual-bloom 0.55s var(--ease-spring);
     }
     .checkout-flow.is-waiting .pay-amount {
       animation: ink-breathe 3.2s ease-in-out infinite;
@@ -1665,6 +1817,20 @@
       0%, 100% { transform: translateY(0); opacity: 0.75; }
       50% { transform: translateY(1.5px); opacity: 1; }
     }
+    @keyframes amount-brush {
+      0% { opacity: 0.35; transform: scale(0.96) translateY(4px); filter: blur(1px); }
+      60% { opacity: 1; transform: scale(1.03); filter: none; }
+      100% { opacity: 1; transform: scale(1); }
+    }
+    @keyframes title-ink {
+      0% { opacity: 0; transform: translateY(6px); filter: blur(1.5px); }
+      100% { opacity: 1; transform: none; filter: none; }
+    }
+    @keyframes visual-bloom {
+      0% { opacity: 0.4; transform: scale(0.88); }
+      70% { opacity: 1; transform: scale(1.04); }
+      100% { opacity: 1; transform: scale(1); }
+    }
 
     @media (max-width: 480px) {
       .checkout-flow { padding: 16px 8px 18px; }
@@ -1685,7 +1851,9 @@
       .checkout-flow[data-state="failed"] .seal--faded,
       .checkout-flow[data-state="complete"] .pay-glow,
       .checkout-flow[data-state="delivered"] .pay-glow,
-      .panel, .panel::after, body::after {
+      .panel, .panel::after, body::after,
+      .pay-amount.is-brushing, .checkout-title.is-swap, .checkout-visual.is-swap,
+      .btn-primary.is-loading::after, .ink-cursor-mist {
         animation: none !important;
         transition: none !important;
       }
@@ -1696,8 +1864,16 @@
         opacity: 1; max-height: none; transform: none;
       }
       .btn-pay-retry:hover, .btn-primary:hover:not(:disabled), .panel:hover { transform: none; }
-      .ripple-ink { display: none !important; }
+      .ripple-ink, .ink-cursor-mist { display: none !important; }
       body::after { transform: none !important; }
+      .panel.ink-enter { opacity: 1; transform: none; filter: none; }
+    }
+
+    @media (max-width: 640px) {
+      body { padding: 12px; }
+      .panel { padding: 14px; }
+      .ink-toast-host { left: 12px; right: 12px; max-width: none; }
+      button { min-height: 44px; }
     }
 
     .title-row {
@@ -1982,6 +2158,8 @@
   </style>
 </head>
 <body>
+  <div class="ink-cursor-mist" id="inkCursorMist" aria-hidden="true"></div>
+  <div class="ink-toast-host" id="inkToastHost" aria-live="polite"></div>
   <div class="layout">
     <section class="panel">
       <div class="title-row">
@@ -2000,16 +2178,35 @@
         For this project use <strong>country 458 / currency 458</strong> (Malaysia). Country 485 is invalid.
         Secrets are redacted in the debug panel.
       </div>
+      <hr class="ink-divider" aria-hidden="true" />
 
       <div class="diag-gate">
         <label class="toggle-row" style="margin:0;">
           <input type="checkbox" id="diagnosticsEnabled" />
-          Enable SDK diagnostics (events + network + version switch)
+          Enable SDK diagnostics (events + network capture)
         </label>
         <p class="note" style="margin-top:8px;margin-bottom:0;">
-          Off by default. When enabled, the page reloads with diagnostics tools.
-          Changing SDK version also reloads so the global SDK build swaps cleanly.
+          Off by default. When enabled, the page reloads with the diagnostics panel.
         </p>
+      </div>
+
+      <div class="section-label">SDK version</div>
+      <p class="note" style="margin-top:0;">
+        Type the Coda Card SDK version to load. Empty defaults to <strong>8.0.0</strong>.
+        Click <strong>Load version</strong> (or press Enter) to reload with that build.
+      </p>
+      <div class="field">
+        <label for="sdkVersionInput">SDK version</label>
+        <input id="sdkVersionInput" placeholder="e.g. 8.0.0, 8.1.0, 8.2.1" autocomplete="off" spellcheck="false" />
+      </div>
+      <div class="diag-quickpicks" id="sdkQuickPicks" aria-label="Quick-pick SDK versions">
+        <button type="button" data-sdk="8.0.0">8.0.0</button>
+        <button type="button" data-sdk="8.1.0">8.1.0</button>
+        <button type="button" data-sdk="8.2.1">8.2.1</button>
+      </div>
+      <p class="diag-sdk-url" id="diagSdkUrl" style="margin-top:4px;">—</p>
+      <div class="row-actions" style="margin-top:0;">
+        <button class="btn-primary" id="sdkReloadBtn" type="button">Load version</button>
       </div>
 
       <div class="section-label">Environment & credentials</div>
@@ -2148,7 +2345,9 @@
           <div class="progress-step" data-step="done"><div class="dot"></div><div class="label">Done</div></div>
         </div>
       </div>
+    </section>
 
+    <section class="panel pay-status-panel">
       <div class="checkout-flow" id="checkoutFlow" data-state="idle" aria-live="polite" aria-atomic="true">
         <div class="ink-bg" aria-hidden="true">
           <span class="ink-mist m1"></span>
@@ -2267,23 +2466,10 @@
         <span id="diagSdkStatusPill" class="status-pill info">sdk …</span>
       </div>
 
-      <div class="section-label">SDK version</div>
       <p class="note" style="margin-top:0;">
-        Type any version string and load it. Empty input defaults to <strong>8.0.0</strong>.
-        Typed values are not auto-corrected — a bad version should fail to load.
+        SDK version is set in the left config panel. The status pill shows whether that build loaded.
       </p>
-      <div class="field">
-        <label for="sdkVersionInput">SDK version (free text)</label>
-        <input id="sdkVersionInput" placeholder="e.g. 8.0.0, 8.1.0, 8.2.1" autocomplete="off" spellcheck="false" />
-      </div>
-      <div class="diag-quickpicks" id="sdkQuickPicks" aria-label="Quick-pick SDK versions">
-        <button type="button" data-sdk="8.0.0">8.0.0</button>
-        <button type="button" data-sdk="8.1.0">8.1.0</button>
-        <button type="button" data-sdk="8.2.1">8.2.1</button>
-      </div>
-      <p class="diag-sdk-url" id="diagSdkUrl">—</p>
       <div class="row-actions" style="margin-top:0;">
-        <button class="btn-primary" id="sdkReloadBtn" type="button">Load this version</button>
         <button class="btn-secondary" id="diagCopyBtn" type="button">Copy full session log</button>
         <button class="btn-secondary" id="diagDownloadBtn" type="button">Download JSON</button>
         <button class="btn-secondary" id="diagClearBtn" type="button">Clear / reset log</button>
@@ -2791,31 +2977,49 @@
       }
     }
 
-    function setDiagnosticsUrl(enabled, sdkVersion) {
+    function applyPageParams(opts) {
+      const options = opts || {};
       const url = new URL(window.location.href);
-      if (enabled) url.searchParams.set('diagnostics', '1');
-      else {
+      const sanitize = DIAG.sanitizeSdkVersion || function (raw) {
+        var t = (raw || '').trim();
+        return { ok: true, version: t || '8.0.0', usedDefault: !t };
+      };
+
+      if (options.diagnostics === true) {
+        url.searchParams.set('diagnostics', '1');
+      } else if (options.diagnostics === false) {
         url.searchParams.delete('diagnostics');
         url.searchParams.delete('diag');
-        url.searchParams.delete('sdk');
-        url.searchParams.delete('sdkVersion');
       }
-      if (enabled) {
-        const sanitize = DIAG.sanitizeSdkVersion || function (raw) {
-          var t = (raw || '').trim();
-          return { ok: true, version: t || '8.0.0', usedDefault: !t };
-        };
-        const typed = sdkVersion == null ? '' : String(sdkVersion);
+
+      if (Object.prototype.hasOwnProperty.call(options, 'sdkVersion')) {
+        const typed = options.sdkVersion == null ? '' : String(options.sdkVersion);
         const resolved = sanitize(typed);
         if (!resolved.ok) {
           alert('Cannot load version "' + resolved.version + '":\n' + resolved.reason);
           return;
         }
-        // Persist exactly the resolved path segment (trimmed typed value, or 8.0.0 if blank).
-        url.searchParams.set('sdk', resolved.version);
+        if (resolved.usedDefault) {
+          url.searchParams.delete('sdk');
+          url.searchParams.delete('sdkVersion');
+        } else {
+          url.searchParams.set('sdk', resolved.version);
+          url.searchParams.delete('sdkVersion');
+        }
       }
+
       // Clean reload so only one SDK global is present.
       window.location.replace(url.toString());
+    }
+
+    function setDiagnosticsUrl(enabled, sdkVersion) {
+      const opts = { diagnostics: !!enabled };
+      if (arguments.length > 1) opts.sdkVersion = sdkVersion;
+      applyPageParams(opts);
+    }
+
+    function setSdkVersionUrl(sdkVersion) {
+      applyPageParams({ sdkVersion: sdkVersion });
     }
 
     function attachSdkDiagnosticListeners(component) {
@@ -3139,16 +3343,42 @@
       }
     }
 
-    function syncPayContext() {
+    let _lastPayAmountText = '';
+    let _lastFlowState = 'idle';
+
+    function syncPayContext(opts) {
+      opts = opts || {};
       const amount = formatPayAmount(els.itemPrice.value, els.currency.value);
       const item = (els.itemName.value || 'Item').trim();
       const order = session.orderId || els.orderId.value || '—';
+      if (opts.animateAmount && amount !== _lastPayAmountText && els.payAmount) {
+        els.payAmount.classList.remove('is-brushing');
+        // restart animation
+        void els.payAmount.offsetWidth;
+        els.payAmount.classList.add('is-brushing');
+        setTimeout(function () { els.payAmount.classList.remove('is-brushing'); }, 750);
+      }
       els.payAmount.textContent = amount;
+      _lastPayAmountText = amount;
       els.payItemName.textContent = item + ' ×1';
       els.payItemMeta.textContent = '订单 ' + order;
       els.receiptItem.textContent = item + ' ×1';
       els.receiptAmount.textContent = amount;
       els.receiptOrder.textContent = order;
+    }
+
+    function showInkToast(message, kind) {
+      var host = document.getElementById('inkToastHost');
+      if (!host || !message) return;
+      var el = document.createElement('div');
+      el.className = 'ink-toast' + (kind ? ' ' + kind : '');
+      el.textContent = message;
+      host.appendChild(el);
+      requestAnimationFrame(function () { el.classList.add('show'); });
+      setTimeout(function () {
+        el.classList.remove('show');
+        setTimeout(function () { el.remove(); }, 400);
+      }, 2600);
     }
 
     const FLOW_VISUAL = {
@@ -3178,16 +3408,29 @@
     function renderCheckoutFlow(snapshot) {
       const st = snapshot.state;
       const cfg = FLOW_COPY[st] || FLOW_COPY.idle;
+      const stateChanged = st !== _lastFlowState;
       els.checkoutFlow.setAttribute('data-state', st);
       const waiting = st === 'paying' || st === 'processing' || st === 'verifying';
       els.checkoutFlow.classList.toggle('is-waiting', waiting);
 
-      syncPayContext();
+      const celebrate = stateChanged && (st === 'complete' || st === 'delivered');
+      syncPayContext({ animateAmount: celebrate });
       if (els.payAmountLabel) els.payAmountLabel.textContent = cfg.amountLabel;
 
       els.checkoutVisual.innerHTML = FLOW_VISUAL[st] || FLOW_VISUAL.idle;
       els.checkoutTitle.textContent = cfg.title;
       els.checkoutCopy.textContent = cfg.copy;
+      if (stateChanged) {
+        els.checkoutTitle.classList.remove('is-swap');
+        els.checkoutVisual.classList.remove('is-swap');
+        void els.checkoutTitle.offsetWidth;
+        els.checkoutTitle.classList.add('is-swap');
+        els.checkoutVisual.classList.add('is-swap');
+        if (st === 'complete') showInkToast('付款成功 · 付讫', 'ok');
+        if (st === 'failed') showInkToast('支付未成功 · 未扣款', 'err');
+        if (st === 'delivered') showInkToast('订单已确认 · 商品已交付', 'ok');
+      }
+      _lastFlowState = st;
 
       if (st === 'failed') {
         els.checkoutReason.hidden = false;
@@ -3338,40 +3581,6 @@
         // Do not block checkout on theme typos — fall back and keep going.
         console.warn('Invalid theme JSON, using default:', e.message);
         els.themeJson.value = JSON.stringify(DEFAULT_THEME, null, 2);
-
-    // —— 江南 interaction language: 涟漪 + soft parallax ——
-    (function setupJiangnanInteractions() {
-      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (!reduce) {
-        document.addEventListener('click', function (e) {
-          var btn = e.target.closest('button');
-          if (!btn || btn.disabled) return;
-          var rect = btn.getBoundingClientRect();
-          var size = Math.max(rect.width, rect.height) * 1.35;
-          var ink = document.createElement('span');
-          ink.className = 'ripple-ink';
-          ink.style.width = size + 'px';
-          ink.style.height = size + 'px';
-          ink.style.left = (e.clientX - rect.left - size / 2) + 'px';
-          ink.style.top = (e.clientY - rect.top - size / 2) + 'px';
-          btn.appendChild(ink);
-          setTimeout(function () { ink.remove(); }, 720);
-        }, true);
-
-        var ticking = false;
-        window.addEventListener('scroll', function () {
-          if (ticking) return;
-          ticking = true;
-          requestAnimationFrame(function () {
-            var y = window.scrollY || 0;
-            document.body.style.setProperty('--sky-shift', (y * 0.04) + 'px');
-            ticking = false;
-          });
-        }, { passive: true });
-      }
-    })();
-
-
         return Object.assign({}, DEFAULT_THEME);
       }
     }
@@ -3909,6 +4118,105 @@
         paymentFlow.reset();
       }
     });
+
+    // —— Modern craft on ink-wash: pointer mist, tilt, magnetic, stagger ——
+    (function setupInkCraft() {
+      var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      var mist = document.getElementById('inkCursorMist');
+      var root = document.documentElement;
+
+      // Staggered panel entrances
+      document.querySelectorAll('.layout > .panel').forEach(function (panel, i) {
+        panel.classList.add('ink-enter');
+        panel.style.transitionDelay = (reduce ? 0 : i * 70) + 'ms';
+      });
+      requestAnimationFrame(function () {
+        document.querySelectorAll('.panel.ink-enter').forEach(function (panel) {
+          panel.classList.add('is-in');
+        });
+        document.querySelectorAll('.ink-divider').forEach(function (d) {
+          d.classList.add('is-in');
+        });
+      });
+
+      if (reduce) {
+        if (mist) mist.style.display = 'none';
+        return;
+      }
+
+      // Button ripples
+      document.addEventListener('click', function (e) {
+        var btn = e.target.closest('button');
+        if (!btn || btn.disabled) return;
+        var rect = btn.getBoundingClientRect();
+        var size = Math.max(rect.width, rect.height) * 1.4;
+        var ink = document.createElement('span');
+        ink.className = 'ripple-ink';
+        ink.style.width = size + 'px';
+        ink.style.height = size + 'px';
+        ink.style.left = (e.clientX - rect.left - size / 2) + 'px';
+        ink.style.top = (e.clientY - rect.top - size / 2) + 'px';
+        btn.appendChild(ink);
+        setTimeout(function () { ink.remove(); }, 720);
+      }, true);
+
+      // Pointer mist + sky parallax (throttled)
+      var ptrRaf = 0;
+      var lastX = window.innerWidth * 0.5;
+      var lastY = window.innerHeight * 0.35;
+      window.addEventListener('pointermove', function (e) {
+        lastX = e.clientX;
+        lastY = e.clientY;
+        if (ptrRaf) return;
+        ptrRaf = requestAnimationFrame(function () {
+          ptrRaf = 0;
+          root.style.setProperty('--pointer-x', lastX + 'px');
+          root.style.setProperty('--pointer-y', lastY + 'px');
+        });
+      }, { passive: true });
+
+      var scrollRaf = 0;
+      window.addEventListener('scroll', function () {
+        if (scrollRaf) return;
+        scrollRaf = requestAnimationFrame(function () {
+          scrollRaf = 0;
+          var y = window.scrollY || 0;
+          document.body.style.setProperty('--sky-shift', (y * 0.045) + 'px');
+        });
+      }, { passive: true });
+
+      // Panel tilt (subtle)
+      document.querySelectorAll('.layout > .panel').forEach(function (panel) {
+        panel.addEventListener('pointermove', function (e) {
+          var r = panel.getBoundingClientRect();
+          var px = (e.clientX - r.left) / r.width - 0.5;
+          var py = (e.clientY - r.top) / r.height - 0.5;
+          panel.style.setProperty('--tilt-y', (px * 3.2).toFixed(2) + 'deg');
+          panel.style.setProperty('--tilt-x', (-py * 2.4).toFixed(2) + 'deg');
+        });
+        panel.addEventListener('pointerleave', function () {
+          panel.style.setProperty('--tilt-x', '0deg');
+          panel.style.setProperty('--tilt-y', '0deg');
+        });
+      });
+
+      // Magnetic primary buttons
+      document.querySelectorAll('.btn-primary').forEach(function (btn) {
+        btn.addEventListener('pointermove', function (e) {
+          if (btn.disabled) return;
+          var r = btn.getBoundingClientRect();
+          var dx = (e.clientX - (r.left + r.width / 2)) * 0.12;
+          var dy = (e.clientY - (r.top + r.height / 2)) * 0.12;
+          btn.style.setProperty('--mag-x', dx.toFixed(1) + 'px');
+          btn.style.setProperty('--mag-y', dy.toFixed(1) + 'px');
+        });
+        btn.addEventListener('pointerleave', function () {
+          btn.style.setProperty('--mag-x', '0px');
+          btn.style.setProperty('--mag-y', '0px');
+        });
+      });
+    })();
+
     els.refreshDebugBtn.addEventListener('click', refreshDebug);
     els.filterSessionBtn.addEventListener('click', function () {
       if (session.orderId) els.filterOrder.value = session.orderId;
@@ -3924,7 +4232,7 @@
       newOrderId();
     });
 
-    // --- SDK diagnostics UI wiring (gated) ---
+    // --- SDK version (always available) + diagnostics panel (gated) ---
     const diagnosticsEnabled = document.getElementById('diagnosticsEnabled');
     const diagPanel = document.getElementById('diagPanel');
     const sdkVersionInput = document.getElementById('sdkVersionInput');
@@ -3934,137 +4242,136 @@
     const diagDownloadBtn = document.getElementById('diagDownloadBtn');
     const diagClearBtn = document.getElementById('diagClearBtn');
 
+    function chosenSdkVersion() {
+      return sdkVersionInput ? sdkVersionInput.value : '';
+    }
+
+    function syncQuickPickActive() {
+      if (!sdkQuickPicks) return;
+      var current = (sdkVersionInput && sdkVersionInput.value.trim()) || DIAG.sdkVersion || '8.0.0';
+      var buttons = sdkQuickPicks.querySelectorAll('button[data-sdk]');
+      buttons.forEach(function (btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-sdk') === current);
+      });
+    }
+
+    if (sdkVersionInput) {
+      // Blank field means "use default on next load"; otherwise show active URL version.
+      sdkVersionInput.value = DIAG.sdkUsedDefault ? '' : String(DIAG.sdkVersion || '');
+      sdkVersionInput.addEventListener('input', syncQuickPickActive);
+      sdkVersionInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          setSdkVersionUrl(chosenSdkVersion());
+        }
+      });
+    }
+
+    if (sdkQuickPicks) {
+      sdkQuickPicks.addEventListener('click', function (e) {
+        var btn = e.target.closest('button[data-sdk]');
+        if (!btn) return;
+        var v = btn.getAttribute('data-sdk');
+        if (sdkVersionInput) sdkVersionInput.value = v;
+        syncQuickPickActive();
+      });
+    }
+
+    if (sdkReloadBtn) {
+      sdkReloadBtn.addEventListener('click', function () {
+        setSdkVersionUrl(chosenSdkVersion());
+      });
+    }
+
+    syncQuickPickActive();
+    updateDiagSdkUi();
+    window.addEventListener('coda-sdk-ready', function () {
+      updateDiagSdkUi();
+      if (diagEnabled()) renderDiagLog();
+    });
+    window.addEventListener('coda-sdk-failed', function () {
+      updateDiagSdkUi();
+      if (diagEnabled()) renderDiagLog();
+    });
+
     if (diagnosticsEnabled) {
       diagnosticsEnabled.checked = diagEnabled();
       diagnosticsEnabled.addEventListener('change', function () {
-        if (diagnosticsEnabled.checked) {
-          setDiagnosticsUrl(true, sdkVersionInput ? sdkVersionInput.value : '');
-        } else {
-          setDiagnosticsUrl(false);
-        }
+        // Preserve current SDK version when toggling diagnostics.
+        setDiagnosticsUrl(!!diagnosticsEnabled.checked);
       });
     }
 
     if (diagEnabled() && diagPanel) {
       diagPanel.classList.add('visible');
       DIAG.onEntry = function () { renderDiagLog(); };
-      updateDiagSdkUi();
       renderDiagLog();
 
-      if (sdkVersionInput) {
-        // Show the active session version (URL/default). Blank field would mean "use default on next load".
-        sdkVersionInput.value = DIAG.sdkUsedDefault ? '' : String(DIAG.sdkVersion || '');
-      }
-
-      function syncQuickPickActive() {
-        if (!sdkQuickPicks) return;
-        var current = (sdkVersionInput && sdkVersionInput.value.trim()) || DIAG.sdkVersion || '8.0.0';
-        var buttons = sdkQuickPicks.querySelectorAll('button[data-sdk]');
-        buttons.forEach(function (btn) {
-          btn.classList.toggle('active', btn.getAttribute('data-sdk') === current);
-        });
-      }
-      syncQuickPickActive();
-
-      function chosenSdkVersion() {
-        return sdkVersionInput ? sdkVersionInput.value : '';
-      }
-
-      if (sdkQuickPicks) {
-        sdkQuickPicks.addEventListener('click', function (e) {
-          var btn = e.target.closest('button[data-sdk]');
-          if (!btn) return;
-          var v = btn.getAttribute('data-sdk');
-          if (sdkVersionInput) sdkVersionInput.value = v;
-          syncQuickPickActive();
+      if (diagClearBtn) {
+        diagClearBtn.addEventListener('click', function () {
+          DIAG.entries.length = 0;
+          diagLog('session', 'info', 'Diagnostics log cleared', {
+            sdkUrl: DIAG.sdkUrl,
+            sdkVersion: DIAG.sdkVersion,
+            sdkStatus: DIAG.sdkStatus,
+          });
+          renderDiagLog();
         });
       }
 
-      if (sdkVersionInput) {
-        sdkVersionInput.addEventListener('input', syncQuickPickActive);
-        sdkVersionInput.addEventListener('keydown', function (e) {
-          if (e.key === 'Enter') {
-            e.preventDefault();
-            setDiagnosticsUrl(true, chosenSdkVersion());
+      if (diagCopyBtn) {
+        diagCopyBtn.addEventListener('click', function () {
+          var payload = {
+            exportedAt: new Date().toISOString(),
+            sdkVersion: DIAG.sdkVersion,
+            sdkUrl: DIAG.sdkUrl,
+            sdkStatus: DIAG.sdkStatus,
+            session: {
+              orderId: session.orderId,
+              txnId: session.txnId,
+              correlationId: session.correlationId,
+              env: session.env,
+              state: session.state,
+            },
+            entries: DIAG.entries,
+          };
+          var text = JSON.stringify(payload, null, 2);
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function () {
+              alert('Session diagnostics log copied to clipboard.');
+            }).catch(function () {
+              prompt('Copy diagnostics log:', text);
+            });
+          } else {
+            prompt('Copy diagnostics log:', text);
           }
         });
       }
 
-      sdkReloadBtn.addEventListener('click', function () {
-        setDiagnosticsUrl(true, chosenSdkVersion());
-      });
-
-      diagClearBtn.addEventListener('click', function () {
-        DIAG.entries.length = 0;
-        diagLog('session', 'info', 'Diagnostics log cleared', {
-          sdkUrl: DIAG.sdkUrl,
-          sdkVersion: DIAG.sdkVersion,
-          sdkStatus: DIAG.sdkStatus,
+      if (diagDownloadBtn) {
+        diagDownloadBtn.addEventListener('click', function () {
+          var payload = {
+            exportedAt: new Date().toISOString(),
+            sdkVersion: DIAG.sdkVersion,
+            sdkUrl: DIAG.sdkUrl,
+            sdkStatus: DIAG.sdkStatus,
+            session: {
+              orderId: session.orderId,
+              txnId: session.txnId,
+              correlationId: session.correlationId,
+              env: session.env,
+              state: session.state,
+            },
+            entries: DIAG.entries,
+          };
+          var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+          var a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'coda-sdk-diagnostics-' + Date.now() + '.json';
+          a.click();
+          URL.revokeObjectURL(a.href);
         });
-        renderDiagLog();
-      });
-
-      diagCopyBtn.addEventListener('click', function () {
-        var payload = {
-          exportedAt: new Date().toISOString(),
-          sdkVersion: DIAG.sdkVersion,
-          sdkUrl: DIAG.sdkUrl,
-          sdkStatus: DIAG.sdkStatus,
-          session: {
-            orderId: session.orderId,
-            txnId: session.txnId,
-            correlationId: session.correlationId,
-            env: session.env,
-            state: session.state,
-          },
-          entries: DIAG.entries,
-        };
-        var text = JSON.stringify(payload, null, 2);
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(text).then(function () {
-            alert('Session diagnostics log copied to clipboard.');
-          }).catch(function () {
-            prompt('Copy diagnostics log:', text);
-          });
-        } else {
-          prompt('Copy diagnostics log:', text);
-        }
-      });
-
-      diagDownloadBtn.addEventListener('click', function () {
-        var payload = {
-          exportedAt: new Date().toISOString(),
-          sdkVersion: DIAG.sdkVersion,
-          sdkUrl: DIAG.sdkUrl,
-          sdkStatus: DIAG.sdkStatus,
-          session: {
-            orderId: session.orderId,
-            txnId: session.txnId,
-            correlationId: session.correlationId,
-            env: session.env,
-            state: session.state,
-          },
-          entries: DIAG.entries,
-        };
-        var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'coda-sdk-diagnostics-' + Date.now() + '.json';
-        a.click();
-        URL.revokeObjectURL(a.href);
-      });
-
-      if (DIAG.sdkStatus === 'failed') {
-        updateDiagSdkUi();
       }
-      window.addEventListener('coda-sdk-ready', function () {
-        updateDiagSdkUi();
-        renderDiagLog();
-      });
-      window.addEventListener('coda-sdk-failed', function () {
-        updateDiagSdkUi();
-        renderDiagLog();
-      });
     }
 
     const guideOverlay = document.getElementById('guideOverlay');
