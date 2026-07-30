@@ -1472,14 +1472,6 @@
         Unsure of the flow? Open the guide.
       </p>
 
-      <div class="banner">
-        Frontend success is not final. Use <strong>Check status</strong> (inquiry API) to confirm
-        success / failed / pending. Switching env auto-fills the matching API key.
-        For this project use <strong>country 458 / currency 458</strong> (Malaysia). Country 485 is invalid.
-        Secrets are redacted in the debug panel.
-      </div>
-      <hr class="ink-divider" aria-hidden="true" />
-
       <div class="diag-gate">
         <label class="toggle-row" style="margin:0;">
           <input type="checkbox" id="diagnosticsEnabled" />
@@ -1529,6 +1521,11 @@
           <span class="mode-btn-sub">Paste your own clientSecret + txnId, then mount</span>
         </button>
       </div>
+
+      <div class="section-label">Card form fields</div>
+      <label class="toggle-row"><input type="checkbox" id="withCardHolderName" checked /> Show cardholder name field</label>
+      <label class="toggle-row"><input type="checkbox" id="withCardHolderEmail" checked /> Show cardholder email field</label>
+      <p class="note" style="margin-top:0;">Applies when the card form is mounted (both flows).</p>
 
       <div id="fullFlow">
       <div class="section-label">Credentials</div>
@@ -2558,6 +2555,8 @@
       itemCode: document.getElementById('itemCode'),
       itemPrice: document.getElementById('itemPrice'),
       itemName: document.getElementById('itemName'),
+      withCardHolderName: document.getElementById('withCardHolderName'),
+      withCardHolderEmail: document.getElementById('withCardHolderEmail'),
       enableSavePaymentMethod: document.getElementById('enableSavePaymentMethod'),
       displaySavedPaymentMethodList: document.getElementById('displaySavedPaymentMethodList'),
       userInitiated: document.getElementById('userInitiated'),
@@ -3566,8 +3565,8 @@
       });
 
       chargeComponent = components.create('charge', {
-        withCardHolderName: true,
-        withCardHolderEmail: true,
+        withCardHolderName: els.withCardHolderName.checked,
+        withCardHolderEmail: els.withCardHolderEmail.checked,
         locale: 'en',
       });
 
