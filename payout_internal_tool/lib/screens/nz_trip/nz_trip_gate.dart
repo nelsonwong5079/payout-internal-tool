@@ -10,7 +10,7 @@ import 'nz_trip_widgets.dart';
 const String kNzTripRoute = '/p/kf9w2m7x';
 
 /// Shared PIN for Me & Cat. Change here if you want a new code.
-const String kNzTripPin = '0920';
+const String kNzTripPin = '0329';
 
 const _sessionKey = 'nz_trip_unlocked_v1';
 
