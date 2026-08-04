@@ -11,6 +11,7 @@ import 'screens/whitelabel_json_screen.dart';
 import 'screens/payout_renotify_screen.dart';
 import 'screens/coda_hosted_card_screen.dart';
 import 'screens/public_template_library_page.dart';
+import 'screens/nz_trip/nz_trip_gate.dart';
 import 'screens/nz_trip/nz_trip_page.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ambient_background.dart';
@@ -38,7 +39,10 @@ class MyApp extends StatelessWidget {
         routes: {
           '/': (_) => const AuthWrapper(),
           '/templates': (_) => const PublicTemplateLibraryPage(),
-          '/nz-trip': (_) => const NzTripPage(),
+          // Obscure bookmark path + PIN gate (see nz_trip_gate.dart).
+          kNzTripRoute: (_) => const NzTripPage(),
+          // Old guessable path — send nowhere useful.
+          '/nz-trip': (_) => const _SilentHomeRedirect(),
         },
       ),
     );
@@ -61,6 +65,32 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
       },
+    );
+  }
+}
+
+/// Old `/nz-trip` bookmarks land on login with no hint.
+class _SilentHomeRedirect extends StatefulWidget {
+  const _SilentHomeRedirect();
+
+  @override
+  State<_SilentHomeRedirect> createState() => _SilentHomeRedirectState();
+}
+
+class _SilentHomeRedirectState extends State<_SilentHomeRedirect> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: SizedBox.shrink(),
     );
   }
 }

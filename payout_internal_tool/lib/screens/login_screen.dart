@@ -23,17 +23,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _rememberMe = false;
   String? _errorMessage;
 
-  /// Hidden NZ trip entry: tap the PE Ops bolt logo 10 times.
-  int _logoTapCount = 0;
-
-  void _onLogoTap() {
-    _logoTapCount += 1;
-    if (_logoTapCount >= 10) {
-      _logoTapCount = 0;
-      Navigator.of(context).pushNamed('/nz-trip');
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -150,20 +139,17 @@ class _LoginScreenState extends State<LoginScreen> {
             compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          GestureDetector(
-            onTap: _onLogoTap,
-            child: Container(
-              width: compact ? 56 : 64,
-              height: compact ? 56 : 64,
-              decoration: BoxDecoration(
-                color: AppColors.accent,
-                borderRadius: BorderRadius.circular(AppRadii.lg),
-              ),
-              child: Icon(
-                Icons.bolt_rounded,
-                color: Colors.white,
-                size: compact ? 28 : 32,
-              ),
+          Container(
+            width: compact ? 56 : 64,
+            height: compact ? 56 : 64,
+            decoration: BoxDecoration(
+              color: AppColors.accent,
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+            ),
+            child: Icon(
+              Icons.bolt_rounded,
+              color: Colors.white,
+              size: compact ? 28 : 32,
             ),
           ),
           SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xl),
