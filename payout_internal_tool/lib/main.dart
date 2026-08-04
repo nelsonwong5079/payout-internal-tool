@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'app.dart';
+import 'services/firestore_bootstrap.dart';
 import 'theme/app_theme.dart';
 import 'widgets/app_section_header.dart';
 import 'widgets/ops_surface.dart';
@@ -85,6 +86,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  configureFirestoreForWeb();
   
   runApp(const MyApp());
 }

@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_bootstrap.dart';
 import 'screens/login_screen.dart';
 import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
@@ -10,6 +11,7 @@ import 'screens/whitelabel_json_screen.dart';
 import 'screens/payout_renotify_screen.dart';
 import 'screens/coda_hosted_card_screen.dart';
 import 'screens/public_template_library_page.dart';
+import 'screens/nz_trip/nz_trip_page.dart';
 import 'theme/app_theme.dart';
 import 'widgets/ambient_background.dart';
 import 'main.dart' as main_app;
@@ -17,6 +19,7 @@ import 'main.dart' as main_app;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  configureFirestoreForWeb();
   runApp(const MyApp());
 }
 
@@ -35,6 +38,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/': (_) => const AuthWrapper(),
           '/templates': (_) => const PublicTemplateLibraryPage(),
+          '/nz-trip': (_) => const NzTripPage(),
         },
       ),
     );
