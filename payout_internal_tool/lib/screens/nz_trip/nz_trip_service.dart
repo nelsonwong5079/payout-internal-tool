@@ -82,21 +82,14 @@ class NzTripService {
       throw Exception('Firestore seed check ${res.statusCode}: ${res.body}');
     }
 
-    // Merge meta: keep user title/owners/categories if present; fill gaps.
+    // Merge meta: keep user edits; fill missing bags / essentials / weather legs.
     final seed = NzTripSeed.meta();
     TripMeta meta = seed;
     if (res.statusCode == 200) {
       final json = jsonDecode(res.body) as Map<String, dynamic>;
       final fields = (json['fields'] as Map<String, dynamic>?) ?? {};
       final current = TripMeta.fromMap(_decodeFields(fields));
-      meta = current.copyWith(
-        seeded: true,
-        departureDate: current.departureDate ?? seed.departureDate,
-        owners: current.owners.isEmpty ? seed.owners : current.owners,
-        categories:
-            current.categories.isEmpty ? seed.categories : current.categories,
-        title: current.title.trim().isEmpty ? seed.title : current.title,
-      );
+      meta = _mergeMeta(current, seed);
     }
     await _writeDoc(_tripPath, {
       ...meta.toMap(),
@@ -111,6 +104,102 @@ class NzTripService {
         ...item.toMap(),
         'updatedAt': DateTime.now().toUtc().toIso8601String(),
       });
+    }
+  }
+
+  /// Merge seed defaults into an existing meta without wiping user data.
+  TripMeta _mergeMeta(TripMeta current, TripMeta seed) {
+    final cats = List<TripCategory>.from(
+      current.categories.isEmpty ? seed.categories : current.categories,
+    );
+    for (final s in seed.categories) {
+      if (!cats.any((c) => c.id == s.id)) cats.add(s);
+    }
+    cats.sort((a, b) => a.order.compareTo(b.order));
+
+    final bags = List<TripBag>.from(
+      current.bags.isEmpty ? seed.bags : current.bags,
+    );
+    for (final s in seed.bags) {
+      if (!bags.any((b) => b.id == s.id)) bags.add(s);
+    }
+    bags.sort((a, b) => a.order.compareTo(b.order));
+
+    // Upgrade from the old 2-leg default (Auckland + combined South Island)
+    // to the full South Island destination list.
+    final looksLikeOldDefault = current.weatherLegs.isEmpty ||
+        (current.weatherLegs.length <= 2 &&
+            current.weatherLegs.every(
+              (l) => l.id == 'leg_akl' || l.id == 'leg_chc',
+            ));
+    final legs = looksLikeOldDefault
+        ? List<WeatherLeg>.from(seed.weatherLegs)
+        : List<WeatherLeg>.from(current.weatherLegs);
+    if (!looksLikeOldDefault) {
+      for (final s in seed.weatherLegs) {
+        final i = legs.indexWhere((l) => l.id == s.id);
+        if (i < 0) {
+          legs.add(s);
+        } else {
+          // Keep shared trip weather window + official names/coords in sync.
+          legs[i] = legs[i].copyWith(
+            name: s.name,
+            lat: s.lat,
+            lon: s.lon,
+            startDate: s.startDate,
+            endDate: s.endDate,
+          );
+        }
+      }
+    }
+
+    // Refresh departure when still on a previous seed default.
+    final dep = current.departureDate;
+    final departureDate = (dep == null ||
+            dep.isEmpty ||
+            dep == '2026-09-20' ||
+            dep == '2026-09-24')
+        ? seed.departureDate
+        : dep;
+
+    return current.copyWith(
+      seeded: true,
+      departureDate: departureDate,
+      owners: current.owners.isEmpty ? seed.owners : current.owners,
+      categories: cats,
+      bags: bags,
+      weatherLegs: legs,
+      title: current.title.trim().isEmpty ? seed.title : current.title,
+      weatherApiKey: current.weatherApiKey,
+    );
+  }
+
+  /// Apply offline queue ops to the server (best-effort, in order).
+  Future<void> flushQueue(List<Map<String, dynamic>> queue) async {
+    for (final op in queue) {
+      final type = op['type'] as String? ?? '';
+      final id = op['id'] as String? ?? '';
+      try {
+        switch (type) {
+          case 'upsert':
+            final fields = Map<String, dynamic>.from(op['item'] as Map? ?? {});
+            final item = TripItem.fromMap(id, fields);
+            await upsertItem(item);
+          case 'patch':
+            final fields = Map<String, dynamic>.from(op['fields'] as Map? ?? {});
+            if (fields.isEmpty || id.isEmpty) continue;
+            await patchItem(id, fields);
+          case 'delete':
+            if (id.isEmpty) continue;
+            await deleteItem(id);
+          case 'meta':
+            final fields = Map<String, dynamic>.from(op['meta'] as Map? ?? {});
+            await updateMeta(TripMeta.fromMap(fields));
+        }
+      } catch (_) {
+        // Leave remaining ops; caller can retry.
+        rethrow;
+      }
     }
   }
 
@@ -133,7 +222,17 @@ class NzTripService {
   /// Partial update — no GET required (uses updateMask).
   Future<void> patchItem(String id, Map<String, dynamic> fields) async {
     final patch = Map<String, dynamic>.from(fields);
-    if (patch['packed'] == true) patch['bought'] = true;
+    // Goods: packed implies bought. Essentials use `ready` instead.
+    if (patch['packed'] == true && patch['ready'] != true) {
+      patch['bought'] = true;
+    }
+    // Normalize enums for wire format.
+    if (patch['buyLocation'] is BuyLocation) {
+      patch['buyLocation'] = (patch['buyLocation'] as BuyLocation).wire;
+    }
+    if (patch['kind'] is ItemKind) {
+      patch['kind'] = (patch['kind'] as ItemKind).wire;
+    }
     patch['updatedAt'] = DateTime.now().toUtc().toIso8601String();
 
     final keys = patch.keys.toList();

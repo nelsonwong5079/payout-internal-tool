@@ -1,10 +1,16 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'nz_trip_models.dart';
+import 'nz_trip_offline.dart';
 import 'nz_trip_photo_pick.dart';
 import 'nz_trip_service.dart';
 import 'nz_trip_theme.dart';
+import 'nz_trip_views.dart';
+import 'nz_trip_weather.dart';
 import 'nz_trip_widgets.dart';
 
 /// Public NZ trip packing tracker — adventure-themed, shared via Firestore.
@@ -15,11 +21,25 @@ class NzTripScreen extends StatefulWidget {
   State<NzTripScreen> createState() => _NzTripScreenState();
 }
 
-enum _Tab { dashboard, all, me, cat, local }
+enum _Tab { dashboard, essentials, all, me, cat, bags, local }
 
 class _NzTripScreenState extends State<NzTripScreen> {
   final _svc = NzTripService();
+  final _offline = NzTripOfflineStore();
+  final _weatherSvc = NzWeatherService();
   final _searchCtrl = TextEditingController();
+  StreamSubscription<bool>? _connSub;
+  bool _online = true;
+  int _pendingSync = 0;
+  DateTime? _lastSynced;
+  bool _syncing = false;
+  List<LegWeather> _weatherLegs = const [];
+  List<WeatherNudge> _weatherNudges = const [];
+  bool _weatherLoading = false;
+  String? _weatherError;
+  DateTime? _weatherStaleAt;
+  DateTime? _weatherFetchedAt;
+  bool _weatherSectionOpen = false;
 
   TripMeta? _meta;
   List<TripItem> _items = const [];
@@ -44,6 +64,13 @@ class _NzTripScreenState extends State<NzTripScreen> {
   @override
   void initState() {
     super.initState();
+    _online = _offline.isOnline;
+    _pendingSync = _offline.pendingCount;
+    _connSub = _offline.onOnlineChange.listen((online) {
+      if (!mounted) return;
+      setState(() => _online = online);
+      if (online) _flushAndRefresh();
+    });
     _boot();
   }
 
@@ -79,28 +106,73 @@ class _NzTripScreenState extends State<NzTripScreen> {
   }
 
   Future<void> _boot() async {
+    final cache = _offline.loadCache();
     setState(() {
       _loading = true;
       _error = null;
+      if (cache != null) {
+        _meta = cache.meta;
+        _items = cache.items;
+        _lastPackedPct = ProgressStats.fromItems(cache.items).packedPct;
+        _loading = false;
+      }
     });
+    if (!_offline.isOnline) {
+      if (cache == null) {
+        setState(() {
+          _loading = false;
+          _error = 'Offline — no saved trip data on this device yet.';
+        });
+      }
+      return;
+    }
     try {
       _seeding = true;
       await _svc.ensureSeeded();
       _seeding = false;
-      await _reload();
+      await _flushAndRefresh();
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _error = e.toString();
+        _error = cache == null ? e.toString() : null;
         _loading = false;
         _seeding = false;
+        _online = false;
       });
+    }
+  }
+
+  Future<void> _flushAndRefresh() async {
+    if (_syncing || !_offline.isOnline) return;
+    setState(() {
+      _syncing = true;
+      _online = true;
+    });
+    try {
+      final queue = _offline.loadQueue();
+      if (queue.isNotEmpty) {
+        await _svc.flushQueue(queue);
+        _offline.saveQueue([]);
+      }
+      await _reload();
+      await _ensureWeatherDaily();
+      if (mounted) {
+        setState(() {
+          _pendingSync = _offline.pendingCount;
+          _lastSynced = DateTime.now();
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _online = false);
+    } finally {
+      if (mounted) setState(() => _syncing = false);
     }
   }
 
   Future<void> _reload() async {
     final meta = await _svc.fetchMeta();
-    final items = await _svc.fetchItems();
+    final remote = await _svc.fetchItems();
+    final items = mergeItemLists(_items, remote);
     if (!mounted) return;
     final pct = ProgressStats.fromItems(items).packedPct;
     setState(() {
@@ -113,6 +185,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
         // Don't auto-popup on every refresh — only via tick milestones.
       }
     });
+    _persistCache();
   }
 
   Future<void> _onRefresh() async {
@@ -122,10 +195,10 @@ class _NzTripScreenState extends State<NzTripScreen> {
       _error = null;
     });
     try {
-      await _reload();
+      await _flushAndRefresh();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      if (_meta == null) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _refreshing = false);
     }
@@ -148,11 +221,113 @@ class _NzTripScreenState extends State<NzTripScreen> {
 
   @override
   void dispose() {
+    _connSub?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   ProgressStats get _stats => ProgressStats.fromItems(_items);
+
+  void _persistCache() {
+    final meta = _meta;
+    if (meta != null) _offline.saveCache(meta: meta, items: _items);
+  }
+
+  Map<String, dynamic> _wireFields(Map<String, dynamic> fields) => {
+        for (final e in fields.entries)
+          e.key: e.value is BuyLocation
+              ? (e.value as BuyLocation).wire
+              : e.value is ItemKind
+                  ? (e.value as ItemKind).wire
+                  : e.value,
+      };
+
+  Future<void> _patchFields(TripItem item, Map<String, dynamic> fields) async {
+    final next = item.applyFields(fields);
+    _replaceItem(next);
+    _persistCache();
+    final wire = _wireFields(fields)..['fieldTs'] = next.fieldTs;
+    if (!_offline.isOnline) {
+      _offline.enqueue({'type': 'patch', 'id': item.id, 'fields': wire});
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      return;
+    }
+    try {
+      await _svc.patchItem(item.id, wire);
+      if (mounted) setState(() => _pendingSync = _offline.pendingCount);
+    } catch (_) {
+      _offline.enqueue({'type': 'patch', 'id': item.id, 'fields': wire});
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      _toast('Saved offline — will sync later');
+    }
+  }
+
+  Future<void> _upsertItem(TripItem item) async {
+    _persistCache();
+    final op = {'type': 'upsert', 'id': item.id, 'item': item.toMap()};
+    if (!_offline.isOnline) {
+      _offline.enqueue(op);
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      return;
+    }
+    try {
+      await _svc.upsertItem(item);
+    } catch (_) {
+      _offline.enqueue(op);
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      _toast('Saved offline — will sync later');
+    }
+  }
+
+  Future<void> _updateMeta(TripMeta meta) async {
+    if (mounted) {
+      setState(() => _meta = meta);
+    }
+    _persistCache();
+    final op = {'type': 'meta', 'meta': meta.toMap()};
+    if (!_offline.isOnline) {
+      _offline.enqueue(op);
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      return;
+    }
+    try {
+      await _svc.updateMeta(meta);
+    } catch (_) {
+      _offline.enqueue(op);
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      _toast('Saved offline — will sync later');
+    }
+  }
 
   List<TripItem> get _filtered {
     Iterable<TripItem> list = _items;
@@ -164,20 +339,25 @@ class _NzTripScreenState extends State<NzTripScreen> {
     switch (_tab) {
       case _Tab.dashboard:
         break;
+      case _Tab.essentials:
+        list = list.where((i) => i.isEssential);
+        break;
       case _Tab.all:
         if (!categoryFilterActive) {
-          list = list.where((i) => !i.isLocal);
+          list = list.where((i) => !i.isLocal && !i.isEssential);
         }
         break;
       case _Tab.me:
         list = list.where((i) =>
-            (categoryFilterActive || !i.isLocal) &&
+            (categoryFilterActive || (!i.isLocal && !i.isEssential)) &&
             (categoryFilterActive || i.ownerId == 'me'));
         break;
       case _Tab.cat:
         list = list.where((i) =>
-            (categoryFilterActive || !i.isLocal) &&
+            (categoryFilterActive || (!i.isLocal && !i.isEssential)) &&
             (categoryFilterActive || i.ownerId == 'cat'));
+        break;
+      case _Tab.bags:
         break;
       case _Tab.local:
         if (!categoryFilterActive) {
@@ -217,38 +397,20 @@ class _NzTripScreenState extends State<NzTripScreen> {
 
   Future<void> _setBought(TripItem item, bool v) async {
     HapticFeedback.selectionClick();
-    final prev = item;
-    final next = item.copyWith(bought: v, packed: v ? item.packed : false);
-    _replaceItem(next);
     if (v) _flashTick(NzCopy.tickCheer(false));
-    try {
-      await _svc.patchItem(item.id, {
-        'bought': v,
-        if (!v) 'packed': false,
-      });
-    } catch (e) {
-      _replaceItem(prev);
-      if (!mounted) return;
-      _toast('Could not save: $e');
-    }
+    await _patchFields(item, {'bought': v, if (!v) 'packed': false});
   }
 
   Future<void> _setPacked(TripItem item, bool v) async {
     HapticFeedback.mediumImpact();
-    final prev = item;
-    final next = item.copyWith(packed: v, bought: v ? true : item.bought);
-    _replaceItem(next);
     if (v) _flashTick(NzCopy.tickCheer(true));
-    try {
-      await _svc.patchItem(item.id, {
-        'packed': v,
-        if (v) 'bought': true,
-      });
-    } catch (e) {
-      _replaceItem(prev);
-      if (!mounted) return;
-      _toast('Could not save: $e');
-    }
+    await _patchFields(item, {'packed': v});
+  }
+
+  Future<void> _setReady(TripItem item, bool v) async {
+    HapticFeedback.selectionClick();
+    if (v) _flashTick(NzCopy.tickCheer(false));
+    await _patchFields(item, {'ready': v});
   }
 
   void _toast(String message) {
@@ -280,8 +442,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
     final iso =
         '${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
     final next = _meta!.copyWith(departureDate: iso);
-    setState(() => _meta = next);
-    await _svc.updateMeta(next);
+    await _updateMeta(next);
   }
 
   @override
@@ -323,7 +484,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
       data: NzChrome.of(context),
       child: Scaffold(
       backgroundColor: NzColors.snow,
-      floatingActionButton: _tab == _Tab.dashboard
+      floatingActionButton: (_tab == _Tab.dashboard || _weatherSectionOpen)
           ? null
           : FloatingActionButton(
               onPressed: () => _openItemEditor(),
@@ -345,6 +506,10 @@ class _NzTripScreenState extends State<NzTripScreen> {
                 departureDate: _meta?.departureDateTime,
                 onEditDate: _editDepartureDate,
                 onBack: () {
+                  if (_weatherSectionOpen) {
+                    setState(() => _weatherSectionOpen = false);
+                    return;
+                  }
                   if (Navigator.of(context).canPop()) {
                     Navigator.of(context).pop();
                   } else {
@@ -354,41 +519,58 @@ class _NzTripScreenState extends State<NzTripScreen> {
                 onRefresh: _onRefresh,
                 onManage: _meta == null ? null : _openManageSheet,
               ),
+              NzConnectivityBar(
+                online: _online,
+                pendingCount: _pendingSync,
+                lastSynced: _lastSynced,
+                onSync: _flushAndRefresh,
+                syncing: _syncing,
+              ),
               if (_milestoneMessage != null)
                 NzMilestoneBanner(
                   message: _milestoneMessage!,
                   emoji: _milestoneEmoji ?? '✨',
                 ),
-              NzJourneyProgress(
-                overallPct: stats.packedPct,
-                scopePct: scopePct,
-                scopeLabel: _tab == _Tab.me
-                    ? meLabel
-                    : _tab == _Tab.cat
-                        ? catLabel
-                        : _tab == _Tab.local
-                            ? 'Local'
-                            : 'Overall',
-                boughtPct: stats.boughtPct,
-                packedLabel:
-                    '${stats.preTripPacked}/${stats.preTripTotal}',
-                cheer: cheer,
-                mePct: mePct,
-                catPct: catPct,
-                meLabel: meLabel,
-                catLabel: catLabel,
-                reduceMotion: reduceMotion,
-              ),
-              _TabBar(
-                tab: _tab,
-                onChanged: (t) => setState(() {
-                  _tab = t;
-                  if (t == _Tab.dashboard) _filtersOpen = false;
-                }),
-                meLabel: meLabel,
-                catLabel: catLabel,
-              ),
-              if (_tab != _Tab.dashboard) ...[
+              if (!_weatherSectionOpen) ...[
+                NzJourneyProgress(
+                  overallPct: stats.packedPct,
+                  scopePct: scopePct,
+                  scopeLabel: _tab == _Tab.me
+                      ? meLabel
+                      : _tab == _Tab.cat
+                          ? catLabel
+                          : _tab == _Tab.local
+                              ? 'Local'
+                              : _tab == _Tab.essentials
+                                  ? 'Essentials'
+                                  : 'Overall',
+                  boughtPct: stats.boughtPct,
+                  packedLabel:
+                      '${stats.preTripPacked}/${stats.preTripTotal}',
+                  cheer: cheer,
+                  mePct: mePct,
+                  catPct: catPct,
+                  meLabel: meLabel,
+                  catLabel: catLabel,
+                  reduceMotion: reduceMotion,
+                ),
+                _TabBar(
+                  tab: _tab,
+                  onChanged: (t) {
+                    setState(() {
+                      _tab = t;
+                      if (t == _Tab.dashboard || t == _Tab.bags) {
+                        _filtersOpen = false;
+                      }
+                    });
+                  },
+                  meLabel: meLabel,
+                  catLabel: catLabel,
+                ),
+              ],
+              if (!_weatherSectionOpen &&
+                  _tab != _Tab.dashboard &&
+                  _tab != _Tab.bags) ...[
                 Padding(
                   padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
                   child: Row(
@@ -559,6 +741,55 @@ class _NzTripScreenState extends State<NzTripScreen> {
       );
     }
 
+    if (_weatherSectionOpen) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(10, 6, 10, 32),
+        children: [
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Back',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _weatherSectionOpen = false),
+                icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                color: NzColors.fern,
+              ),
+              Expanded(
+                child: Text(
+                  'Weather forecast',
+                  style: NzType.display.copyWith(fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          Text(
+            '29 Aug – 15 Sep 2026 · filter a destination, then browse each day.',
+            style: NzType.body.copyWith(fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          NzWeatherPanel(
+            legs: _weatherLegs,
+            nudges: _weatherNudges,
+            loading: _weatherLoading,
+            onRefresh: () => _loadWeather(forceNetwork: true),
+            onManage: _openManageSheet,
+            onAddSuggested: _addWeatherSuggestion,
+            onOpenItem: (id) {
+              for (final item in _items) {
+                if (item.id == id) {
+                  _openItemEditor(item: item);
+                  break;
+                }
+              }
+            },
+            lastFetchedAt: _weatherFetchedAt,
+            needsDailyRefresh: _offline.weatherNeedsDailyRefresh(),
+            staleAt: _weatherStaleAt,
+            error: _weatherError,
+          ),
+        ],
+      );
+    }
     if (_tab == _Tab.dashboard) {
       return _Dashboard(
         stats: stats,
@@ -571,6 +802,21 @@ class _NzTripScreenState extends State<NzTripScreen> {
         onOpenItem: (item) => _openItemEditor(item: item),
         onPhoto: _onItemPhotoTap,
         photoBusyIds: _photoBusy,
+        onOpenEssentials: () => setState(() => _tab = _Tab.essentials),
+        onOpenWeather: _openWeatherSection,
+        weatherSummary: _weatherSummaryLine(),
+      );
+    }
+    if (_tab == _Tab.bags) {
+      return NzBagView(
+        bags: _meta?.bags ?? const [],
+        items: _items,
+        ownerOf: _owner,
+        onEdit: (item) => _openItemEditor(item: item),
+        onDelete: _confirmDeleteItem,
+        onTogglePacked: _setPacked,
+        onAssignBag: (item, bagId) => _patchFields(item, {'bagId': bagId}),
+        onManageBags: _openManageSheet,
       );
     }
 
@@ -602,9 +848,10 @@ class _NzTripScreenState extends State<NzTripScreen> {
           // Category chip should reveal that section even if the active tab
           // normally hides Local / pre-trip groups.
           if (_filterCategory != null) return c.id == _filterCategory;
+          if (_tab == _Tab.essentials) return c.isEssential;
           if (_tab == _Tab.local) return c.isLocal;
           if (_tab == _Tab.all || _tab == _Tab.me || _tab == _Tab.cat) {
-            return !c.isLocal;
+            return !c.isLocal && !c.isEssential;
           }
           return true;
         })
@@ -629,6 +876,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
           ownerOf: _owner,
           onToggleBought: _setBought,
           onTogglePacked: _setPacked,
+          onToggleReady: _setReady,
           onEdit: (item) => _openItemEditor(item: item),
           onDelete: _confirmDeleteItem,
           onPhoto: _onItemPhotoTap,
@@ -651,15 +899,30 @@ class _NzTripScreenState extends State<NzTripScreen> {
   }
 
   Future<void> _deleteItem(TripItem item) async {
-    final prev = List<TripItem>.from(_items);
     setState(() => _items = _items.where((i) => i.id != item.id).toList());
+    _persistCache();
+    final op = {'type': 'delete', 'id': item.id};
+    if (!_offline.isOnline) {
+      _offline.enqueue(op);
+      setState(() {
+        _online = false;
+        _pendingSync = _offline.pendingCount;
+      });
+      _toast('Removed locally — will sync later');
+      return;
+    }
     try {
       await _svc.deleteItem(item.id);
       _toast('Removed “${item.name}”');
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _items = prev);
-      _toast('Could not delete: $e');
+    } catch (_) {
+      _offline.enqueue(op);
+      if (mounted) {
+        setState(() {
+          _online = false;
+          _pendingSync = _offline.pendingCount;
+        });
+      }
+      _toast('Removed locally — will sync later');
     }
   }
 
@@ -728,9 +991,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
     setState(() => _photoBusy.add(item.id));
     try {
       final encoded = _svc.encodeItemPhoto(bytes);
-      final next = item.copyWith(photoBase64: encoded);
-      _replaceItem(next);
-      await _svc.patchItem(item.id, {'photoBase64': encoded});
+      await _patchFields(item, {'photoBase64': encoded});
       _toast('Photo saved for “${item.name}” 📸');
     } catch (e) {
       if (!mounted) return;
@@ -751,15 +1012,11 @@ class _NzTripScreenState extends State<NzTripScreen> {
     );
     if (!ok) return;
     setState(() => _photoBusy.add(item.id));
-    final prev = item;
-    final next = item.copyWith(photoBase64: '');
-    _replaceItem(next);
     try {
-      await _svc.patchItem(item.id, {'photoBase64': ''});
+      await _patchFields(item, {'photoBase64': ''});
       _toast('Photo removed');
     } catch (e) {
       if (!mounted) return;
-      _replaceItem(prev);
       _toast('Could not remove photo: $e');
     } finally {
       if (mounted) setState(() => _photoBusy.remove(item.id));
@@ -797,13 +1054,7 @@ class _NzTripScreenState extends State<NzTripScreen> {
       _replaceItem(next);
       _toast('Saved “${next.name}”');
     }
-    try {
-      await _svc.upsertItem(next);
-    } catch (e) {
-      if (!mounted) return;
-      _toast('Could not save: $e');
-      await _onRefresh();
-    }
+    await _upsertItem(next);
   }
 
   Future<void> _openManageSheet() async {
@@ -814,11 +1065,227 @@ class _NzTripScreenState extends State<NzTripScreen> {
       builder: (ctx) => _ManageSheet(
         meta: meta,
         onSaveMeta: (m) async {
-          await _svc.updateMeta(m);
-          if (mounted) setState(() => _meta = m);
+          await _updateMeta(m);
         },
       ),
     );
+  }
+
+  void _openWeatherSection() {
+    setState(() => _weatherSectionOpen = true);
+    _ensureWeatherDaily();
+  }
+
+  /// Load weather once per local calendar day (or when forced / cache empty).
+  Future<void> _ensureWeatherDaily() async {
+    if (_weatherLoading) return;
+    final metaLegs = _meta?.weatherLegs.length ?? 0;
+    final metaStart = _meta?.weatherLegs.isNotEmpty == true
+        ? _meta!.weatherLegs.first.startDate
+        : null;
+    final loadedStart =
+        _weatherLegs.isNotEmpty ? _weatherLegs.first.leg.startDate : null;
+    final legsChanged = metaLegs > 0 &&
+        _weatherLegs.isNotEmpty &&
+        (_weatherLegs.length != metaLegs ||
+            (metaStart != null && metaStart != loadedStart));
+    final needsRefresh = _offline.weatherNeedsDailyRefresh() || legsChanged;
+    if (!needsRefresh && _weatherLegs.isNotEmpty) return;
+    if (!needsRefresh && _weatherLegs.isEmpty) {
+      final restored = _restoreWeatherCache(offlineMessage: null);
+      if (restored) {
+        final restoredStart =
+            _weatherLegs.isNotEmpty ? _weatherLegs.first.leg.startDate : null;
+        // Stale cache (old destinations or old trip dates) — refetch.
+        if (metaLegs > 0 &&
+            (_weatherLegs.length != metaLegs ||
+                (metaStart != null && metaStart != restoredStart))) {
+          await _loadWeather(forceNetwork: true);
+        }
+        return;
+      }
+    }
+    await _loadWeather(forceNetwork: needsRefresh || _offline.isOnline);
+  }
+
+  String? _weatherSummaryLine() {
+    if (_weatherLegs.isEmpty) return '29 Aug – 15 Sep · tap to open';
+    final first = _weatherLegs.first;
+    if (first.days.isEmpty) return '29 Aug – 15 Sep · tap to open';
+    final hi = first.avgHigh?.toStringAsFixed(0) ?? '–';
+    final lo = first.avgLow?.toStringAsFixed(0) ?? '–';
+    final src = switch (first.source) {
+      WeatherSourceKind.forecast => 'live',
+      WeatherSourceKind.seasonalOutlook => 'outlook',
+      WeatherSourceKind.climateAverage => 'typical',
+      WeatherSourceKind.unavailable => 'n/a',
+    };
+    return '${first.leg.name}: $hi°/$lo° · $src';
+  }
+
+  Future<void> _loadWeather({bool forceNetwork = false}) async {
+    final meta = _meta;
+    if (meta == null || meta.weatherLegs.isEmpty) return;
+    setState(() {
+      _weatherLoading = true;
+      _weatherError = null;
+    });
+
+    // Prefer cache when not forcing and still same local day.
+    if (!forceNetwork && !_offline.weatherNeedsDailyRefresh()) {
+      final restored = _restoreWeatherCache(offlineMessage: null);
+      if (restored) return;
+    }
+
+    if (!_offline.isOnline) {
+      _restoreWeatherCache(
+        offlineMessage: 'Offline — showing last weather if cached',
+      );
+      return;
+    }
+    try {
+      final legs = await _weatherSvc.fetchLegs(
+        meta.weatherLegs,
+        apiKey: meta.weatherApiKey,
+      );
+      final nudges = NzWeatherService.nudgesFor(legs, _items);
+      _offline.saveWeatherCache(jsonEncode({
+        'legs': [
+          for (final l in legs)
+            {
+              'leg': l.leg.toMap(),
+              'source': l.source.name,
+              'message': l.message,
+              'days': [
+                for (final d in l.days)
+                  {
+                    'date': d.date,
+                    'tempMax': d.tempMax,
+                    'tempMin': d.tempMin,
+                    'precipProb': d.precipProb,
+                    'weatherCode': d.weatherCode,
+                    'summary': d.summary,
+                  },
+              ],
+            },
+        ],
+      }));
+      final fetchedAt = DateTime.now();
+      if (!mounted) return;
+      setState(() {
+        _weatherLegs = legs;
+        _weatherNudges = nudges;
+        _weatherLoading = false;
+        _weatherStaleAt = null;
+        _weatherFetchedAt = fetchedAt;
+        _weatherError = null;
+      });
+    } catch (_) {
+      if (mounted) {
+        final restored = _restoreWeatherCache(
+          offlineMessage: 'Forecast unavailable — showing cache if any',
+        );
+        if (!restored) {
+          setState(() {
+            _weatherLoading = false;
+            _weatherError = 'Forecast unavailable';
+          });
+        }
+      }
+    }
+  }
+
+  bool _restoreWeatherCache({required String? offlineMessage}) {
+    final cached = _offline.loadWeatherCache();
+    if (cached == null || cached.payload.isEmpty) {
+      if (mounted) {
+        setState(() {
+          _weatherLoading = false;
+          _weatherError = offlineMessage;
+          _weatherStaleAt = cached?.savedAt;
+          _weatherFetchedAt = cached?.savedAt;
+        });
+      }
+      return false;
+    }
+    try {
+      final root = jsonDecode(cached.payload) as Map<String, dynamic>;
+      final legsRaw = (root['legs'] as List?) ?? const [];
+      final legs = <LegWeather>[];
+      for (final raw in legsRaw) {
+        if (raw is! Map) continue;
+        final m = Map<String, dynamic>.from(raw);
+        final leg = WeatherLeg.fromMap(
+          Map<String, dynamic>.from(m['leg'] as Map? ?? {}),
+        );
+        final days = <DayWeather>[];
+        for (final d in (m['days'] as List?) ?? const []) {
+          if (d is! Map) continue;
+          final dm = Map<String, dynamic>.from(d);
+          days.add(DayWeather(
+            date: dm['date'] as String? ?? '',
+            tempMax: (dm['tempMax'] as num?)?.toDouble() ?? 0,
+            tempMin: (dm['tempMin'] as num?)?.toDouble() ?? 0,
+            precipProb: (dm['precipProb'] as num?)?.toInt() ?? 0,
+            weatherCode: (dm['weatherCode'] as num?)?.toInt() ?? 0,
+            summary: dm['summary'] as String? ?? '',
+          ));
+        }
+        final sourceName = m['source'] as String? ?? 'unavailable';
+        legs.add(LegWeather(
+          leg: leg,
+          source: WeatherSourceKind.values.firstWhere(
+            (s) => s.name == sourceName,
+            orElse: () => WeatherSourceKind.unavailable,
+          ),
+          days: days,
+          message: m['message'] as String?,
+          fetchedAt: cached.savedAt,
+        ));
+      }
+      final nudges = NzWeatherService.nudgesFor(legs, _items);
+      if (!mounted) return true;
+      final stale = _offline.weatherNeedsDailyRefresh();
+      setState(() {
+        _weatherLegs = legs;
+        _weatherNudges = nudges;
+        _weatherLoading = false;
+        _weatherError = offlineMessage;
+        _weatherFetchedAt = cached.savedAt;
+        _weatherStaleAt = stale ? cached.savedAt : null;
+      });
+      return legs.isNotEmpty;
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _weatherLoading = false;
+          _weatherError = offlineMessage;
+          _weatherStaleAt = cached.savedAt;
+          _weatherFetchedAt = cached.savedAt;
+        });
+      }
+      return false;
+    }
+  }
+
+  Future<void> _addWeatherSuggestion(String name) async {
+    final meta = _meta;
+    if (meta == null) return;
+    final category = meta.categories.firstWhere(
+      (c) => !c.isLocal && !c.isEssential,
+      orElse: () => meta.categories.first,
+    );
+    final item = TripItem(
+      id: _svc.newItemId(),
+      name: name,
+      categoryId: category.id,
+      ownerId: 'me',
+      recommendedQty: '1',
+      priority: true,
+    );
+    setState(() => _items = [..._items, item]);
+    await _upsertItem(item);
+    _toast('Added “$name”');
   }
 }
 
@@ -919,34 +1386,31 @@ class _TabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     Widget chip(_Tab t, String label) {
       final on = tab == t;
-      return Expanded(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2),
-          child: Material(
-            color: on ? NzColors.fern.withValues(alpha: 0.16) : NzColors.card,
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Material(
+          color: on ? NzColors.fern.withValues(alpha: 0.16) : NzColors.card,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: () => onChanged(t),
             borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              onTap: () => onChanged(t),
-              borderRadius: BorderRadius.circular(14),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: on
-                        ? NzColors.fern.withValues(alpha: 0.55)
-                        : NzColors.cardBorder,
-                  ),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: on
+                      ? NzColors.fern.withValues(alpha: 0.55)
+                      : NzColors.cardBorder,
                 ),
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: NzType.label.copyWith(
-                    fontSize: 10,
-                    color: on ? NzColors.fern : NzColors.inkSoft,
-                  ),
+              ),
+              child: Text(
+                label,
+                maxLines: 1,
+                style: NzType.label.copyWith(
+                  fontSize: 10.5,
+                  color: on ? NzColors.fern : NzColors.inkSoft,
                 ),
               ),
             ),
@@ -956,15 +1420,20 @@ class _TabBar extends StatelessWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 2, 8, 0),
-      child: Row(
-        children: [
-          chip(_Tab.dashboard, 'Dash'),
-          chip(_Tab.all, 'All'),
-          chip(_Tab.me, meLabel),
-          chip(_Tab.cat, catLabel),
-          chip(_Tab.local, 'Local'),
-        ],
+      padding: const EdgeInsets.fromLTRB(6, 2, 6, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            chip(_Tab.dashboard, 'Dash'),
+            chip(_Tab.essentials, 'Ess'),
+            chip(_Tab.all, 'All'),
+            chip(_Tab.me, meLabel),
+            chip(_Tab.cat, catLabel),
+            chip(_Tab.bags, 'Bags'),
+            chip(_Tab.local, 'Local'),
+          ],
+        ),
       ),
     );
   }
@@ -1162,6 +1631,9 @@ class _Dashboard extends StatefulWidget {
     required this.onOpenItem,
     required this.onPhoto,
     required this.photoBusyIds,
+    required this.onOpenEssentials,
+    required this.onOpenWeather,
+    this.weatherSummary,
   });
 
   final ProgressStats stats;
@@ -1172,6 +1644,9 @@ class _Dashboard extends StatefulWidget {
   final ValueChanged<TripItem> onOpenItem;
   final ValueChanged<TripItem> onPhoto;
   final Set<String> photoBusyIds;
+  final VoidCallback onOpenEssentials;
+  final VoidCallback onOpenWeather;
+  final String? weatherSummary;
 
   @override
   State<_Dashboard> createState() => _DashboardState();
@@ -1201,6 +1676,7 @@ class _DashboardState extends State<_Dashboard> {
       final statusRank = switch (i.status) {
         ItemStatus.pending => 0,
         ItemStatus.bought => 1,
+        ItemStatus.ready => 1,
         ItemStatus.packed => 2,
       };
       return (i.priority ? 0 : 10) + statusRank;
@@ -1245,6 +1721,81 @@ class _DashboardState extends State<_Dashboard> {
         Text(
           'See what’s done and what’s still waiting — tap a row to edit.',
           style: NzType.body.copyWith(fontSize: 12),
+        ),
+        const SizedBox(height: 10),
+        Material(
+          color: NzColors.priority.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: widget.onOpenEssentials,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: NzColors.gold.withValues(alpha: 0.7)),
+              ),
+              child: Row(
+                children: [
+                  const Text('🛂', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Essentials & documents',
+                      style: NzType.title.copyWith(fontSize: 14),
+                    ),
+                  ),
+                  Text(
+                    '${stats.essentialsReady}/${stats.essentialsTotal} ready',
+                    style: NzType.label.copyWith(
+                      fontSize: 11,
+                      color: NzColors.goldDeep,
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: NzColors.goldDeep),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Material(
+          color: NzColors.lake.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: widget.onOpenWeather,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: NzColors.lake.withValues(alpha: 0.4)),
+              ),
+              child: Row(
+                children: [
+                  const Text('🌤️', style: TextStyle(fontSize: 22)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Weather forecast',
+                          style: NzType.title.copyWith(fontSize: 14),
+                        ),
+                        Text(
+                          widget.weatherSummary ??
+                              '29 Aug – 15 Sep · tap to open',
+                          style: NzType.label.copyWith(fontSize: 11),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.chevron_right_rounded, color: NzColors.lake),
+                ],
+              ),
+            ),
+          ),
         ),
         const SizedBox(height: 10),
         // Status summary tiles
@@ -1483,6 +2034,7 @@ class _DashboardState extends State<_Dashboard> {
             : switch (i.status) {
                 ItemStatus.pending => 'Pending — still need to buy',
                 ItemStatus.bought => 'Bought — still need to pack',
+                ItemStatus.ready => 'Ready — still need to pack',
                 ItemStatus.packed => 'Packed ✓',
               };
         groups.putIfAbsent(key, () => []).add(i);
@@ -1490,6 +2042,7 @@ class _DashboardState extends State<_Dashboard> {
       final order = [
         'Pending — still need to buy',
         'Bought — still need to pack',
+        'Ready — still need to pack',
         'Local · still needed',
         'Packed ✓',
         'Local · packed',
@@ -1628,6 +2181,7 @@ class _DashboardState extends State<_Dashboard> {
     final statusColor = switch (item.status) {
       ItemStatus.pending => NzChrome.danger,
       ItemStatus.bought => NzColors.bought,
+      ItemStatus.ready => NzColors.goldDeep,
       ItemStatus.packed => NzColors.success,
     };
     final statusLabel = item.isLocal
@@ -1763,6 +2317,7 @@ class _CategorySection extends StatelessWidget {
     required this.ownerOf,
     required this.onToggleBought,
     required this.onTogglePacked,
+    required this.onToggleReady,
     required this.onEdit,
     required this.onDelete,
     required this.onPhoto,
@@ -1776,6 +2331,7 @@ class _CategorySection extends StatelessWidget {
   final TripOwner? Function(String id) ownerOf;
   final Future<void> Function(TripItem, bool) onToggleBought;
   final Future<void> Function(TripItem, bool) onTogglePacked;
+  final Future<void> Function(TripItem, bool) onToggleReady;
   final ValueChanged<TripItem> onEdit;
   final ValueChanged<TripItem> onDelete;
   final ValueChanged<TripItem> onPhoto;
@@ -1786,8 +2342,15 @@ class _CategorySection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(2, 8, 2, 4),
+        Container(
+          padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+          decoration: category.isEssential
+              ? BoxDecoration(
+                  color: NzColors.priority.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: NzColors.gold.withValues(alpha: 0.75)),
+                )
+              : null,
           child: Row(
             children: [
               Text(
@@ -1816,6 +2379,7 @@ class _CategorySection extends StatelessWidget {
               owner: ownerOf(item.ownerId),
               onToggleBought: (v) => onToggleBought(item, v),
               onTogglePacked: (v) => onTogglePacked(item, v),
+              onToggleReady: (v) => onToggleReady(item, v),
               onEdit: () => onEdit(item),
               onDelete: () => onDelete(item),
               onPhoto: () => onPhoto(item),
@@ -1832,6 +2396,7 @@ class _ItemRow extends StatelessWidget {
     required this.owner,
     required this.onToggleBought,
     required this.onTogglePacked,
+    required this.onToggleReady,
     required this.onEdit,
     required this.onDelete,
     required this.onPhoto,
@@ -1842,6 +2407,7 @@ class _ItemRow extends StatelessWidget {
   final TripOwner? owner;
   final ValueChanged<bool> onToggleBought;
   final ValueChanged<bool> onTogglePacked;
+  final ValueChanged<bool> onToggleReady;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
   final VoidCallback onPhoto;
@@ -1859,7 +2425,9 @@ class _ItemRow extends StatelessWidget {
             : NzColors.card.withValues(alpha: 0.95),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: item.priority
+          color: item.isEssential
+              ? NzColors.gold.withValues(alpha: 0.75)
+              : item.priority
               ? NzColors.gold.withValues(alpha: 0.55)
               : NzColors.cardBorder,
         ),
@@ -1917,6 +2485,14 @@ class _ItemRow extends StatelessWidget {
                             _tag(owner?.label ?? item.ownerId, ownerColor),
                             if (item.recommendedQty.isNotEmpty)
                               _tag('qty ${item.recommendedQty}', NzColors.muted),
+                            if (item.hasBag)
+                              _tag(
+                                'bag ${_prettyBagName(item.bagId)}',
+                                NzColors.lake,
+                              ),
+                            if (item.isLiquidOver100ml) _tag('>100ml', NzChrome.danger),
+                            if (item.isMedication) _tag('med', NzColors.fern),
+                            if (item.isBiosecurity) _tag('declare', NzColors.goldDeep),
                             if (item.quantity.isNotEmpty &&
                                 item.quantity != item.recommendedQty)
                               _tag('plan ${item.quantity}', NzColors.inkSoft),
@@ -1956,10 +2532,13 @@ class _ItemRow extends StatelessWidget {
               Row(
                 children: [
                   NzTickButton(
-                    label: 'Bought',
-                    value: item.bought || item.packed,
-                    onChanged: onToggleBought,
-                    color: NzColors.bought,
+                    label: item.isEssential ? 'Ready' : 'Bought',
+                    value: item.isEssential
+                        ? item.ready || item.packed
+                        : item.bought || item.packed,
+                    onChanged:
+                        item.isEssential ? onToggleReady : onToggleBought,
+                    color: item.isEssential ? NzColors.goldDeep : NzColors.bought,
                     reduceMotion: reduceMotion,
                   ),
                   const SizedBox(width: 8),
@@ -2004,6 +2583,13 @@ class _ItemRow extends StatelessWidget {
     );
   }
 
+  String _prettyBagName(String id) => switch (id) {
+        'carry_on' => 'Carry-on',
+        'checked' => 'Checked',
+        'personal' => 'Personal',
+        _ => id,
+      };
+
   Widget _tag(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -2039,8 +2625,14 @@ class _ItemDraft {
     required this.note,
     required this.bought,
     required this.packed,
+    required this.ready,
     required this.priority,
     required this.buyLocation,
+    required this.kind,
+    required this.bagId,
+    required this.isLiquidOver100ml,
+    required this.isMedication,
+    required this.isBiosecurity,
   });
 
   String name;
@@ -2051,8 +2643,14 @@ class _ItemDraft {
   String note;
   bool bought;
   bool packed;
+  bool ready;
   bool priority;
   BuyLocation buyLocation;
+  ItemKind kind;
+  String bagId;
+  bool isLiquidOver100ml;
+  bool isMedication;
+  bool isBiosecurity;
 
   TripItem toItem(String id) => TripItem(
         id: id,
@@ -2064,8 +2662,14 @@ class _ItemDraft {
         note: note.trim(),
         bought: bought || packed,
         packed: packed,
+        ready: ready,
         priority: priority,
         buyLocation: buyLocation,
+        kind: kind,
+        bagId: bagId,
+        isLiquidOver100ml: isLiquidOver100ml,
+        isMedication: isMedication,
+        isBiosecurity: isBiosecurity,
       );
 }
 
@@ -2095,8 +2699,14 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
   late String _ownerId;
   late bool _bought;
   late bool _packed;
+  late bool _ready;
   late bool _priority;
   late BuyLocation _buyLocation;
+  late ItemKind _kind;
+  late String _bagId;
+  late bool _isLiquidOver100ml;
+  late bool _isMedication;
+  late bool _isBiosecurity;
 
   @override
   void initState() {
@@ -2123,7 +2733,18 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
     _ownerId = i?.ownerId ?? widget.defaultOwnerId;
     _bought = i?.bought ?? false;
     _packed = i?.packed ?? false;
+    _ready = i?.ready ?? false;
     _priority = i?.priority ?? false;
+    _kind = i?.kind ??
+        (widget.meta.categories.any(
+          (c) => c.id == _categoryId && c.isEssential,
+        )
+            ? ItemKind.essential
+            : ItemKind.goods);
+    _bagId = i?.bagId ?? '';
+    _isLiquidOver100ml = i?.isLiquidOver100ml ?? false;
+    _isMedication = i?.isMedication ?? false;
+    _isBiosecurity = i?.isBiosecurity ?? false;
     _buyLocation = i?.buyLocation ??
         (widget.defaultLocal
             ? BuyLocation.inNz
@@ -2178,10 +2799,28 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
                     _buyLocation = cat.isLocal
                         ? BuyLocation.inNz
                         : BuyLocation.beforeDeparture;
+                    if (cat.isEssential) _kind = ItemKind.essential;
                     break;
                   }
                 }
               });
+            },
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<ItemKind>(
+            value: _kind,
+            decoration: NzChrome.input('Kind'),
+            items: ItemKind.values
+                .map((k) => DropdownMenuItem(
+                      value: k,
+                      child: Text(
+                        k == ItemKind.essential ? 'Essential / document' : 'Goods',
+                        style: NzType.body,
+                      ),
+                    ))
+                .toList(),
+            onChanged: (v) {
+              if (v != null) setState(() => _kind = v);
             },
           ),
           const SizedBox(height: 10),
@@ -2199,6 +2838,19 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
             onChanged: (v) {
               if (v != null) setState(() => _ownerId = v);
             },
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            value: _bagId,
+            decoration: NzChrome.input('Bag'),
+            items: [
+              const DropdownMenuItem(value: '', child: Text('Unassigned')),
+              ...widget.meta.bags.map((bag) => DropdownMenuItem(
+                    value: bag.id,
+                    child: Text(bag.name, style: NzType.body),
+                  )),
+            ],
+            onChanged: (v) => setState(() => _bagId = v ?? ''),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -2244,12 +2896,19 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: Text('Bought', style: NzType.title.copyWith(fontSize: 14)),
-            value: _bought || _packed,
+            title: Text(
+              _kind == ItemKind.essential ? 'Ready / got it' : 'Bought',
+              style: NzType.title.copyWith(fontSize: 14),
+            ),
+            value: _kind == ItemKind.essential ? _ready || _packed : _bought || _packed,
             activeColor: NzColors.bought,
             onChanged: (v) => setState(() {
-              _bought = v;
-              if (!v) _packed = false;
+              if (_kind == ItemKind.essential) {
+                _ready = v;
+              } else {
+                _bought = v;
+                if (!v) _packed = false;
+              }
             }),
           ),
           SwitchListTile(
@@ -2259,8 +2918,32 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
             activeColor: NzColors.success,
             onChanged: (v) => setState(() {
               _packed = v;
-              if (v) _bought = true;
+              if (v) {
+                if (_kind == ItemKind.essential) {
+                  _ready = true;
+                } else {
+                  _bought = true;
+                }
+              }
             }),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Liquid over 100ml', style: NzType.title.copyWith(fontSize: 14)),
+            value: _isLiquidOver100ml,
+            onChanged: (v) => setState(() => _isLiquidOver100ml = v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Medication', style: NzType.title.copyWith(fontSize: 14)),
+            value: _isMedication,
+            onChanged: (v) => setState(() => _isMedication = v),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Biosecurity declaration', style: NzType.title.copyWith(fontSize: 14)),
+            value: _isBiosecurity,
+            onChanged: (v) => setState(() => _isBiosecurity = v),
           ),
           const SizedBox(height: 8),
           FilledButton(
@@ -2278,8 +2961,14 @@ class _ItemEditorSheetState extends State<_ItemEditorSheet> {
                     note: _note.text,
                     bought: _bought,
                     packed: _packed,
+                    ready: _ready,
                     priority: _priority,
                     buyLocation: _buyLocation,
+                    kind: _kind,
+                    bagId: _bagId,
+                    isLiquidOver100ml: _isLiquidOver100ml,
+                    isMedication: _isMedication,
+                    isBiosecurity: _isBiosecurity,
                   ),
                 ),
               );
@@ -2339,19 +3028,26 @@ class _ManageSheet extends StatefulWidget {
 class _ManageSheetState extends State<_ManageSheet> {
   late List<TripOwner> _owners;
   late List<TripCategory> _categories;
+  late List<TripBag> _bags;
+  late List<WeatherLeg> _weatherLegs;
   late TextEditingController _title;
+  late TextEditingController _weatherApiKey;
 
   @override
   void initState() {
     super.initState();
     _owners = widget.meta.owners.map((o) => o.copyWith()).toList();
     _categories = widget.meta.categories.map((c) => c.copyWith()).toList();
+    _bags = widget.meta.bags.map((b) => b.copyWith()).toList();
+    _weatherLegs = widget.meta.weatherLegs.map((l) => l.copyWith()).toList();
     _title = TextEditingController(text: widget.meta.title);
+    _weatherApiKey = TextEditingController(text: widget.meta.weatherApiKey);
   }
 
   @override
   void dispose() {
     _title.dispose();
+    _weatherApiKey.dispose();
     super.dispose();
   }
 
@@ -2363,7 +3059,13 @@ class _ManageSheetState extends State<_ManageSheet> {
         for (var i = 0; i < _categories.length; i++)
           _categories[i].copyWith(order: i),
       ],
+      bags: [
+        for (var i = 0; i < _bags.length; i++) _bags[i].copyWith(order: i),
+      ],
+      weatherLegs: _weatherLegs,
+      weatherApiKey: _weatherApiKey.text.trim(),
       seeded: true,
+      departureDate: widget.meta.departureDate,
     ));
   }
 
@@ -2424,6 +3126,9 @@ class _ManageSheetState extends State<_ManageSheet> {
                   for (var i = 0; i < _categories.length; i++)
                     _categories[i].copyWith(order: i),
                 ],
+                bags: _bags,
+                weatherLegs: _weatherLegs,
+                weatherApiKey: _weatherApiKey.text.trim(),
                 departureDate: iso,
                 seeded: true,
               ));
@@ -2550,6 +3255,159 @@ class _ManageSheetState extends State<_ManageSheet> {
                 ),
               );
             },
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Text('Bags', style: NzType.title),
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () async {
+                  setState(() {
+                    _bags.add(TripBag(
+                      id: 'bag_${DateTime.now().millisecondsSinceEpoch}',
+                      name: 'New bag',
+                      order: _bags.length,
+                    ));
+                  });
+                  await _persist();
+                },
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          ..._bags.asMap().entries.map((entry) {
+            final index = entry.key;
+            final bag = entry.value;
+            return Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: bag.name,
+                    decoration: NzChrome.input('Bag name'),
+                    onChanged: (v) {
+                      _bags[index] = bag.copyWith(name: v);
+                      _persist();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: bag.note,
+                    decoration: NzChrome.input('Allowance / note'),
+                    onChanged: (v) {
+                      _bags[index] = bag.copyWith(note: v);
+                      _persist();
+                    },
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  color: NzChrome.danger,
+                  onPressed: () async {
+                    setState(() => _bags.removeAt(index));
+                    await _persist();
+                  },
+                ),
+              ],
+            );
+          }),
+          const SizedBox(height: 12),
+          Text('Weather legs', style: NzType.title),
+          ..._weatherLegs.asMap().entries.map((entry) {
+            final index = entry.key;
+            final leg = entry.value;
+            return Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: NzColors.cardBorder),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Column(
+                children: [
+                  TextFormField(
+                    initialValue: leg.name,
+                    decoration: NzChrome.input('Place'),
+                    onChanged: (v) {
+                      _weatherLegs[index] = leg.copyWith(name: v);
+                      _persist();
+                    },
+                  ),
+                  Row(children: [
+                    Expanded(child: TextFormField(
+                      initialValue: '${leg.lat}',
+                      decoration: NzChrome.input('Latitude'),
+                      onChanged: (v) {
+                        _weatherLegs[index] = leg.copyWith(lat: double.tryParse(v) ?? leg.lat);
+                        _persist();
+                      },
+                    )),
+                    const SizedBox(width: 6),
+                    Expanded(child: TextFormField(
+                      initialValue: '${leg.lon}',
+                      decoration: NzChrome.input('Longitude'),
+                      onChanged: (v) {
+                        _weatherLegs[index] = leg.copyWith(lon: double.tryParse(v) ?? leg.lon);
+                        _persist();
+                      },
+                    )),
+                  ]),
+                  Row(children: [
+                    Expanded(child: TextFormField(
+                      initialValue: leg.startDate,
+                      decoration: NzChrome.input('Start YYYY-MM-DD'),
+                      onChanged: (v) {
+                        _weatherLegs[index] = leg.copyWith(startDate: v);
+                        _persist();
+                      },
+                    )),
+                    const SizedBox(width: 6),
+                    Expanded(child: TextFormField(
+                      initialValue: leg.endDate,
+                      decoration: NzChrome.input('End YYYY-MM-DD'),
+                      onChanged: (v) {
+                        _weatherLegs[index] = leg.copyWith(endDate: v);
+                        _persist();
+                      },
+                    )),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      color: NzChrome.danger,
+                      onPressed: () async {
+                        setState(() => _weatherLegs.removeAt(index));
+                        await _persist();
+                      },
+                    ),
+                  ]),
+                ],
+              ),
+            );
+          }),
+          TextButton.icon(
+            onPressed: () async {
+              setState(() {
+                _weatherLegs.add(WeatherLeg(
+                  id: 'leg_${DateTime.now().millisecondsSinceEpoch}',
+                  name: 'New destination',
+                  lat: -43.53,
+                  lon: 172.64,
+                  startDate: '2026-08-29',
+                  endDate: '2026-09-15',
+                ));
+              });
+              await _persist();
+            },
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add weather leg'),
+          ),
+          TextField(
+            controller: _weatherApiKey,
+            decoration: NzChrome.input('Weather API key (optional)'),
+            obscureText: true,
+            onChanged: (_) => _persist(),
           ),
           const SizedBox(height: 8),
           Text(
