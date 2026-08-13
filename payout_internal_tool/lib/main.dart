@@ -190,21 +190,18 @@ class _EmailSenderPageState extends State<EmailSenderPage> with TickerProviderSt
       curve: Curves.easeInOut,
     ));
     
-    // Start animations
+    // Start one-shot enter animations only.
+    // Continuous pulse/float/glow loops were keeping the web canvas repainting
+    // every frame — skip them for performance (visual-only change).
     _fadeController.forward();
     _slideController.forward();
-    _pulseController.repeat(reverse: true);
-    _floatingController.repeat();
-    _glowController.repeat(reverse: true);
-    
-    // Initialize floating particles
-    _initializeParticles();
+    _pulseController.value = 1.0;
+    _floatingController.value = 0.0;
+    _glowController.value = 1.0;
   }
 
   void _initializeParticles() {
-    for (int i = 0; i < 15; i++) {
-      _particles.add(_FloatingParticle());
-    }
+    // Particles disabled — continuous CustomPaint was a major web jank source.
   }
 
   @override

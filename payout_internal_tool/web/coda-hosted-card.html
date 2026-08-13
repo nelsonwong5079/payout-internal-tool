@@ -6,7 +6,7 @@
   <title>Coda Hosted Card</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <!-- SDK loaded dynamically (default 8.0.0). Free-text version via ?sdk= / main panel input. -->
   <script>
     (function () {
@@ -358,31 +358,31 @@
   </script>
   <style>
     :root {
-      --canvas: #09090B;
-      --surface: #18181B;
-      --elevated: #1C1C1F;
-      --muted: #27272A;
-      --glass: rgba(255, 255, 255, 0.031);
-      --glass-border: rgba(255, 255, 255, 0.102);
-      --accent: #6366F1;
-      --accent-hover: #818CF8;
-      --accent-dark: #4F46E5;
-      --border-subtle: #3F3F46;
-      --text: #FAFAFA;
-      --text-2: #A1A1AA;
-      --text-3: #71717A;
-      --success: #22C55E;
-      --error: #EF4444;
-      --warning: #F59E0B;
+      --canvas: #F4F3EE;
+      --surface: #FAFAF7;
+      --elevated: #FFFFFF;
+      --muted: #EFEDE6;
+      --glass: rgba(255, 229, 0, 0.12);
+      --glass-border: #121212;
+      --accent: #FFE500;
+      --accent-hover: #FFF06A;
+      --accent-dark: #E6CF00;
+      --border-subtle: #121212;
+      --text: #121212;
+      --text-2: #4A4A4A;
+      --text-3: #6B6B6B;
+      --success: #1B7A3D;
+      --error: #C62828;
+      --warning: #B45309;
 
-      --r-sm: 6px;
-      --r-md: 8px;
-      --r-lg: 12px;
-      --r-xl: 16px;
-      --r-pill: 999px;
+      --r-sm: 0px;
+      --r-md: 2px;
+      --r-lg: 2px;
+      --r-xl: 4px;
+      --r-pill: 2px;
 
-      --sans: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --sans: 'Noto Sans SC', system-ui, -apple-system, sans-serif;
+      --mono: 'Space Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
       --ease: cubic-bezier(0.4, 0, 0.2, 1);
     }
@@ -1456,6 +1456,13 @@
       * { animation: none !important; transition-duration: 0.01ms !important; }
       .panel.ink-enter { opacity: 1; transform: none; }
     }
+  
+    /* workbench-skin */
+    .btn-primary, .btn-pay, button.primary { color: #121212 !important; border: 1.25px solid #121212; }
+    .btn-primary:hover:not(:disabled), .btn-pay:hover:not(:disabled) { color: #121212 !important; }
+    input, select, textarea { border-radius: 2px !important; }
+    .panel, .card, .box { border-radius: 2px !important; }
+
   </style>
 </head>
 <body>

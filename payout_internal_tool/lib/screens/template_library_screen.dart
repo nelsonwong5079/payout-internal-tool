@@ -236,7 +236,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                             Expanded(
                               child: Text(
                                 t.name,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.ibmPlexSans(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.textPrimary,
@@ -248,7 +248,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                         const SizedBox(height: 6),
                         Text(
                           t.description,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.ibmPlexSans(
                             fontSize: 12,
                             color: AppColors.textSecondary,
                             height: 1.4,
@@ -285,7 +285,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
               const SizedBox(height: 16),
               Text(
                 'Affected date',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.ibmPlexSans(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textSecondary,
@@ -329,7 +329,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                 ),
                 child: Text(
                   _emailSubject,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                     height: 1.45,
@@ -398,7 +398,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                               Expanded(
                                 child: Text(
                                   'Reception list',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.ibmPlexSans(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.textPrimary,
@@ -414,7 +414,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                           const SizedBox(height: 6),
                           Text(
                             'Before sending, open the spreadsheet to confirm who should receive this announcement.',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.ibmPlexSans(
                               fontSize: 12,
                               color: AppColors.textSecondary,
                               height: 1.45,
@@ -434,7 +434,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                     backgroundColor: AppColors.accent,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: GoogleFonts.inter(
+                    textStyle: GoogleFonts.ibmPlexSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
@@ -464,7 +464,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
         children: [
           Text(
             title,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.ibmPlexSans(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.textSecondary,
@@ -535,7 +535,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
           alignment: Alignment.center,
           child: Text(
             label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.ibmPlexSans(
               fontSize: 12,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
               color: selected ? AppColors.textPrimary : AppColors.textSecondary,
@@ -556,7 +556,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.ibmPlexSans(
             fontSize: 12,
             fontWeight: FontWeight.w500,
             color: AppColors.textSecondary,
@@ -566,7 +566,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
         TextField(
           controller: controller,
           onChanged: (_) => _onFieldChanged(),
-          style: GoogleFonts.inter(color: AppColors.textPrimary, fontSize: 13),
+          style: GoogleFonts.ibmPlexSans(color: AppColors.textPrimary, fontSize: 13),
           decoration: InputDecoration(
             hintText: hint,
             isDense: true,
@@ -610,7 +610,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
               Expanded(
                 child: Text(
                   'Check the reception list before sending this announcement.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.textPrimary,
@@ -626,7 +626,7 @@ class _TemplateLibraryScreenState extends State<TemplateLibraryScreen> {
                   backgroundColor: AppColors.accent.withValues(alpha: 0.2),
                   foregroundColor: AppColors.accentHover,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: GoogleFonts.ibmPlexSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                   ),

@@ -137,10 +137,10 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: AppColors.surfaceElevated,
-        title: Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+        title: Text(title, style: GoogleFonts.ibmPlexSans(fontWeight: FontWeight.w600)),
         content: Text(
           message,
-          style: GoogleFonts.inter(color: AppColors.textSecondary),
+          style: GoogleFonts.ibmPlexSans(color: AppColors.textSecondary),
         ),
         actions: [
           TextButton(
@@ -321,7 +321,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
       const SizedBox(height: 20),
       Text(
         'Payout IDs',
-        style: GoogleFonts.inter(
+        style: GoogleFonts.ibmPlexSans(
           fontSize: 13,
           fontWeight: FontWeight.w600,
           color: AppColors.textPrimary,
@@ -331,7 +331,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
       Text(
         'Paste UUIDs one per line, or separate with commas or spaces — '
         'they will be reformatted automatically.',
-        style: GoogleFonts.inter(
+        style: GoogleFonts.ibmPlexSans(
           fontSize: 12,
           color: AppColors.textMutedOnDark,
         ),
@@ -342,7 +342,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
         enabled: !_isProcessing,
         minLines: 6,
         maxLines: 8,
-        style: GoogleFonts.jetBrainsMono(
+        style: GoogleFonts.ibmPlexMono(
           fontSize: 13,
           color: AppColors.textPrimary,
         ),
@@ -350,7 +350,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
           hintText:
               '52954907-e9fb-431a-8489-e48d21323192\n'
               'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
-          hintStyle: GoogleFonts.jetBrainsMono(
+          hintStyle: GoogleFonts.ibmPlexMono(
             fontSize: 13,
             color: AppColors.textMutedOnDark,
           ),
@@ -426,7 +426,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
               children: [
                 Text(
                   'Environment',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -437,7 +437,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
                   isProduction
                       ? 'Production scheduler — use with caution'
                       : 'Staging scheduler for testing',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 12,
                     color: AppColors.textMutedOnDark,
                   ),
@@ -455,7 +455,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
             children: [
               Text(
                 'Staging',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.ibmPlexSans(
                   fontSize: 11,
                   color: !isProduction
                       ? AppColors.textPrimary
@@ -476,7 +476,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
               ),
               Text(
                 'Production',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.ibmPlexSans(
                   fontSize: 11,
                   color: isProduction
                       ? AppColors.error
@@ -502,7 +502,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
               Expanded(
                 child: Text(
                   'API request',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.textPrimary,
@@ -531,7 +531,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
                 ),
                 child: Text(
                   'POST',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.ibmPlexMono(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: AppColors.accentHover,
@@ -542,7 +542,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
               Expanded(
                 child: SelectableText(
                   _environment.notifyUrl,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.ibmPlexMono(
                     fontSize: 11,
                     height: 1.45,
                     color: AppColors.textSecondary,
@@ -554,7 +554,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
           const SizedBox(height: 14),
           Text(
             'Equivalent curl (one payout ID per request):',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.ibmPlexSans(
               fontSize: 11,
               color: AppColors.textMutedOnDark,
             ),
@@ -570,7 +570,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
             ),
             child: SelectableText(
               _curlCommand,
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.ibmPlexMono(
                 fontSize: 10.5,
                 height: 1.5,
                 color: AppColors.textPrimary,
@@ -584,7 +584,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
             const SizedBox(height: 8),
             Text(
               'Multiple IDs each trigger a separate POST like the one above.',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.ibmPlexSans(
                 fontSize: 11,
                 color: AppColors.textMutedOnDark,
               ),
@@ -612,7 +612,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
           Expanded(
             child: Text(
               'Invalid UUID: ${_invalidTokens.join(', ')}',
-              style: GoogleFonts.jetBrainsMono(
+              style: GoogleFonts.ibmPlexMono(
                 fontSize: 11,
                 height: 1.4,
                 color: AppColors.error,
@@ -635,14 +635,14 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
           children: [
             Text(
               'Processing $_processedCount of $_totalCount…',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.ibmPlexSans(
                 fontSize: 12,
                 color: AppColors.textSecondary,
               ),
             ),
             Text(
               '${(_progress * 100).round()}%',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.ibmPlexSans(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: AppColors.accent,
@@ -679,7 +679,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
                 Expanded(
                   child: Text(
                     'Transaction log',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.ibmPlexSans(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textPrimary,
@@ -722,7 +722,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
             const SizedBox(height: 12),
             Text(
               'Results will appear here',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.ibmPlexSans(
                 fontSize: 14,
                 color: AppColors.textSecondary,
               ),
@@ -762,7 +762,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
         children: [
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.ibmPlexSans(
               fontSize: 20,
               fontWeight: FontWeight.w700,
               color: color ?? AppColors.textPrimary,
@@ -771,7 +771,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.ibmPlexSans(
               fontSize: 11,
               color: AppColors.textMutedOnDark,
             ),
@@ -802,7 +802,7 @@ class _PayoutRenotifyScreenState extends State<PayoutRenotifyScreen> {
     );
   }
 
-  TextStyle get _headerStyle => GoogleFonts.inter(
+  TextStyle get _headerStyle => GoogleFonts.ibmPlexSans(
         fontSize: 11,
         fontWeight: FontWeight.w600,
         color: AppColors.textMutedOnDark,
@@ -846,7 +846,7 @@ class _LogRow extends StatelessWidget {
                 width: 32,
                 child: Text(
                   '${entry.index}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 12,
                     color: AppColors.textMutedOnDark,
                   ),
@@ -856,7 +856,7 @@ class _LogRow extends StatelessWidget {
                 flex: 2,
                 child: Text(
                   entry.payoutId,
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.ibmPlexMono(
                     fontSize: 12,
                     color: AppColors.textPrimary,
                   ),
@@ -874,7 +874,7 @@ class _LogRow extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       entry.statusLabel,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.ibmPlexSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                         color: success ? AppColors.success : AppColors.error,
@@ -887,7 +887,7 @@ class _LogRow extends StatelessWidget {
                 width: 72,
                 child: Text(
                   entry.statusCode?.toString() ?? '—',
-                  style: GoogleFonts.jetBrainsMono(
+                  style: GoogleFonts.ibmPlexMono(
                     fontSize: 12,
                     color: AppColors.textSecondary,
                   ),
@@ -897,7 +897,7 @@ class _LogRow extends StatelessWidget {
                 flex: 2,
                 child: Text(
                   _formatTime(entry.timestamp),
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.ibmPlexSans(
                     fontSize: 11,
                     color: AppColors.textMutedOnDark,
                   ),
@@ -922,7 +922,7 @@ class _LogRow extends StatelessWidget {
                   Expanded(
                     child: Text(
                       entry.failureReason!,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.ibmPlexSans(
                         fontSize: 12,
                         color: AppColors.error,
                         height: 1.35,

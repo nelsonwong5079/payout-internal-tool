@@ -6,25 +6,25 @@
   <title>Coda Payout JWT Token Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@500;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --canvas: #09090b;
-      --surface: #18181b;
-      --surface-elevated: #1c1c1f;
-      --surface-muted: #27272a;
-      --border: rgba(255, 255, 255, 0.1);
-      --text: #fafafa;
-      --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-      --accent: #6366f1;
-      --accent-hover: #818cf8;
-      --success: #22c55e;
-      --error: #ef4444;
-      --warning: #f59e0b;
-      --radius-sm: 6px;
-      --radius-md: 8px;
-      --radius-lg: 12px;
+      --canvas: #f4f3ee;
+      --surface: #fafaf7;
+      --surface-elevated: #ffffff;
+      --surface-muted: #efede6;
+      --border: #121212;
+      --text: #121212;
+      --text-secondary: #4a4a4a;
+      --text-muted: #6b6b6b;
+      --accent: #ffe500;
+      --accent-hover: #fff06a;
+      --success: #1b7a3d;
+      --error: #c62828;
+      --warning: #b45309;
+      --radius-sm: 0px;
+      --radius-md: 2px;
+      --radius-lg: 2px;
       --space-xs: 4px;
       --space-sm: 8px;
       --space-md: 12px;
@@ -43,7 +43,7 @@
 
     body {
       margin: 0;
-      font-family: "Inter", system-ui, -apple-system, sans-serif;
+      font-family: "Noto Sans SC", system-ui, -apple-system, sans-serif;
       font-size: 13px;
       line-height: 1.5;
       background: var(--canvas);
@@ -150,7 +150,7 @@
 
     .iat-row input {
       flex: 1;
-      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-family: "Space Mono", ui-monospace, monospace;
       font-size: 12px;
       font-variant-numeric: tabular-nums;
     }
@@ -260,7 +260,7 @@
       overflow-x: auto;
       white-space: pre-wrap;
       word-break: break-word;
-      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-family: "Space Mono", ui-monospace, monospace;
       font-size: 12px;
       line-height: 1.45;
       font-variant-numeric: tabular-nums;
@@ -279,7 +279,7 @@
     }
 
     .token-helper code {
-      font-family: "JetBrains Mono", ui-monospace, monospace;
+      font-family: "Space Mono", ui-monospace, monospace;
       font-size: 11px;
       color: var(--text-secondary);
     }
@@ -326,6 +326,17 @@
         width: 100%;
       }
     }
+  
+    /* workbench-skin */
+    button, .btn, .btn-primary {
+      border-radius: 2px !important;
+    }
+    .btn-primary, button[type="submit"] {
+      background: #121212 !important;
+      color: #FFE500 !important;
+      border: 1.25px solid #121212 !important;
+    }
+
   </style>
 </head>
 <body>

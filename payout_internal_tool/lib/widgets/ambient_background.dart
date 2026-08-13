@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
-/// Flat canvas — no gradients or decorative glow.
+import '../theme/hud_decor.dart';
+
+/// Light research-bench canvas with a faint technical grid.
 class AmbientBackground extends StatelessWidget {
   const AmbientBackground({
     super.key,
@@ -12,9 +13,6 @@ class AmbientBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: AppColors.canvas,
-      child: child,
-    );
+    return TechGridBackground(child: child);
   }
 }

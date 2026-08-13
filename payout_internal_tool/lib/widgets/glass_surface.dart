@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// Solid elevated panel — no backdrop blur.
+/// Hard-edged lab panel — white field, black stroke.
 class GlassSurface extends StatelessWidget {
   const GlassSurface({
     super.key,
@@ -10,6 +10,7 @@ class GlassSurface extends StatelessWidget {
     this.radius = AppRadii.lg,
     this.width,
     this.tint,
+    this.selected = false,
   });
 
   final Widget child;
@@ -17,6 +18,7 @@ class GlassSurface extends StatelessWidget {
   final double radius;
   final double? width;
   final Color? tint;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -26,6 +28,7 @@ class GlassSurface extends StatelessWidget {
       decoration: AppTheme.panelDecoration(
         radius: radius,
         color: tint ?? AppColors.surfaceElevated,
+        selected: selected,
       ),
       child: child,
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:html' as html;
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
+import '../theme/hud_decor.dart';
 import '../widgets/ambient_background.dart';
 import '../widgets/glass_surface.dart';
 
@@ -139,26 +140,53 @@ class _LoginScreenState extends State<LoginScreen> {
             compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          if (!compact) ...[
+            HudDecor.statusTrack(height: 8),
+            const SizedBox(height: AppSpacing.md),
+            Row(
+              children: [
+                HudDecor.lamp(on: true),
+                const SizedBox(width: 6),
+                Text(
+                  'SYSTEM ONLINE',
+                  style: AppTypography.mono(
+                    size: 10,
+                    weight: FontWeight.w700,
+                  ),
+                ),
+                const Spacer(),
+                HudDecor.cornerIndex('WB / 00.05'),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.lg),
+          ],
           Container(
             width: compact ? 56 : 64,
             height: compact ? 56 : 64,
             decoration: BoxDecoration(
               color: AppColors.accent,
-              borderRadius: BorderRadius.circular(AppRadii.lg),
+              borderRadius: BorderRadius.circular(AppRadii.md),
+              border: Border.all(color: AppColors.ink, width: 1.75),
             ),
             child: Icon(
               Icons.bolt_rounded,
-              color: Colors.white,
+              color: AppColors.ink,
               size: compact ? 28 : 32,
             ),
           ),
           SizedBox(height: compact ? AppSpacing.lg : AppSpacing.xl),
           Text(
+            '// ARCHIVE',
+            textAlign: compact ? TextAlign.center : TextAlign.start,
+            style: AppTypography.mono(size: 11, weight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
             'PE Ops',
             textAlign: compact ? TextAlign.center : TextAlign.start,
             style: AppTypography.display.copyWith(
-              fontSize: compact ? 28 : 36,
-              height: 1.1,
+              fontSize: compact ? 32 : 42,
+              height: 1.05,
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -207,8 +235,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
+                    '// ACCESS',
+                    style: AppTypography.mono(size: 10, weight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
                     'Sign in',
-                    style: AppTypography.display.copyWith(fontSize: 22),
+                    style: AppTypography.display.copyWith(fontSize: 24),
                   ),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
@@ -309,30 +342,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         child: Row(
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
+                              duration: AppMotion.snap,
                               width: 18,
                               height: 18,
                               decoration: BoxDecoration(
                                 color: _rememberMe
                                     ? AppColors.accent
                                     : Colors.transparent,
-                                borderRadius: BorderRadius.circular(4),
+                                borderRadius:
+                                    BorderRadius.circular(AppRadii.md),
                                 border: Border.all(
-                                  color: _rememberMe
-                                      ? AppColors.accent
-                                      : AppColors.textMutedOnDark,
+                                  color: AppColors.ink,
+                                  width: 1.25,
                                 ),
                               ),
                               child: _rememberMe
                                   ? const Icon(Icons.check,
-                                      size: 12, color: Colors.white)
+                                      size: 12, color: AppColors.ink)
                                   : null,
                             ),
                             const SizedBox(width: AppSpacing.md),
                             Text('Remember me', style: AppTypography.body),
                             const Spacer(),
                             const Icon(Icons.shield_outlined,
-                                size: 16, color: AppColors.textMutedOnDark),
+                                size: 16, color: AppColors.ink),
                           ],
                         ),
                       ),
@@ -349,7 +382,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               height: 18,
                               child: CircularProgressIndicator(
                                 strokeWidth: 2,
-                                color: Colors.white,
+                                color: AppColors.onInk,
                               ),
                             )
                           : const Text('Sign in'),
@@ -375,19 +408,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(
-                      color: AppColors.surface,
+                      color: AppColors.accent.withValues(alpha: 0.35),
                       borderRadius: BorderRadius.circular(AppRadii.md),
-                      border: Border.all(color: AppColors.glassBorder),
+                      border: Border.all(color: AppColors.ink, width: 1.25),
                     ),
                     child: Row(
                       children: [
                         const Icon(Icons.info_outline,
-                            size: 16, color: AppColors.textMutedOnDark),
+                            size: 16, color: AppColors.ink),
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             'Contact nelson.wong@codapayments.com for credentials',
-                            style: AppTypography.body.copyWith(fontSize: 12),
+                            style: AppTypography.body.copyWith(
+                              fontSize: 12,
+                              color: AppColors.ink,
+                            ),
                           ),
                         ),
                       ],
@@ -417,20 +453,16 @@ class _FeatureChip extends StatelessWidget {
         vertical: 6,
       ),
       decoration: BoxDecoration(
-        color: onTap != null ? AppColors.surfaceMuted : AppColors.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: onTap != null
-              ? AppColors.accent.withValues(alpha: 0.35)
-              : AppColors.glassBorder,
-        ),
+        color: onTap != null ? AppColors.accent : AppColors.surfaceElevated,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: AppColors.ink, width: 1.25),
       ),
       child: Text(
-        label,
-        style: AppTypography.body.copyWith(
-          fontSize: 12,
-          color: onTap != null ? AppColors.textPrimary : AppColors.textSecondary,
-          fontWeight: onTap != null ? FontWeight.w500 : FontWeight.normal,
+        label.toUpperCase(),
+        style: AppTypography.mono(
+          size: 10,
+          weight: FontWeight.w700,
+          color: AppColors.ink,
         ),
       ),
     );
@@ -441,7 +473,7 @@ class _FeatureChip extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(AppRadii.md),
         child: chip,
       ),
     );

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
+import '../theme/hud_decor.dart';
 
 class AppSectionHeader extends StatelessWidget {
   const AppSectionHeader({
@@ -23,41 +24,55 @@ class AppSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = iconColor ?? AppColors.textSecondary;
+    final accent = iconColor ?? AppColors.ink;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (icon != null) ...[
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadii.md),
-              color: AppColors.surfaceMuted,
-              border: Border.all(color: AppColors.glassBorder),
-            ),
-            child: Icon(icon, size: 18, color: accent),
-          ),
-          const SizedBox(width: AppSpacing.md),
-        ],
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (monoTag != null) ...[
-                Text(monoTag!, style: AppTypography.label),
-                const SizedBox(height: AppSpacing.xs),
-              ],
-              Text(title, style: AppTypography.display),
-              if (subtitle != null) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(subtitle!, style: AppTypography.body),
-              ],
+        HudDecor.statusTrack(height: 8),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (icon != null) ...[
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  color: AppColors.accent,
+                  border: Border.all(color: AppColors.ink, width: 1.25),
+                ),
+                child: Icon(icon, size: 18, color: accent),
+              ),
+              const SizedBox(width: AppSpacing.md),
             ],
-          ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (monoTag != null) ...[
+                    Text(
+                      '// ${monoTag!.toUpperCase()}',
+                      style: AppTypography.mono(
+                        size: 10,
+                        weight: FontWeight.w700,
+                        color: AppColors.textMutedOnDark,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs),
+                  ],
+                  Text(title, style: AppTypography.display),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(subtitle!, style: AppTypography.body),
+                  ],
+                ],
+              ),
+            ),
+            if (trailing != null) trailing!,
+          ],
         ),
-        if (trailing != null) trailing!,
       ],
     );
   }

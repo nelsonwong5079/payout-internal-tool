@@ -15,46 +15,51 @@ class StatusPill extends StatelessWidget {
   final StatusPillTone tone;
   final bool showDot;
 
-  (Color bg, Color fg) _colors() {
+  (Color bg, Color fg, Color border) _colors() {
     switch (tone) {
       case StatusPillTone.success:
         return (
           AppColors.success.withValues(alpha: 0.12),
           AppColors.success,
+          AppColors.success,
         );
       case StatusPillTone.error:
         return (
-          AppColors.error.withValues(alpha: 0.12),
+          AppColors.error.withValues(alpha: 0.1),
+          AppColors.error,
           AppColors.error,
         );
       case StatusPillTone.info:
         return (
-          AppColors.accent.withValues(alpha: 0.12),
-          AppColors.accentHover,
+          AppColors.accent.withValues(alpha: 0.55),
+          AppColors.ink,
+          AppColors.ink,
         );
       case StatusPillTone.warning:
         return (
           AppColors.warning.withValues(alpha: 0.12),
           AppColors.warning,
+          AppColors.warning,
         );
       case StatusPillTone.neutral:
         return (
           AppColors.surfaceMuted,
-          AppColors.textSecondary,
+          AppColors.inkSoft,
+          AppColors.ink,
         );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final (bg, fg) = _colors();
+    final (bg, fg, border) = _colors();
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: fg.withValues(alpha: 0.2)),
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: border, width: 1),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -63,13 +68,21 @@ class StatusPill extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: BoxDecoration(color: fg, shape: BoxShape.circle),
+              decoration: BoxDecoration(
+                color: fg,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.ink, width: 0.8),
+              ),
             ),
             const SizedBox(width: 6),
           ],
           Text(
-            label,
-            style: AppTypography.label.copyWith(color: fg),
+            label.toUpperCase(),
+            style: AppTypography.mono(
+              size: 10,
+              weight: FontWeight.w700,
+              color: fg,
+            ),
           ),
         ],
       ),
