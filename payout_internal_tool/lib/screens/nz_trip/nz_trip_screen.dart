@@ -172,7 +172,10 @@ class _NzTripScreenState extends State<NzTripScreen> {
   Future<void> _reload() async {
     final meta = await _svc.fetchMeta();
     final remote = await _svc.fetchItems();
-    final items = mergeItemLists(_items, remote);
+    final removed = meta.removedItemIds.toSet();
+    final items = mergeItemLists(_items, remote)
+        .where((i) => !removed.contains(i.id))
+        .toList();
     if (!mounted) return;
     final pct = ProgressStats.fromItems(items).packedPct;
     setState(() {
@@ -900,10 +903,24 @@ class _NzTripScreenState extends State<NzTripScreen> {
 
   Future<void> _deleteItem(TripItem item) async {
     setState(() => _items = _items.where((i) => i.id != item.id).toList());
+
+    // Remember deletes so ensureSeeded() cannot resurrect seed items.
+    final meta = _meta;
+    TripMeta? nextMeta;
+    if (meta != null && !meta.removedItemIds.contains(item.id)) {
+      nextMeta = meta.copyWith(
+        removedItemIds: [...meta.removedItemIds, item.id],
+      );
+      setState(() => _meta = nextMeta);
+    }
+
     _persistCache();
     final op = {'type': 'delete', 'id': item.id};
     if (!_offline.isOnline) {
       _offline.enqueue(op);
+      if (nextMeta != null) {
+        _offline.enqueue({'type': 'meta', 'meta': nextMeta.toMap()});
+      }
       setState(() {
         _online = false;
         _pendingSync = _offline.pendingCount;
@@ -913,9 +930,15 @@ class _NzTripScreenState extends State<NzTripScreen> {
     }
     try {
       await _svc.deleteItem(item.id);
+      if (nextMeta != null) {
+        await _svc.updateMeta(nextMeta);
+      }
       _toast('Removed “${item.name}”');
     } catch (_) {
       _offline.enqueue(op);
+      if (nextMeta != null) {
+        _offline.enqueue({'type': 'meta', 'meta': nextMeta.toMap()});
+      }
       if (mounted) {
         setState(() {
           _online = false;

@@ -96,9 +96,19 @@ class NzTripService {
       'updatedAt': DateTime.now().toUtc().toIso8601String(),
     });
 
+    final removed = meta.removedItemIds.toSet();
     final existing = await fetchItems();
     final have = existing.map((e) => e.id).toSet();
+
+    // Clean up seed items that were deleted, then resurrected by older builds.
+    for (final id in removed) {
+      if (!have.contains(id)) continue;
+      await deleteItem(id);
+      have.remove(id);
+    }
+
     for (final item in NzTripSeed.items()) {
+      if (removed.contains(item.id)) continue; // user deleted — do not re-seed
       if (have.contains(item.id)) continue;
       await _writeDoc('$_itemsPath/${item.id}', {
         ...item.toMap(),
@@ -171,6 +181,8 @@ class NzTripService {
       weatherLegs: legs,
       title: current.title.trim().isEmpty ? seed.title : current.title,
       weatherApiKey: current.weatherApiKey,
+      // Preserve intentional deletes across seed merges / app upgrades.
+      removedItemIds: current.removedItemIds,
     );
   }
 

@@ -504,6 +504,8 @@ class TripMeta {
     this.weatherApiKey = '',
     this.seeded = false,
     this.departureDate, // YYYY-MM-DD
+    /// Item IDs intentionally removed — seed must not resurrect these.
+    this.removedItemIds = const [],
   });
 
   final String title;
@@ -515,6 +517,7 @@ class TripMeta {
   final String weatherApiKey;
   final bool seeded;
   final String? departureDate;
+  final List<String> removedItemIds;
 
   DateTime? get departureDateTime {
     final raw = departureDate;
@@ -531,6 +534,7 @@ class TripMeta {
     String? weatherApiKey,
     bool? seeded,
     String? departureDate,
+    List<String>? removedItemIds,
   }) =>
       TripMeta(
         title: title ?? this.title,
@@ -541,6 +545,7 @@ class TripMeta {
         weatherApiKey: weatherApiKey ?? this.weatherApiKey,
         seeded: seeded ?? this.seeded,
         departureDate: departureDate ?? this.departureDate,
+        removedItemIds: removedItemIds ?? this.removedItemIds,
       );
 
   Map<String, dynamic> toMap() => {
@@ -552,6 +557,7 @@ class TripMeta {
         'weatherApiKey': weatherApiKey,
         'seeded': seeded,
         if (departureDate != null) 'departureDate': departureDate,
+        'removedItemIds': removedItemIds,
       };
 
   factory TripMeta.fromMap(Map<String, dynamic> m) {
@@ -559,6 +565,7 @@ class TripMeta {
     final catsRaw = (m['categories'] as List?) ?? const [];
     final bagsRaw = (m['bags'] as List?) ?? const [];
     final legsRaw = (m['weatherLegs'] as List?) ?? const [];
+    final removedRaw = (m['removedItemIds'] as List?) ?? const [];
     return TripMeta(
       title: m['title'] as String? ?? 'NZ Trip',
       owners: ownersRaw
@@ -582,6 +589,7 @@ class TripMeta {
       weatherApiKey: m['weatherApiKey'] as String? ?? '',
       seeded: m['seeded'] as bool? ?? false,
       departureDate: m['departureDate'] as String?,
+      removedItemIds: removedRaw.map((e) => '$e').where((e) => e.isNotEmpty).toList(),
     );
   }
 }
