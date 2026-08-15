@@ -1,0 +1,18 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Existing observability (server / admin SDK only — keep client locked out)
+    match /coda_card_debug_events/{doc} {
+      allow read, write: if false;
+    }
+
+    // NZ Trip packing tracker — shared personal checklist for 2 phones.
+    // Access is via a hidden route; tighten to auth UIDs if you add accounts later.
+    match /nz_trip/{tripId} {
+      allow read, write: if true;
+      match /items/{itemId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}

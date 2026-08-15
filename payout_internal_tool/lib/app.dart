@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
+import 'services/firestore_bootstrap.dart';
 import 'screens/login_screen.dart';
 import 'screens/coda_payout_jwt_generator_screen.dart';
 import 'screens/sandbox_monitoring_screen.dart';
@@ -12,6 +13,8 @@ import 'screens/coda_hosted_card_screen.dart';
 import 'screens/check_balance_screen.dart';
 import 'screens/balance_update_screen.dart';
 import 'screens/public_template_library_page.dart';
+import 'screens/nz_trip/nz_trip_gate.dart';
+import 'screens/nz_trip/nz_trip_page.dart';
 import 'theme/app_theme.dart';
 import 'theme/hud_decor.dart';
 import 'widgets/ambient_background.dart';
@@ -20,6 +23,7 @@ import 'main.dart' as main_app;
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  configureFirestoreForWeb();
   runApp(const MyApp());
 }
 
@@ -38,6 +42,10 @@ class MyApp extends StatelessWidget {
         routes: {
           '/': (_) => const AuthWrapper(),
           '/templates': (_) => const PublicTemplateLibraryPage(),
+          // Obscure bookmark path + PIN gate (see nz_trip_gate.dart).
+          kNzTripRoute: (_) => const NzTripPage(),
+          // Old guessable path — send nowhere useful.
+          '/nz-trip': (_) => const _SilentHomeRedirect(),
         },
       ),
     );
@@ -60,6 +68,32 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
       },
+    );
+  }
+}
+
+/// Old `/nz-trip` bookmarks land on login with no hint.
+class _SilentHomeRedirect extends StatefulWidget {
+  const _SilentHomeRedirect();
+
+  @override
+  State<_SilentHomeRedirect> createState() => _SilentHomeRedirectState();
+}
+
+class _SilentHomeRedirectState extends State<_SilentHomeRedirect> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed('/');
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: SizedBox.shrink(),
     );
   }
 }
