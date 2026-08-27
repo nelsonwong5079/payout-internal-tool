@@ -1463,23 +1463,49 @@
     input, select, textarea { border-radius: 2px !important; }
     .panel, .card, .box { border-radius: 2px !important; }
 
+    /* —— External client mode (audience=client): hide ops-only surfaces —— */
+    body.client-mode .client-hide { display: none !important; }
+    body.client-mode .client-only { display: block !important; }
+    body.client-mode .title-row h1::after {
+      content: none;
+    }
+    .client-only { display: none; }
+
   </style>
 </head>
 <body>
+  <script>
+    // Apply client audience ASAP so first paint doesn't flash internal panels.
+    (function () {
+      try {
+        var q = new URLSearchParams(window.location.search || '');
+        if (q.get('audience') === 'client') {
+          document.documentElement.classList.add('client-mode');
+          document.addEventListener('DOMContentLoaded', function () {
+            document.body.classList.add('client-mode');
+          });
+        }
+      } catch (_) {}
+    })();
+  </script>
   <div class="ink-toast-host" id="inkToastHost" aria-live="polite"></div>
   <div class="layout">
     <section class="panel">
       <div class="title-row">
         <h1>Coda Hosted Card</h1>
-        <button class="btn-guide" id="guideOpenBtn" type="button">0 → 100 Guide</button>
+        <button class="btn-guide client-hide" id="guideOpenBtn" type="button">0 → 100 Guide</button>
       </div>
-      <p class="subtitle">
+      <p class="subtitle client-hide">
         Initiate a Hosted Component session, mount the PCI card form, submit the charge,
         then reconcile via status inquiry. Backend activity streams into the debug panel below.
         Unsure of the flow? Open the guide.
       </p>
+      <p class="subtitle client-only">
+        Start a card checkout session, complete payment in the secure form, then check status.
+        Use your own sandbox/production credentials — nothing is pre-filled.
+      </p>
 
-      <div class="diag-gate">
+      <div class="diag-gate client-hide">
         <label class="toggle-row" style="margin:0;">
           <input type="checkbox" id="diagnosticsEnabled" />
           Enable SDK diagnostics (events + network capture)
@@ -1489,22 +1515,22 @@
         </p>
       </div>
 
-      <div class="section-label">SDK version</div>
-      <p class="note" style="margin-top:0;">
+      <div class="section-label client-hide">SDK version</div>
+      <p class="note client-hide" style="margin-top:0;">
         Type the Coda Card SDK version to load. Empty defaults to <strong>8.0.0</strong>.
         Click <strong>Load version</strong> (or press Enter) to reload with that build.
       </p>
-      <div class="field">
+      <div class="field client-hide">
         <label for="sdkVersionInput">SDK version</label>
         <input id="sdkVersionInput" placeholder="e.g. 8.0.0, 8.1.0, 8.2.1" autocomplete="off" spellcheck="false" />
       </div>
-      <div class="diag-quickpicks" id="sdkQuickPicks" aria-label="Quick-pick SDK versions">
+      <div class="diag-quickpicks client-hide" id="sdkQuickPicks" aria-label="Quick-pick SDK versions">
         <button type="button" data-sdk="8.0.0">8.0.0</button>
         <button type="button" data-sdk="8.1.0">8.1.0</button>
         <button type="button" data-sdk="8.2.1">8.2.1</button>
       </div>
-      <p class="diag-sdk-url" id="diagSdkUrl" style="margin-top:4px;">—</p>
-      <div class="row-actions" style="margin-top:0;">
+      <p class="diag-sdk-url client-hide" id="diagSdkUrl" style="margin-top:4px;">—</p>
+      <div class="row-actions client-hide" style="margin-top:0;">
         <button class="btn-primary" id="sdkReloadBtn" type="button">Load version</button>
       </div>
 
@@ -1799,7 +1825,7 @@
     </section>
     </div>
 
-    <section class="panel full diag-panel" id="diagPanel">
+    <section class="panel full diag-panel client-hide" id="diagPanel">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
           <h1>SDK diagnostics</h1>
@@ -1824,7 +1850,7 @@
       </div>
     </section>
 
-    <section class="panel full" id="debugPanel">
+    <section class="panel full client-hide" id="debugPanel">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div>
           <h1>Backend activity / debug</h1>
@@ -1949,7 +1975,7 @@
     </div>
   </div>
 
-  <div class="guide-overlay" id="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
+  <div class="guide-overlay client-hide" id="guideOverlay" role="dialog" aria-modal="true" aria-labelledby="guideTitle" hidden>
     <div class="guide-modal">
       <div class="guide-header">
         <div>
@@ -2520,23 +2546,66 @@
       checkMarkColor: '#FFFFFF',
     };
 
-    // Verified working against Coda for this merchant project.
-    const ENV_PRESETS = {
-      production: {
-        apiKey: 'live_OvTIrY6j0HZkia7k6B5SnEkxjYq',
-        projectId: '31',
-        payType: '421',
-        country: '458',
-        currency: '458',
-      },
-      sandbox: {
-        apiKey: 'test_7tWZbBFlOna8RmH6zU5MfE8yylg',
-        projectId: '31',
-        payType: '421',
-        country: '458',
-        currency: '458',
-      },
-    };
+    // Verified working against Coda for this merchant project (INTERNAL ONLY).
+    // Client audience never receives these values — empty credentials, user must type their own.
+    const CLIENT_MODE = (function () {
+      try {
+        return new URLSearchParams(window.location.search || '').get('audience') === 'client';
+      } catch (_) {
+        return false;
+      }
+    })();
+
+    const ENV_PRESETS = CLIENT_MODE
+      ? {
+          production: {
+            apiKey: '',
+            projectId: '',
+            payType: '',
+            country: '',
+            currency: '',
+          },
+          sandbox: {
+            apiKey: '',
+            projectId: '',
+            payType: '',
+            country: '',
+            currency: '',
+          },
+        }
+      : {
+          production: {
+            apiKey: 'live_OvTIrY6j0HZkia7k6B5SnEkxjYq',
+            projectId: '31',
+            payType: '421',
+            country: '458',
+            currency: '458',
+          },
+          sandbox: {
+            apiKey: 'test_7tWZbBFlOna8RmH6zU5MfE8yylg',
+            projectId: '31',
+            payType: '421',
+            country: '458',
+            currency: '458',
+          },
+        };
+
+    if (CLIENT_MODE) {
+      document.body.classList.add('client-mode');
+      document.documentElement.classList.add('client-mode');
+      // Clear hardcoded HTML defaults (projectId / payType / country) for client demos.
+      const clearIds = ['projectId', 'payType', 'country', 'currency', 'userId', 'apiKey'];
+      clearIds.forEach(function (id) {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+      });
+      const payTypeSearch = document.getElementById('payTypeSearch');
+      if (payTypeSearch) payTypeSearch.value = '';
+      const countrySearch = document.getElementById('countrySearch');
+      if (countrySearch) countrySearch.value = '';
+      const currencySearch = document.getElementById('currencySearch');
+      if (currencySearch) currencySearch.value = '';
+    }
 
     let chargeComponent = null;
     let session = {

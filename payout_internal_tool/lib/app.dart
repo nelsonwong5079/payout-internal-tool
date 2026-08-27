@@ -61,6 +61,9 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, authService, child) {
         try {
           if (authService.isAuthenticated) {
+            if (authService.isHostedCardClientOnly) {
+              return const ClientHostedCardShell();
+            }
             return const AuthenticatedApp();
           }
           return const LoginScreen();
@@ -68,6 +71,143 @@ class AuthWrapper extends StatelessWidget {
           return const LoginScreen();
         }
       },
+    );
+  }
+}
+
+/// External client shell — Hosted Card only, no internal PE Ops modules.
+class ClientHostedCardShell extends StatelessWidget {
+  const ClientHostedCardShell({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: AmbientBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _ClientTopBar(),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.page,
+                  AppSpacing.sm,
+                  AppSpacing.page,
+                  AppSpacing.page,
+                ),
+                child: const CodaHostedCardScreen(clientMode: true),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ClientTopBar extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceElevated,
+      elevation: 2,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.page,
+          AppSpacing.md,
+          AppSpacing.page,
+          AppSpacing.md,
+        ),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: AppColors.ink, width: 1.25),
+          ),
+        ),
+        child: SafeArea(
+          bottom: false,
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.accent,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                  border: Border.all(color: AppColors.ink, width: 1.5),
+                ),
+                child: const Icon(
+                  Icons.credit_card_rounded,
+                  color: AppColors.ink,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Hosted Card',
+                      style: AppTypography.title.copyWith(fontSize: 16),
+                    ),
+                    Consumer<AuthService>(
+                      builder: (context, auth, _) {
+                        final email = auth.user?.email ?? '';
+                        return Text(
+                          email.isEmpty
+                              ? 'Card checkout sandbox'
+                              : email,
+                          style: AppTypography.body.copyWith(fontSize: 12),
+                          overflow: TextOverflow.ellipsis,
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Direct button — PopupMenu overlays are unclickable over
+              // HtmlElementView iframes on Flutter web.
+              Consumer<AuthService>(
+                builder: (context, auth, _) {
+                  return TextButton.icon(
+                    onPressed: () async {
+                      try {
+                        await auth.signOut();
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error signing out: $e'),
+                              backgroundColor: AppColors.error,
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.logout_rounded, size: 16),
+                    label: const Text('Sign out'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.ink,
+                      backgroundColor: AppColors.surface,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      side: const BorderSide(color: AppColors.ink, width: 1.25),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadii.md),
+                      ),
+                      textStyle: AppTypography.title.copyWith(fontSize: 13),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

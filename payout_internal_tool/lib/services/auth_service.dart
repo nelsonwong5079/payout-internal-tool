@@ -1,12 +1,16 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'app_access.dart';
+
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   User? _user;
 
   User? get user => _user;
   bool get isAuthenticated => _user != null;
+  AppRole get role => roleForEmail(_user?.email);
+  bool get isHostedCardClientOnly => role.isHostedCardClientOnly;
 
   AuthService() {
     _auth.authStateChanges().listen((User? user) {

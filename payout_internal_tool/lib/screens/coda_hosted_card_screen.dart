@@ -6,7 +6,11 @@ import '../theme/app_theme.dart';
 import '../widgets/glass_surface.dart';
 
 class CodaHostedCardScreen extends StatefulWidget {
-  const CodaHostedCardScreen({super.key});
+  const CodaHostedCardScreen({super.key, this.clientMode = false});
+
+  /// When true, loads the Hosted Card tool in external-client mode:
+  /// no debug panel, no internal API key presets, no ops guide with secrets.
+  final bool clientMode;
 
   @override
   State<CodaHostedCardScreen> createState() => _CodaHostedCardScreenState();
@@ -22,7 +26,10 @@ class _CodaHostedCardScreenState extends State<CodaHostedCardScreen> {
 
     _viewType =
         'coda-hosted-card-iframe-${DateTime.now().millisecondsSinceEpoch}';
-    _iframeSrc = Uri.base.resolve('coda-hosted-card.html').toString();
+    final base = Uri.base.resolve('coda-hosted-card.html');
+    _iframeSrc = widget.clientMode
+        ? base.replace(queryParameters: {'audience': 'client'}).toString()
+        : base.toString();
 
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int viewId) {
       final iframe = html.IFrameElement()
@@ -50,6 +57,28 @@ class _CodaHostedCardScreenState extends State<CodaHostedCardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!widget.clientMode) ...[
+          _buildInfoBar(),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        Expanded(
+          child: GlassSurface(
+            padding: EdgeInsets.zero,
+            radius: AppRadii.lg,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadii.lg),
+              child: HtmlElementView(viewType: _viewType),
+            ),
+          ),
+        ),
+      ],
+    );
+
+    if (widget.clientMode) return body;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.page,
@@ -57,23 +86,7 @@ class _CodaHostedCardScreenState extends State<CodaHostedCardScreen> {
         AppSpacing.page,
         AppSpacing.page,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildInfoBar(),
-          const SizedBox(height: AppSpacing.md),
-          Expanded(
-            child: GlassSurface(
-              padding: EdgeInsets.zero,
-              radius: AppRadii.lg,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadii.lg),
-                child: HtmlElementView(viewType: _viewType),
-              ),
-            ),
-          ),
-        ],
-      ),
+      child: body,
     );
   }
 
