@@ -2026,35 +2026,322 @@
   </div>
 
   <div class="guide-overlay" id="clientHowToOverlay" role="dialog" aria-modal="true" aria-labelledby="clientHowToTitle" hidden>
-    <div class="guide-modal" style="width:min(560px,100%);">
+    <div class="guide-modal" style="width:min(720px,100%);">
       <div class="guide-header">
         <div>
           <h2 id="clientHowToTitle">How to use Hosted Card</h2>
-          <p class="sub">Quick walkthrough for a checkout session</p>
+          <p class="sub">Flow walkthrough + what each parameter is for</p>
         </div>
         <button class="btn-secondary" id="clientHowToCloseBtn" type="button">Close</button>
       </div>
       <div class="guide-body">
+        <nav class="guide-toc">
+          <a href="#ch-flow">Flow</a>
+          <a href="#ch-modes">Start modes</a>
+          <a href="#ch-params">Parameters</a>
+          <a href="#ch-optional">Optional</a>
+          <a href="#ch-actions">Actions</a>
+          <a href="#ch-tips">Tips</a>
+        </nav>
+
+        <h3 id="ch-flow">1. Quick flow</h3>
         <ol>
-          <li>
-            Choose <strong>sandbox</strong> or <strong>production</strong> under Environment.
-            Use a matching API key (<code>test_…</code> for sandbox, <code>live_…</code> for production).
-          </li>
-          <li>
-            Pick how to start:
-            <ul>
-              <li><strong>Full session</strong> — enter your API key, project ID, pay type, country, currency, order, and item, then click <strong>Start payment session</strong>.</li>
-              <li><strong>Use clientSecret</strong> — paste a <code>clientSecret</code> (and optional <code>txnId</code>) from your own init call, then <strong>Mount with clientSecret</strong>.</li>
-            </ul>
-          </li>
-          <li>When the card form mounts on the right, enter test/live card details and click <strong>Pay now</strong>.</li>
-          <li>Use <strong>Check status</strong> to confirm the payment result (inquiry is the source of truth).</li>
+          <li>Choose <strong>sandbox</strong> or <strong>production</strong> (must match your API key type).</li>
+          <li>Pick <strong>Full session</strong> or <strong>Use clientSecret</strong>.</li>
+          <li>Fill the parameters below, then start / mount.</li>
+          <li>Enter card details in the checkout panel → <strong>Pay now</strong>.</li>
+          <li>Click <strong>Check status</strong> — inquiry is the source of truth (UI “success” alone is not final).</li>
         </ol>
-        <div class="guide-callout">
-          Credentials are never pre-filled on this client view — use the keys and project settings from your Coda portal.
+
+        <h3 id="ch-modes">2. Start modes — when to use which</h3>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Mode</th><th>Use when</th><th>What happens</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Full session</strong></td>
+                <td>You want this page to call init for you with form fields</td>
+                <td>Init → returns <code>txnId</code> + <code>clientSecret</code> → mounts card form</td>
+              </tr>
+              <tr>
+                <td><strong>Use clientSecret</strong></td>
+                <td>You already ran init from your own backend / Postman</td>
+                <td>Paste <code>clientSecret</code> (and usually <code>txnId</code>) → mount only</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="ch-params">3. Parameter reference</h3>
+        <h4>Environment &amp; credentials</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Required?</th><th>What it is / use case</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Coda env</code></td>
+                <td>Yes</td>
+                <td>
+                  <strong>sandbox</strong> = test hosts + <code>test_…</code> keys.
+                  <strong>production</strong> = live hosts + <code>live_…</code> keys.
+                  Never mix env and key type.
+                </td>
+              </tr>
+              <tr>
+                <td><code>API key</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Merchant credential from Coda Portal. Authenticates init/inquiry.
+                  Sandbox keys start with <code>test_</code>; production with <code>live_</code>.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Project ID</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Numeric ID of your title/product in Coda Portal.
+                  Controls which payment channels and markets are allowed.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Pay type</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Card channel ID (numeric) provisioned for your project
+                  (e.g. the Hosted Card channel). Wrong pay type → init fails.
+                  Search by name or type the code.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Country</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  ISO 3166 numeric country code for the shopper market
+                  (e.g. 840 = US, 458 = Malaysia). Must be enabled on the project.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Currency</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  ISO 4217 numeric currency for the charge
+                  (e.g. 840 = USD, 458 = MYR). Usually matches the country market.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Order &amp; line item</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Required?</th><th>What it is / use case</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Order ID</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Your unique merchant order reference for this attempt.
+                  Generate a new one per checkout (use <strong>New order ID</strong>).
+                  Used for reconciliation and inquiry filters.
+                </td>
+              </tr>
+              <tr>
+                <td><code>User ID</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Shopper / account identifier sent in init <code>profile.user_id</code>.
+                  Helps Coda associate the payment with an end user in your system.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Item code</code></td>
+                <td>Optional</td>
+                <td>SKU / product code on the line item (helpful for reporting).</td>
+              </tr>
+              <tr>
+                <td><code>Item price</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Amount to charge (major units, e.g. <code>1.00</code> = 1.00 in the selected currency).
+                  Must be a positive number.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Item name</code></td>
+                <td>Yes (full session)</td>
+                <td>
+                  Display name of the product/line item. Prefer Latin characters
+                  for widest compatibility in this sandbox tool.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Card form toggles</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Required?</th><th>What it is / use case</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Show cardholder name</code></td>
+                <td>No</td>
+                <td>If on, the mounted PCI form asks for the name on the card.</td>
+              </tr>
+              <tr>
+                <td><code>Show cardholder email</code></td>
+                <td>No</td>
+                <td>If on, the mounted PCI form asks for an email (receipts / shopper contact).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Use clientSecret mode</h4>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>Required?</th><th>What it is / use case</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>clientSecret</code></td>
+                <td>Yes (this mode)</td>
+                <td>
+                  Short-lived JWT returned by your init call. Lets the frontend SDK
+                  mount the card form without exposing your long-term API key in a real app.
+                  Mint fresh per checkout — do not reuse.
+                </td>
+              </tr>
+              <tr>
+                <td><code>txnId</code></td>
+                <td>Recommended</td>
+                <td>
+                  Transaction ID from the same init response. Needed for
+                  <strong>Check status</strong> / inquiry after pay.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Generate clientSecret…</code></td>
+                <td>—</td>
+                <td>
+                  Optional helper popup that runs init with the fields you enter,
+                  then fills <code>clientSecret</code> + <code>txnId</code> for you.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="ch-optional">4. Optional features (PART F)</h3>
+        <p>Leave these off unless Coda has enabled them for your account.</p>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Parameter</th><th>What it is / use case</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>enableSavePaymentMethod</code></td>
+                <td>Offer to save the card for later (vault / tokenisation). Requires Coda enablement.</td>
+              </tr>
+              <tr>
+                <td><code>displaySavedPaymentMethodList</code></td>
+                <td>Show previously saved cards so the shopper can pick one.</td>
+              </tr>
+              <tr>
+                <td><code>userInitiated</code></td>
+                <td>Marks the payment as customer-initiated (vs merchant-initiated / MIT). Keep on for normal checkout.</td>
+              </tr>
+              <tr>
+                <td><code>partnerShopperId</code></td>
+                <td>Your stable shopper ID for saved-card vaulting (links cards to that user).</td>
+              </tr>
+              <tr>
+                <td><code>shopper email</code></td>
+                <td>Shopper email in the shopper profile (saved-card / receipt flows).</td>
+              </tr>
+              <tr>
+                <td><code>Theme JSON</code></td>
+                <td>
+                  <code>appearance.customStyle</code> for the Hosted Card UI
+                  (colors, borders, etc.) without changing code.
+                </td>
+              </tr>
+              <tr>
+                <td><code>Authorize &amp; Capture</code></td>
+                <td>Stub only in this tool until auth/capture is enabled for the account.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
         <div class="guide-callout guide-warn">
-          Keep sandbox and production consistent (env + key type). Mixing them usually causes charge failures.
+          Saved cards are not available for all markets (e.g. India / Indonesia restrictions may apply).
+        </div>
+
+        <h3 id="ch-actions">5. Buttons &amp; right-hand panels</h3>
+        <div class="guide-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Control</th><th>What it does</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Start payment session</strong></td>
+                <td>Runs init with your form, then mounts the card form (Full session).</td>
+              </tr>
+              <tr>
+                <td><strong>Mount with clientSecret</strong></td>
+                <td>Mounts the card form using a pasted secret (clientSecret mode).</td>
+              </tr>
+              <tr>
+                <td><strong>Reset form</strong></td>
+                <td>Clears the mounted form / session UI so you can start again.</td>
+              </tr>
+              <tr>
+                <td><strong>New order ID</strong></td>
+                <td>Generates a fresh unique <code>Order ID</code> for the next attempt.</td>
+              </tr>
+              <tr>
+                <td><strong>Pay now</strong></td>
+                <td>Submits the card details via Coda’s SDK (card data never hits this page’s server).</td>
+              </tr>
+              <tr>
+                <td><strong>Check status</strong></td>
+                <td>Calls inquiry with <code>txnId</code> / order context to confirm success, pending, or failed.</td>
+              </tr>
+              <tr>
+                <td><strong>Session progress</strong></td>
+                <td>Visual stepper: Ready → Init → Mount → Card ready → Pay / 3DS → Inquiry → Done.</td>
+              </tr>
+              <tr>
+                <td><strong>Checkout preview</strong></td>
+                <td>Shows amount / item / order context for the current session.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3 id="ch-tips">6. Tips &amp; common pitfalls</h3>
+        <ul>
+          <li>Credentials are <strong>not</strong> pre-filled on this client view — use values from your Coda Portal.</li>
+          <li>Always match <strong>env + API key prefix</strong> (<code>test_</code> ↔ sandbox, <code>live_</code> ↔ production).</li>
+          <li>Use a <strong>new Order ID</strong> for every attempt.</li>
+          <li>Mint a <strong>fresh clientSecret</strong> per checkout; reusing an old one often causes charge <code>400</code>.</li>
+          <li>Country / currency / pay type / project must be a combination enabled for your merchant.</li>
+          <li>After pay, always run <strong>Check status</strong> before treating the payment as final.</li>
+        </ul>
+        <div class="guide-callout">
+          Need help with portal values (project ID, pay type, test cards)? Ask your Coda integrations contact.
         </div>
       </div>
     </div>
