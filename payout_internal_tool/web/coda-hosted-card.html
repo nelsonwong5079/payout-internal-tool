@@ -364,9 +364,11 @@
       --muted: #EFEDE6;
       --glass: rgba(255, 229, 0, 0.12);
       --glass-border: #121212;
+      /* Fluorescent yellow = FILL only. Never use as text on light surfaces. */
       --accent: #FFE500;
-      --accent-hover: #FFF06A;
-      --accent-dark: #E6CF00;
+      --accent-hover: #E6CF00;
+      --accent-dark: #C4B000;
+      --on-accent: #121212;
       --border-subtle: #121212;
       --text: #121212;
       --text-2: #4A4A4A;
@@ -411,7 +413,8 @@
     ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: var(--r-pill); border: 2px solid var(--canvas); }
     ::-webkit-scrollbar-thumb:hover { background: var(--border-subtle); }
 
-    a { color: var(--accent-hover); text-decoration: none; }
+    a { color: var(--text); text-decoration: underline; text-underline-offset: 2px; }
+    a:hover { color: var(--text-2); }
     a:hover { text-decoration: underline; }
 
     [hidden] { display: none !important; }
@@ -488,11 +491,11 @@
     code {
       font-family: var(--mono);
       font-size: 0.9em;
-      background: var(--muted);
+      background: #FFF6A8;
       border: 1px solid var(--glass-border);
       border-radius: var(--r-sm);
       padding: 1px 5px;
-      color: var(--accent-hover);
+      color: var(--text);
     }
     strong { color: var(--text); font-weight: 600; }
 
@@ -501,13 +504,13 @@
       margin-top: 14px;
       padding: 12px 14px;
       border-radius: var(--r-md);
-      background: rgba(99, 102, 241, 0.08);
-      border: 1px solid rgba(99, 102, 241, 0.25);
+      background: rgba(255, 229, 0, 0.18);
+      border: 1px solid var(--glass-border);
       color: var(--text-2);
       font-size: 12px;
       line-height: 1.55;
     }
-    .banner strong { color: var(--accent-hover); }
+    .banner strong { color: var(--text); }
 
     /* ---------- Divider ---------- */
     .ink-divider {
@@ -602,7 +605,7 @@
     .combo-option:hover,
     .combo-option.active { background: var(--muted); }
     .co-label { color: var(--text); }
-    .combo-option.selected .co-label { color: var(--accent-hover); font-weight: 600; }
+    .combo-option.selected .co-label { color: var(--text); font-weight: 600; }
     .co-code {
       font-family: var(--mono);
       font-size: 11px;
@@ -631,12 +634,20 @@
     }
     .btn-primary {
       background: var(--accent);
-      color: #fff;
-      border: 1px solid transparent;
+      color: var(--on-accent);
+      border: 1.25px solid var(--glass-border);
       padding: 10px 16px;
     }
-    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-primary:hover:not(:disabled) {
+      background: var(--accent-hover);
+      color: var(--on-accent);
+    }
     .btn-primary:active:not(:disabled) { transform: translateY(1px); }
+    .btn-primary:disabled {
+      opacity: 0.55;
+      color: var(--on-accent);
+      cursor: not-allowed;
+    }
     .btn-secondary {
       background: transparent;
       color: var(--text-2);
@@ -656,7 +667,7 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
-    .btn-guide:hover { border-color: var(--accent); color: var(--accent-hover); }
+    .btn-guide:hover { border-color: var(--accent-dark); color: var(--text); }
     button:disabled { opacity: 0.5; cursor: not-allowed; }
     button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -748,9 +759,9 @@
     }
     .diag-quickpicks button:hover { border-color: var(--border-subtle); color: var(--text); }
     .diag-quickpicks button.active {
-      background: rgba(99, 102, 241, 0.14);
-      border-color: rgba(99, 102, 241, 0.5);
-      color: var(--accent-hover);
+      background: rgba(255, 229, 0, 0.35);
+      border-color: var(--glass-border);
+      color: var(--text);
     }
     .diag-sdk-url {
       font-family: var(--mono);
@@ -782,15 +793,15 @@
     }
     .mode-btn:hover { border-color: var(--border-subtle); }
     .mode-btn.active {
-      background: rgba(99, 102, 241, 0.12);
-      border-color: rgba(99, 102, 241, 0.55);
+      background: rgba(255, 229, 0, 0.28);
+      border-color: var(--glass-border);
     }
     .mode-btn-title {
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text);
     }
-    .mode-btn.active .mode-btn-title { color: var(--accent-hover); }
+    .mode-btn.active .mode-btn-title { color: var(--text); }
     .mode-btn-sub {
       font-size: 11px;
       color: var(--text-3);
@@ -825,9 +836,9 @@
     }
     .status-pill.idle { background: var(--muted); color: var(--text-3); border-color: var(--glass-border); }
     .status-pill.info, .status-pill.ready {
-      background: rgba(99, 102, 241, 0.12);
-      color: var(--accent-hover);
-      border-color: rgba(99, 102, 241, 0.3);
+      background: rgba(255, 229, 0, 0.28);
+      color: var(--text);
+      border-color: var(--glass-border);
     }
     .status-pill.pending, .status-pill.submitting, .status-pill.tds {
       background: rgba(245, 158, 11, 0.12);
@@ -977,8 +988,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      color: var(--on-accent);
       flex-shrink: 0;
+      border: 1px solid var(--glass-border);
     }
     .pay-logo svg { width: 20px; height: 20px; }
     .pay-merchant-name { margin: 0; font-size: 13px; font-weight: 600; color: var(--text); }
@@ -1087,7 +1099,7 @@
     }
     .cv-mark svg { width: 28px; height: 28px; }
     .cv-idle { color: var(--text-3); }
-    .cv-spin { color: var(--accent-hover); border-color: rgba(99,102,241,0.4); }
+    .cv-spin { color: var(--text); border-color: rgba(18, 18, 18, 0.35); }
     .cv-spin svg { animation: cv-rot 0.9s linear infinite; }
     @keyframes cv-rot { to { transform: rotate(360deg); } }
     .cv-ok { color: var(--success); border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.1); }
@@ -1193,11 +1205,11 @@
     }
     .f-dot svg { width: 11px; height: 11px; stroke: currentColor; fill: none; }
     .f-label { font-size: 9.5px; color: var(--text-3); transition: color 0.25s var(--ease); }
-    .flow-step.done .f-dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .flow-step.done .f-dot { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
     .flow-step.active .f-dot {
-      border-color: var(--accent);
-      color: var(--accent-hover);
-      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.18);
+      border-color: var(--accent-dark);
+      color: var(--text);
+      box-shadow: 0 0 0 4px rgba(255, 229, 0, 0.35);
     }
     .flow-step.active .f-label { color: var(--text); font-weight: 600; }
     .flow-step.success .f-dot { background: var(--success); border-color: var(--success); color: #fff; }
@@ -1208,15 +1220,15 @@
       font-family: var(--sans);
       font-weight: 600;
       font-size: 13px;
-      color: #fff;
+      color: var(--on-accent);
       background: var(--accent);
-      border: none;
+      border: 1.25px solid var(--glass-border);
       border-radius: var(--r-md);
       padding: 10px 24px;
       cursor: pointer;
       transition: background 0.15s var(--ease);
     }
-    .btn-pay-retry:hover { background: var(--accent-hover); }
+    .btn-pay-retry:hover { background: var(--accent-hover); color: var(--on-accent); }
 
     /* ---------- Coda SDK mount ---------- */
     #payment-form {
@@ -1323,7 +1335,7 @@
       font-weight: 700;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      color: var(--accent-hover);
+      color: var(--text);
     }
     .diag-ts { font-family: var(--mono); font-size: 10px; color: var(--text-3); }
     .diag-msg { font-size: 12px; color: var(--text); }
@@ -1438,7 +1450,7 @@
       border: 1px solid var(--glass-border);
       color: var(--text-2);
     }
-    .guide-toc a:hover { border-color: var(--accent); color: var(--accent-hover); text-decoration: none; }
+    .guide-toc a:hover { border-color: var(--accent-dark); color: var(--text); text-decoration: none; }
     .guide-table-wrap { overflow-x: auto; margin: 10px 0; border: 1px solid var(--glass-border); border-radius: var(--r-md); }
     .guide-body table { width: 100%; border-collapse: collapse; font-size: 12px; }
     .guide-body th, .guide-body td {
@@ -1457,15 +1469,51 @@
       .panel.ink-enter { opacity: 1; transform: none; }
     }
   
-    /* workbench-skin */
-    .btn-primary, .btn-pay, button.primary { color: #121212 !important; border: 1.25px solid #121212; }
-    .btn-primary:hover:not(:disabled), .btn-pay:hover:not(:disabled) { color: #121212 !important; }
+    /* workbench-skin + contrast: yellow is FILL only, ink is TEXT */
+    .btn-primary, .btn-pay, button.primary, .btn-pay-retry {
+      color: #121212 !important;
+      border: 1.25px solid #121212 !important;
+    }
+    .btn-primary:hover:not(:disabled),
+    .btn-pay:hover:not(:disabled),
+    .btn-pay-retry:hover:not(:disabled),
+    .btn-primary:disabled {
+      color: #121212 !important;
+    }
+    code,
+    a,
+    .banner strong,
+    .mode-btn.active .mode-btn-title,
+    .mode-btn-title,
+    .combo-option.selected .co-label,
+    .status-pill.info,
+    .status-pill.ready,
+    .diag-quickpicks button.active,
+    .diag-kind,
+    .guide-toc a:hover,
+    .guide-body code,
+    .cv-spin {
+      color: #121212 !important;
+    }
+    code, .guide-body code {
+      background: #FFF6A8 !important;
+    }
+    .mode-btn.active {
+      background: rgba(255, 229, 0, 0.28) !important;
+      border-color: #121212 !important;
+    }
+    .pay-logo,
+    .flow-step.done .f-dot {
+      color: #121212 !important;
+    }
     input, select, textarea { border-radius: 2px !important; }
     .panel, .card, .box { border-radius: 2px !important; }
 
     /* —— External client mode (audience=client): hide ops-only surfaces —— */
     body.client-mode .client-hide { display: none !important; }
-    body.client-mode .client-only { display: block !important; }
+    body.client-mode .client-only { display: revert !important; }
+    body.client-mode button.client-only.btn-guide { display: inline-flex !important; align-items: center; }
+    body.client-mode p.client-only { display: block !important; }
     body.client-mode .title-row h1::after {
       content: none;
     }
@@ -1494,6 +1542,7 @@
       <div class="title-row">
         <h1>Coda Hosted Card</h1>
         <button class="btn-guide client-hide" id="guideOpenBtn" type="button">0 → 100 Guide</button>
+        <button class="btn-guide client-only" id="clientHowToBtn" type="button">How to use</button>
       </div>
       <p class="subtitle client-hide">
         Initiate a Hosted Component session, mount the PCI card form, submit the charge,
@@ -1503,6 +1552,7 @@
       <p class="subtitle client-only">
         Start a card checkout session, complete payment in the secure form, then check status.
         Use your own sandbox/production credentials — nothing is pre-filled.
+        Need a walkthrough? Open <strong>How to use</strong>.
       </p>
 
       <div class="diag-gate client-hide">
@@ -1970,6 +2020,41 @@
           <div class="row-actions" style="margin-top:0;">
             <button class="btn-primary" id="initUseBtn" type="button">Use these &amp; close</button>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-overlay" id="clientHowToOverlay" role="dialog" aria-modal="true" aria-labelledby="clientHowToTitle" hidden>
+    <div class="guide-modal" style="width:min(560px,100%);">
+      <div class="guide-header">
+        <div>
+          <h2 id="clientHowToTitle">How to use Hosted Card</h2>
+          <p class="sub">Quick walkthrough for a checkout session</p>
+        </div>
+        <button class="btn-secondary" id="clientHowToCloseBtn" type="button">Close</button>
+      </div>
+      <div class="guide-body">
+        <ol>
+          <li>
+            Choose <strong>sandbox</strong> or <strong>production</strong> under Environment.
+            Use a matching API key (<code>test_…</code> for sandbox, <code>live_…</code> for production).
+          </li>
+          <li>
+            Pick how to start:
+            <ul>
+              <li><strong>Full session</strong> — enter your API key, project ID, pay type, country, currency, order, and item, then click <strong>Start payment session</strong>.</li>
+              <li><strong>Use clientSecret</strong> — paste a <code>clientSecret</code> (and optional <code>txnId</code>) from your own init call, then <strong>Mount with clientSecret</strong>.</li>
+            </ul>
+          </li>
+          <li>When the card form mounts on the right, enter test/live card details and click <strong>Pay now</strong>.</li>
+          <li>Use <strong>Check status</strong> to confirm the payment result (inquiry is the source of truth).</li>
+        </ol>
+        <div class="guide-callout">
+          Credentials are never pre-filled on this client view — use the keys and project settings from your Coda portal.
+        </div>
+        <div class="guide-callout guide-warn">
+          Keep sandbox and production consistent (env + key type). Mixing them usually causes charge failures.
         </div>
       </div>
     </div>
@@ -4236,27 +4321,66 @@
     const guideCloseBtn = document.getElementById('guideCloseBtn');
 
     function openGuide() {
+      if (!guideOverlay) return;
       guideOverlay.hidden = false;
       guideOverlay.classList.add('open');
       document.body.classList.add('guide-open');
-      guideCloseBtn.focus();
+      if (guideCloseBtn) guideCloseBtn.focus();
     }
 
     function closeGuide() {
+      if (!guideOverlay) return;
       guideOverlay.classList.remove('open');
       guideOverlay.hidden = true;
       document.body.classList.remove('guide-open');
-      guideOpenBtn.focus();
+      if (guideOpenBtn) guideOpenBtn.focus();
     }
 
-    guideOpenBtn.addEventListener('click', openGuide);
-    guideCloseBtn.addEventListener('click', closeGuide);
-    guideOverlay.addEventListener('click', function (e) {
-      if (e.target === guideOverlay) closeGuide();
-    });
+    if (guideOpenBtn) guideOpenBtn.addEventListener('click', openGuide);
+    if (guideCloseBtn) guideCloseBtn.addEventListener('click', closeGuide);
+    if (guideOverlay) {
+      guideOverlay.addEventListener('click', function (e) {
+        if (e.target === guideOverlay) closeGuide();
+      });
+    }
+
+    // Client-safe how-to (no internal keys / PE Ops secrets).
+    const clientHowToOverlay = document.getElementById('clientHowToOverlay');
+    const clientHowToBtn = document.getElementById('clientHowToBtn');
+    const clientHowToCloseBtn = document.getElementById('clientHowToCloseBtn');
+
+    function openClientHowTo() {
+      if (!clientHowToOverlay) return;
+      clientHowToOverlay.hidden = false;
+      clientHowToOverlay.classList.add('open');
+      document.body.classList.add('guide-open');
+      if (clientHowToCloseBtn) clientHowToCloseBtn.focus();
+    }
+
+    function closeClientHowTo() {
+      if (!clientHowToOverlay) return;
+      clientHowToOverlay.classList.remove('open');
+      clientHowToOverlay.hidden = true;
+      document.body.classList.remove('guide-open');
+      if (clientHowToBtn) clientHowToBtn.focus();
+    }
+
+    if (clientHowToBtn) clientHowToBtn.addEventListener('click', openClientHowTo);
+    if (clientHowToCloseBtn) {
+      clientHowToCloseBtn.addEventListener('click', closeClientHowTo);
+    }
+    if (clientHowToOverlay) {
+      clientHowToOverlay.addEventListener('click', function (e) {
+        if (e.target === clientHowToOverlay) closeClientHowTo();
+      });
+    }
 
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && guideOverlay.classList.contains('open')) closeGuide();
+      if (e.key !== 'Escape') return;
+      if (guideOverlay && guideOverlay.classList.contains('open')) closeGuide();
+      if (clientHowToOverlay && clientHowToOverlay.classList.contains('open')) {
+        closeClientHowTo();
+      }
     });
 
     // —— Init helper modal (mint a clientSecret from within the manual flow) ——

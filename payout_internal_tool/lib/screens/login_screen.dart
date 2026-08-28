@@ -204,10 +204,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const _FeatureChip(label: 'Batch processing'),
                 const _FeatureChip(label: 'Sandbox monitor'),
                 const _FeatureChip(label: 'Theme builder'),
-                _FeatureChip(
-                  label: 'Template library',
-                  onTap: () => Navigator.of(context).pushNamed('/templates'),
-                ),
+                const _FeatureChip(label: 'Template library'),
               ],
             ),
           ],
@@ -392,15 +389,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () =>
-                          Navigator.of(context).pushNamed('/templates'),
+                      onPressed: null,
                       icon: const Icon(Icons.article_outlined, size: 18),
                       label: const Text('Template Library'),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
-                    'No sign-in required',
+                    'Temporarily unavailable',
                     textAlign: TextAlign.center,
                     style: AppTypography.label,
                   ),
